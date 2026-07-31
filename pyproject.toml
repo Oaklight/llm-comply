@@ -53,12 +53,13 @@ Issues = "https://github.com/Oaklight/llm-comply/issues"
 
 [project.scripts]
 llm-comply = "llm_comply.cli:main"
+llm-comply-web = "llm_comply.web:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"llm_comply" = ["specs/*.json", "specs/*.jpg"]
+"llm_comply" = ["specs/*.json", "specs/*.jpg", "web.html"]
 
 [tool.setuptools.dynamic]
 version = { attr = "llm_comply.__version__" }

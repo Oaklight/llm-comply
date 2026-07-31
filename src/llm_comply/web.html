@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>llm-comply — LLM API Compliance Tester</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f8f9fb;
+  --bg-card: #ffffff;
+  --border: #e5e7eb;
+  --text: #1a1a2e;
+  --text-dim: #6b7280;
+  --accent: #111827;
+  --accent-hover: #374151;
+  --green: #16a34a;
+  --green-bg: #dcfce7;
+  --green-border: #bbf7d0;
+  --red: #dc2626;
+  --red-bg: #fef2f2;
+  --red-border: #fecaca;
+  --blue: #2563eb;
+  --blue-bg: #eff6ff;
+  --blue-border: #bfdbfe;
+  --yellow: #d97706;
+  --yellow-bg: #fef3c7;
+  --yellow-border: #fde68a;
+  --radius: 8px;
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.6; }
+a { color: var(--blue); text-decoration: none; }
+
+/* Layout */
+.container { max-width: 1080px; margin: 0 auto; padding: 48px 24px; }
+.header { margin-bottom: 32px; }
+.header h1 { font-size: 2.2rem; font-weight: 700; letter-spacing: -0.02em; }
+.header p { color: var(--text-dim); margin-top: 6px; font-size: 0.95rem; }
+.content { display: grid; grid-template-columns: 340px 1fr; gap: 28px; align-items: start; }
+@media (max-width: 768px) { .content { grid-template-columns: 1fr; } }
+
+/* Config panel */
+.config { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; position: sticky; top: 24px; }
+.config h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.field input, .field select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; font-family: var(--font); background: var(--bg-card); color: var(--text); outline: none; transition: border-color 0.15s; }
+.field input:focus, .field select:focus { border-color: var(--blue); }
+.field-row { display: flex; gap: 10px; align-items: center; }
+.field-row label { margin-bottom: 0; font-size: 0.82rem; text-transform: none; letter-spacing: 0; }
+.field-row input[type="checkbox"] { width: auto; }
+.advanced-toggle { font-size: 0.82rem; color: var(--text-dim); cursor: pointer; user-select: none; margin-bottom: 10px; }
+.advanced-toggle:hover { color: var(--text); }
+.advanced { display: none; }
+.advanced.open { display: block; }
+.btn-run { width: 100%; padding: 10px 24px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: background 0.15s; font-family: var(--font); }
+.btn-run:hover { background: var(--accent-hover); }
+.btn-run:disabled { background: var(--border); cursor: not-allowed; }
+
+/* Test suite */
+.suite h2 { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+.suite .meta { color: var(--text-dim); font-size: 0.82rem; margin-bottom: 14px; }
+
+/* Summary bar */
+.summary { padding: 10px 16px; border-radius: var(--radius); font-weight: 500; font-size: 0.9rem; text-align: center; margin-bottom: 14px; display: none; }
+.summary.pass { display: block; background: var(--green-bg); color: #166534; border: 1px solid var(--green-border); }
+.summary.fail { display: block; background: var(--red-bg); color: #991b1b; border: 1px solid var(--red-border); }
+.summary.running { display: block; background: var(--blue-bg); color: #1e40af; border: 1px solid var(--blue-border); }
+
+/* Test list */
+.test-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.test-item { display: flex; align-items: flex-start; gap: 12px; padding: 13px 16px; background: var(--bg-card); border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+.test-item:last-child { border-bottom: none; }
+.test-item:hover { background: #f9fafb; }
+.test-icon { width: 22px; font-size: 1rem; text-align: center; flex-shrink: 0; margin-top: 1px; }
+.test-icon.pass { color: var(--green); }
+.test-icon.fail { color: var(--red); }
+.test-icon.skip { color: var(--yellow); }
+.test-icon.pending { color: #ccc; }
+.test-icon.running { color: var(--blue); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.test-body { flex: 1; min-width: 0; }
+.test-name { font-weight: 500; font-size: 0.9rem; }
+.test-desc { color: var(--text-dim); font-size: 0.78rem; margin-top: 1px; }
+.test-time { color: var(--text-dim); font-size: 0.78rem; flex-shrink: 0; margin-top: 2px; }
+.tag { display: inline-block; font-size: 0.65rem; font-weight: 500; padding: 1px 6px; border-radius: 3px; vertical-align: middle; margin-left: 5px; }
+.tag-stream { background: #e0f2fe; color: #0284c7; }
+
+/* Error details */
+.test-errors { display: none; margin-top: 8px; padding: 10px 12px; background: var(--red-bg); border: 1px solid var(--red-border); border-radius: 6px; font-size: 0.78rem; }
+.test-item.expanded .test-errors { display: block; }
+.err-label { font-weight: 600; color: var(--red); font-size: 0.75rem; margin-bottom: 4px; }
+.test-errors ul { padding-left: 16px; color: #991b1b; margin: 0; }
+.test-errors li { margin-bottom: 2px; }
+.detail-block { margin-top: 8px; }
+.detail-block strong { display: block; color: var(--text-dim); font-size: 0.75rem; margin-bottom: 3px; }
+.detail-block pre { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; font-size: 0.72rem; overflow-x: auto; max-height: 180px; white-space: pre-wrap; word-break: break-all; margin: 0; }
+
+/* Footer */
+.footer { text-align: center; color: var(--text-dim); font-size: 0.78rem; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>llm-comply</h1>
+    <p>Test any API endpoint for compliance with OpenAI Chat, Open Responses, Anthropic, or Google GenAI specifications.</p>
+  </div>
+
+  <div class="content">
+    <!-- Config -->
+    <div class="config">
+      <h2>Configuration</h2>
+      <div class="field">
+        <label>API Format</label>
+        <select id="fmt" onchange="onFormatChange()">
+          <option value="open-responses">Open Responses</option>
+          <option value="openai-chat">OpenAI Chat Completions</option>
+          <option value="anthropic">Anthropic Messages</option>
+          <option value="google-genai">Google GenAI</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Base URL</label>
+        <input id="url" type="text" placeholder="https://api.openai.com/v1">
+      </div>
+      <div class="field">
+        <label>Model</label>
+        <input id="model" type="text" placeholder="gpt-4o-mini">
+      </div>
+      <div class="field">
+        <label>API Key</label>
+        <input id="key" type="password" placeholder="sk-...">
+      </div>
+      <div class="advanced-toggle" onclick="toggleAdvanced()">▸ Advanced</div>
+      <div class="advanced" id="adv">
+        <div class="field">
+          <label>Auth Header</label>
+          <input id="auth-header" type="text" value="Authorization">
+        </div>
+        <div class="field field-row">
+          <input type="checkbox" id="bearer" checked>
+          <label for="bearer">Use "Bearer" prefix</label>
+        </div>
+        <div class="field">
+          <label>Ignore Errors (comma-separated)</label>
+          <input id="ignore" type="text" placeholder="refusal,verbosity">
+        </div>
+      </div>
+      <button class="btn-run" id="run-btn" onclick="runTests()">Run Tests</button>
+    </div>
+
+    <!-- Results -->
+    <div class="suite">
+      <h2>Test Suite</h2>
+      <div class="meta" id="suite-meta"></div>
+      <div class="summary" id="summary"></div>
+      <div class="test-list" id="tests"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="https://github.com/Oaklight/llm-comply" target="_blank">llm-comply</a> — Multi-format LLM API compliance testing
+  </div>
+</div>
+
+<script>
+const DEFAULTS = {
+  'open-responses': { url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', auth: 'Authorization', bearer: true },
+  'openai-chat': { url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', auth: 'Authorization', bearer: true },
+  'anthropic': { url: 'https://api.anthropic.com/v1', model: 'claude-haiku-4-5-20251001', auth: 'x-api-key', bearer: false },
+  'google-genai': { url: 'https://generativelanguage.googleapis.com', model: 'gemini-2.5-flash', auth: 'x-goog-api-key', bearer: false },
+};
+
+let testData = [];
+
+function $(id) { return document.getElementById(id); }
+
+function onFormatChange() {
+  const fmt = $('fmt').value;
+  const d = DEFAULTS[fmt] || {};
+  $('url').value = d.url || '';
+  $('model').value = d.model || '';
+  $('auth-header').value = d.auth || 'Authorization';
+  $('bearer').checked = d.bearer !== false;
+  loadTests();
+}
+
+function toggleAdvanced() {
+  const adv = $('adv');
+  const toggle = adv.previousElementSibling;
+  adv.classList.toggle('open');
+  toggle.textContent = adv.classList.contains('open') ? '▾ Advanced' : '▸ Advanced';
+}
+
+async function loadTests() {
+  const fmt = $('fmt').value;
+  try {
+    const resp = await fetch('/api/tests?format=' + encodeURIComponent(fmt));
+    testData = await resp.json();
+  } catch(e) { testData = []; }
+  renderTests();
+}
+
+function renderTests() {
+  const el = $('tests');
+  $('suite-meta').textContent = testData.length + ' tests';
+  $('summary').className = 'summary';
+  $('summary').textContent = '';
+  el.innerHTML = testData.map(t => `
+    <div class="test-item" id="t-${t.id}">
+      <div class="test-icon pending">○</div>
+      <div class="test-body">
+        <div class="test-name">${esc(t.name)}${t.streaming ? '<span class="tag tag-stream">streaming</span>' : ''}</div>
+        <div class="test-desc">${esc(t.description)}</div>
+      </div>
+      <div class="test-time"></div>
+    </div>
+  `).join('');
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function runTests() {
+  const btn = $('run-btn');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  renderTests();
+
+  const fmt = $('fmt').value;
+  const payload = {
+    format: fmt,
+    base_url: $('url').value,
+    api_key: $('key').value,
+    model: $('model').value,
+    auth_header: $('auth-header').value,
+    use_bearer: $('bearer').checked,
+    ignore: $('ignore').value,
+  };
+
+  let passed = 0, failed = 0, skipped = 0;
+
+  for (const t of testData) {
+    const item = document.getElementById('t-' + t.id);
+    const icon = item.querySelector('.test-icon');
+    icon.className = 'test-icon running';
+    icon.textContent = '⟳';
+    updateSummary(passed, failed, skipped, testData.length, true);
+
+    try {
+      const resp = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, test_id: t.id }),
+      });
+      const r = await resp.json();
+
+      const timeEl = item.querySelector('.test-time');
+      timeEl.textContent = r.duration_ms ? Math.round(r.duration_ms) + 'ms' : '';
+
+      if (r.status === 'passed') {
+        icon.className = 'test-icon pass'; icon.textContent = '✓'; passed++;
+      } else if (r.status === 'skipped') {
+        icon.className = 'test-icon skip'; icon.textContent = '⏭'; skipped++;
+      } else {
+        icon.className = 'test-icon fail'; icon.textContent = '✗'; failed++;
+        if (r.errors && r.errors.length) {
+          const errHtml = buildErrorHtml(r);
+          const body = item.querySelector('.test-body');
+          body.insertAdjacentHTML('beforeend', errHtml);
+          item.onclick = () => item.classList.toggle('expanded');
+          item.classList.add('expanded');
+        }
+      }
+    } catch(e) {
+      icon.className = 'test-icon fail'; icon.textContent = '✗'; failed++;
+    }
+  }
+
+  updateSummary(passed, failed, skipped, testData.length, false);
+  btn.disabled = false;
+  btn.textContent = 'Run Tests';
+}
+
+function buildErrorHtml(r) {
+  let html = '<div class="test-errors"><div class="err-label">Errors</div><ul>';
+  const max = 6;
+  r.errors.slice(0, max).forEach(e => { html += '<li>' + esc(e) + '</li>'; });
+  if (r.errors.length > max) html += '<li>... and ' + (r.errors.length - max) + ' more</li>';
+  html += '</ul>';
+  if (r.request) html += '<div class="detail-block"><strong>Request</strong><pre>' + esc(r.request) + '</pre></div>';
+  if (r.response) html += '<div class="detail-block"><strong>Response</strong><pre>' + esc(r.response) + '</pre></div>';
+  html += '</div>';
+  return html;
+}
+
+function updateSummary(passed, failed, skipped, total, running) {
+  const el = $('summary');
+  const done = passed + failed + skipped;
+  if (running) {
+    el.className = 'summary running';
+    el.textContent = 'Running... ' + done + '/' + total;
+  } else if (failed === 0) {
+    el.className = 'summary pass';
+    el.textContent = 'All ' + passed + ' tests passed!';
+  } else {
+    el.className = 'summary fail';
+    el.textContent = passed + '/' + total + ' passed, ' + failed + ' failed' + (skipped ? ', ' + skipped + ' skipped' : '');
+  }
+}
+
+// Init
+onFormatChange();
+</script>
+</body>
+</html>

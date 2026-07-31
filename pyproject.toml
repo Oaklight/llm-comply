@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-comply"
+dynamic = ["version"]
+authors = [{ name = "Oaklight", email = "oaklight@gmx.com" }]
+description = "Multi-format LLM API compliance testing tool — validates endpoints against OpenAI Chat, Open Responses, Anthropic, and Google GenAI specs."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+keywords = [
+    "openai",
+    "anthropic",
+    "gemini",
+    "google-genai",
+    "compliance",
+    "testing",
+    "api-validation",
+    "openapi",
+    "llm",
+    "open-responses",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "jsonschema>=4.0.0",
+]
+
+[project.optional-dependencies]
+rich = ["rich>=13.0.0"]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.6.0",
+    "build>=1.0.0",
+    "twine>=5.0.0",
+]
+
+[project.urls]
+Repository = "https://github.com/Oaklight/llm-comply"
+Issues = "https://github.com/Oaklight/llm-comply/issues"
+
+[project.scripts]
+llm-comply = "llm_comply.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"llm_comply" = ["specs/*.json", "specs/*.jpg"]
+
+[tool.setuptools.dynamic]
+version = { attr = "llm_comply.__version__" }
+
+[tool.ruff]
+target-version = "py310"
+exclude = ["src/llm_comply/_vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "UP"]
+ignore = ["UP007", "E501"]

@@ -1,0 +1,564 @@
+"""Validator functions for compliance tests."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from .test_case import Validator, ValidatorContext
+
+
+def has_output(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a non-empty output array."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    output = response.get("output")
+    if not isinstance(output, list) or len(output) == 0:
+        return ["response.output is missing or empty"]
+    return []
+
+
+def completed_status(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response status must be 'completed'."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    status = response.get("status")
+    if status != "completed":
+        return [f"expected status='completed', got '{status}'"]
+    return []
+
+
+def has_response_id(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a non-empty id field."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    rid = response.get("id")
+    if not rid or not isinstance(rid, str):
+        return ["response.id is missing or empty"]
+    return []
+
+
+def has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a usage object with token counts."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    usage = response.get("usage")
+    if not isinstance(usage, dict):
+        return ["response.usage is missing"]
+    errors: list[str] = []
+    for field in ("input_tokens", "output_tokens", "total_tokens"):
+        if field not in usage:
+            errors.append(f"response.usage.{field} is missing")
+    return errors
+
+
+def has_output_type(expected_type: str) -> Validator:
+    """Factory: validate response has an output item of the given type."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not isinstance(response, dict):
+            return ["response is not a JSON object"]
+        output = response.get("output", [])
+        if not isinstance(output, list):
+            return ["response.output is not an array"]
+        types = [item.get("type") for item in output if isinstance(item, dict)]
+        if expected_type not in types:
+            return [f"no output item with type='{expected_type}' (found: {types})"]
+        return []
+
+    _check.__qualname__ = f"has_output_type({expected_type!r})"
+    return _check
+
+
+# -- Streaming validators --
+
+
+def streaming_has_events(response: Any, ctx: ValidatorContext) -> list[str]:
+    """SSE events must have been received."""
+    if not ctx.sse_events:
+        return ["no SSE events received"]
+    return []
+
+
+def streaming_has_terminal(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Stream must end with a terminal event (completed/failed/incomplete)."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    terminal = {"response.completed", "response.failed", "response.incomplete"}
+    typed = [e["type"] for e in ctx.sse_events if isinstance(e.get("type"), str)]
+    if not any(t in terminal for t in typed):
+        return ["stream has no terminal event (completed/failed/incomplete)"]
+    return []
+
+
+def streaming_lifecycle_order(response: Any, ctx: ValidatorContext) -> list[str]:
+    """SSE events must follow the expected lifecycle ordering."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+
+    errors: list[str] = []
+    seen_types: list[str] = [
+        e["type"] for e in ctx.sse_events if e.get("type") != "[DONE]"
+    ]
+
+    if not seen_types:
+        return ["no typed events found"]
+
+    # First event should be response.created or response.queued
+    expected_first = {"response.created", "response.queued"}
+    if seen_types[0] not in expected_first:
+        errors.append(f"first event should be {expected_first}, got '{seen_types[0]}'")
+
+    # Check response.created comes before response.in_progress
+    created_idx = _first_idx(seen_types, "response.created")
+    in_progress_idx = _first_idx(seen_types, "response.in_progress")
+    if created_idx is not None and in_progress_idx is not None:
+        if created_idx > in_progress_idx:
+            errors.append("response.created must come before response.in_progress")
+
+    # Terminal event should be one of the terminal types
+    terminal = {"response.completed", "response.failed", "response.incomplete"}
+    non_done = [t for t in seen_types if t != "[DONE]"]
+    if non_done and non_done[-1] not in terminal:
+        errors.append(f"last typed event should be terminal, got '{non_done[-1]}'")
+
+    return errors
+
+
+def streaming_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Final streaming response must include usage data."""
+    if not isinstance(response, dict):
+        return ["no final response extracted from stream"]
+    return has_usage(response, ctx)
+
+
+def streaming_sequence_numbers(response: Any, ctx: ValidatorContext) -> list[str]:
+    """sequence_number must be monotonically increasing across events."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+
+    errors: list[str] = []
+    prev_seq: int | None = None
+
+    for i, event in enumerate(ctx.sse_events):
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        seq = data.get("sequence_number")
+        if seq is None:
+            continue
+        if not isinstance(seq, int):
+            errors.append(f"event {i}: sequence_number is not an integer")
+            continue
+        if prev_seq is not None and seq <= prev_seq:
+            errors.append(f"event {i}: sequence_number {seq} <= previous {prev_seq}")
+        prev_seq = seq
+
+    return errors
+
+
+# -- Open Responses phase / compact validators --
+
+
+def has_output_phase(expected_phase: str) -> Validator:
+    """Factory: validate at least one assistant output has the given phase."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not isinstance(response, dict):
+            return ["response is not a JSON object"]
+        for item in response.get("output", []):
+            if not isinstance(item, dict):
+                continue
+            if item.get("role") == "assistant" and item.get("phase") == expected_phase:
+                return []
+        return [f"no assistant output with phase='{expected_phase}'"]
+
+    _check.__qualname__ = f"has_output_phase({expected_phase!r})"
+    return _check
+
+
+def compact_object(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response object field must indicate compaction."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    obj = response.get("object", "")
+    if "compact" not in obj:
+        return [f"expected object containing 'compact', got '{obj}'"]
+    return []
+
+
+# -- Chat Completions validators --
+
+
+def chat_has_choices(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a non-empty choices array."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    choices = response.get("choices")
+    if not isinstance(choices, list) or len(choices) == 0:
+        return ["response.choices is missing or empty"]
+    return []
+
+
+def chat_has_message(response: Any, ctx: ValidatorContext) -> list[str]:
+    """First choice must have a message with role and content."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    choices = response.get("choices", [])
+    if not choices:
+        return ["response.choices is empty"]
+    msg = choices[0].get("message", {})
+    errors: list[str] = []
+    if msg.get("role") != "assistant":
+        errors.append(
+            f"choices[0].message.role: expected 'assistant', got '{msg.get('role')}'"
+        )
+    if msg.get("content") is None and not msg.get("tool_calls"):
+        errors.append("choices[0].message has neither content nor tool_calls")
+    return errors
+
+
+def chat_finish_reason(expected: str) -> Validator:
+    """Factory: validate choices[0].finish_reason matches expected value."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not isinstance(response, dict):
+            return ["response is not a JSON object"]
+        choices = response.get("choices", [])
+        if not choices:
+            return ["response.choices is empty"]
+        reason = choices[0].get("finish_reason")
+        if reason != expected:
+            return [f"finish_reason: expected '{expected}', got '{reason}'"]
+        return []
+
+    _check.__qualname__ = f"chat_finish_reason({expected!r})"
+    return _check
+
+
+def chat_has_tool_calls(response: Any, ctx: ValidatorContext) -> list[str]:
+    """First choice message must have tool_calls array."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    choices = response.get("choices", [])
+    if not choices:
+        return ["response.choices is empty"]
+    tc = choices[0].get("message", {}).get("tool_calls")
+    if not isinstance(tc, list) or len(tc) == 0:
+        return ["choices[0].message.tool_calls is missing or empty"]
+    return []
+
+
+def chat_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have usage with prompt_tokens/completion_tokens/total_tokens."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    usage = response.get("usage")
+    if not isinstance(usage, dict):
+        return ["response.usage is missing"]
+    errors: list[str] = []
+    for field in ("prompt_tokens", "completion_tokens", "total_tokens"):
+        if field not in usage:
+            errors.append(f"response.usage.{field} is missing")
+    return errors
+
+
+def chat_streaming_has_delta(response: Any, ctx: ValidatorContext) -> list[str]:
+    """At least one streaming chunk must have a delta with content."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        choices = data.get("choices", [])
+        for c in choices:
+            delta = c.get("delta", {})
+            if delta.get("content"):
+                return []
+    return ["no streaming chunk contained delta.content"]
+
+
+def chat_streaming_has_finish(response: Any, ctx: ValidatorContext) -> list[str]:
+    """At least one chunk must have a non-null finish_reason."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        for c in data.get("choices", []):
+            if c.get("finish_reason") is not None:
+                return []
+    return ["no streaming chunk had a finish_reason"]
+
+
+def chat_streaming_has_done(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Chat Completions stream must end with [DONE] sentinel."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    if ctx.sse_events[-1].get("type") != "[DONE]":
+        return ["stream did not end with [DONE] terminator"]
+    return []
+
+
+def chat_streaming_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Streaming must include a chunk with usage data."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        usage = data.get("usage")
+        if isinstance(usage, dict) and "prompt_tokens" in usage:
+            return []
+    return ["no streaming chunk contained usage data"]
+
+
+# -- Anthropic Messages validators --
+
+
+def anth_has_content(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a non-empty content array."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    content = response.get("content")
+    if not isinstance(content, list) or len(content) == 0:
+        return ["response.content is missing or empty"]
+    return []
+
+
+def anth_role_assistant(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response role must be 'assistant'."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    if response.get("role") != "assistant":
+        return [f"expected role='assistant', got '{response.get('role')}'"]
+    return []
+
+
+def anth_stop_reason(expected: str) -> Validator:
+    """Factory: validate stop_reason matches expected value."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not isinstance(response, dict):
+            return ["response is not a JSON object"]
+        reason = response.get("stop_reason")
+        if reason != expected:
+            return [f"stop_reason: expected '{expected}', got '{reason}'"]
+        return []
+
+    _check.__qualname__ = f"anth_stop_reason({expected!r})"
+    return _check
+
+
+def anth_has_tool_use(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Content must include a tool_use block."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    for block in response.get("content", []):
+        if isinstance(block, dict) and block.get("type") == "tool_use":
+            return []
+    return ["no content block with type='tool_use'"]
+
+
+def anth_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have usage with input_tokens/output_tokens."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    usage = response.get("usage")
+    if not isinstance(usage, dict):
+        return ["response.usage is missing"]
+    errors: list[str] = []
+    for field in ("input_tokens", "output_tokens"):
+        if field not in usage:
+            errors.append(f"response.usage.{field} is missing")
+    return errors
+
+
+def anth_type_message(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response type must be 'message'."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    if response.get("type") != "message":
+        return [f"expected type='message', got '{response.get('type')}'"]
+    return []
+
+
+def anth_streaming_lifecycle(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Anthropic stream must follow message_start → content → message_delta → message_stop."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    types = [e["type"] for e in ctx.sse_events if isinstance(e.get("type"), str)]
+    errors: list[str] = []
+    if not types:
+        return ["no typed events found"]
+    if types[0] not in ("message_start", "ping"):
+        errors.append(f"first event should be message_start or ping, got '{types[0]}'")
+    non_ping = [t for t in types if t != "ping"]
+    if non_ping and non_ping[-1] != "message_stop":
+        errors.append(f"last event should be message_stop, got '{non_ping[-1]}'")
+    if "message_delta" not in types:
+        errors.append("missing message_delta event (carries stop_reason/usage)")
+    return errors
+
+
+def anth_streaming_has_text_delta(response: Any, ctx: ValidatorContext) -> list[str]:
+    """At least one content_block_delta with text must be present."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        delta = data.get("delta", {})
+        if delta.get("type") == "text_delta" and delta.get("text"):
+            return []
+    return ["no content_block_delta with text_delta found"]
+
+
+def anth_streaming_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
+    """message_delta event must carry usage data."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        if event.get("type") == "message_delta":
+            usage = data.get("usage")
+            if isinstance(usage, dict) and "output_tokens" in usage:
+                return []
+    return ["no message_delta event with usage data"]
+
+
+# -- Google GenAI validators --
+
+
+def google_has_candidates(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a non-empty candidates array."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    cands = response.get("candidates")
+    if not isinstance(cands, list) or len(cands) == 0:
+        return ["response.candidates is missing or empty"]
+    return []
+
+
+def google_has_content_parts(response: Any, ctx: ValidatorContext) -> list[str]:
+    """First candidate must have content with non-empty parts."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    cands = response.get("candidates", [])
+    if not cands:
+        return ["response.candidates is empty"]
+    content = cands[0].get("content", {})
+    parts = content.get("parts", [])
+    if not parts:
+        return ["candidates[0].content.parts is missing or empty"]
+    return []
+
+
+def google_finish_reason(expected: str) -> Validator:
+    """Factory: validate candidates[0].finishReason matches expected."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not isinstance(response, dict):
+            return ["response is not a JSON object"]
+        cands = response.get("candidates", [])
+        if not cands:
+            return ["response.candidates is empty"]
+        reason = cands[0].get("finishReason")
+        if reason != expected:
+            return [f"finishReason: expected '{expected}', got '{reason}'"]
+        return []
+
+    _check.__qualname__ = f"google_finish_reason({expected!r})"
+    return _check
+
+
+def google_has_function_call(response: Any, ctx: ValidatorContext) -> list[str]:
+    """First candidate must have a functionCall part."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    cands = response.get("candidates", [])
+    if not cands:
+        return ["response.candidates is empty"]
+    parts = cands[0].get("content", {}).get("parts", [])
+    for p in parts:
+        if isinstance(p, dict) and ("functionCall" in p or "function_call" in p):
+            return []
+    return ["no part with functionCall found"]
+
+
+def google_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have usageMetadata with token counts."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    usage = response.get("usageMetadata") or response.get("usage_metadata")
+    if not isinstance(usage, dict):
+        return ["response.usageMetadata is missing"]
+    errors: list[str] = []
+    for field in ("promptTokenCount", "candidatesTokenCount", "totalTokenCount"):
+        snake = _camel_to_snake(field)
+        if field not in usage and snake not in usage:
+            errors.append(f"usageMetadata.{field} is missing")
+    return errors
+
+
+def google_streaming_has_text(response: Any, ctx: ValidatorContext) -> list[str]:
+    """At least one streaming chunk must have a text part."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        for cand in data.get("candidates", []):
+            for part in cand.get("content", {}).get("parts", []):
+                if isinstance(part, dict) and part.get("text"):
+                    return []
+    return ["no streaming chunk contained a text part"]
+
+
+def google_streaming_has_finish(response: Any, ctx: ValidatorContext) -> list[str]:
+    """At least one chunk must have a finishReason."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        for cand in data.get("candidates", []):
+            if cand.get("finishReason"):
+                return []
+    return ["no streaming chunk had a finishReason"]
+
+
+def google_streaming_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
+    """At least one chunk must have usageMetadata."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        usage = data.get("usageMetadata") or data.get("usage_metadata")
+        if isinstance(usage, dict) and (
+            "totalTokenCount" in usage or "total_token_count" in usage
+        ):
+            return []
+    return ["no streaming chunk contained usageMetadata"]
+
+
+def _camel_to_snake(name: str) -> str:
+    import re
+
+    return re.sub(r"(?<=[a-z0-9])([A-Z])", r"_\1", name).lower()
+
+
+def _first_idx(items: list[str], value: str) -> int | None:
+    try:
+        return items.index(value)
+    except ValueError:
+        return None

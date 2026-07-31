@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Lint
+        run: ruff check src/
+      - name: Format check
+        run: ruff format --check src/
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package
+        run: pip install -e ".[rich,dev]"
+      - name: Smoke test - import
+        run: python -c "from llm_comply import ComplianceConfig, TestRunner, SpecLoader; print('import ok')"
+      - name: Smoke test - CLI help
+        run: llm-comply --help
+      - name: Smoke test - CLI version
+        run: llm-comply --version
+      - name: Smoke test - list tests
+        run: |
+          llm-comply --list
+          llm-comply --format openai-chat --list
+          llm-comply --format anthropic --list
+          llm-comply --format google-genai --list
+      - name: Schema validation unit test
+        run: python -c "
+          from llm_comply.schema import SpecLoader
+          import pathlib
+          specs_dir = pathlib.Path('src/llm_comply/specs')
+
+          # Open Responses spec
+          spec = SpecLoader(str(specs_dir / 'openresponses.json'))
+          assert spec.spec_version == '2026-04-24'
+          errors = spec.validate({'id': 'resp_1', 'object': 'response'}, 'ResponseResource')
+          assert len(errors) > 0, 'incomplete response should have errors'
+          print(f'Open Responses: {len(spec.schema_names)} schemas, validation works')
+
+          # OpenAI Chat spec
+          spec2 = SpecLoader(str(specs_dir / 'openai_chat.json'))
+          assert 'CreateChatCompletionResponse' in spec2.schema_names
+          print(f'OpenAI Chat: {len(spec2.schema_names)} schemas')
+
+          # Anthropic spec
+          spec3 = SpecLoader(str(specs_dir / 'anthropic.json'))
+          assert 'Message' in spec3.schema_names
+          print(f'Anthropic: {len(spec3.schema_names)} schemas')
+
+          # Google (no spec)
+          spec4 = SpecLoader(None)
+          assert len(spec4.schema_names) == 0
+          print('Google: no-spec mode works')
+
+          print('All schema tests passed')
+          "

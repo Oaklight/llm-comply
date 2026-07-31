@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.1.0)"
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify version matches source
+        run: |
+          SOURCE_VERSION=$(python -c "import re; print(re.search(r'__version__\s*=\s*\"(.+?)\"', open('src/llm_comply/__init__.py').read()).group(1))")
+          if [ "$SOURCE_VERSION" != "${{ inputs.version }}" ]; then
+            echo "Version mismatch: source=$SOURCE_VERSION, requested=${{ inputs.version }}"
+            exit 1
+          fi
+          echo "Version verified: $SOURCE_VERSION"
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: twine upload dist/*
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            --title "v${{ inputs.version }}" \
+            --generate-notes \
+            dist/*

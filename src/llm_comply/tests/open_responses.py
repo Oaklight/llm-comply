@@ -83,9 +83,12 @@ _PHASE_FIXTURE: dict[str, Any] = {
 
 def _validate_phase_fixture(response: Any, ctx: ValidatorContext) -> list[str]:
     """Validate the local phase fixture against the spec schema."""
+    import pathlib
+
     from ..schema import SpecLoader
 
-    spec = SpecLoader()
+    spec_path = pathlib.Path(__file__).parent.parent / "specs" / "openresponses.json"
+    spec = SpecLoader(str(spec_path))
     return spec.validate(_PHASE_FIXTURE, "ResponseResource")
 
 

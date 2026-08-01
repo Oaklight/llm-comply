@@ -140,6 +140,13 @@ async def index(request):
     return Response(body=html, content_type="text/html")
 
 
+@app.get("/health")
+async def health(request):
+    from llm_comply import __version__
+
+    return JSONResponse({"status": "ok", "version": __version__})
+
+
 @app.get("/api/tests")
 async def list_tests(request):
     fmt = (

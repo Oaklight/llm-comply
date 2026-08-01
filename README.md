@@ -7,6 +7,8 @@
 
 Multi-format LLM API compliance testing tool — validates endpoints against official specs for **OpenAI Chat Completions**, **Open Responses**, **Anthropic Messages**, and **Google GenAI**.
 
+**[Try it online →](https://llm-comply.service.oaklight.top)**
+
 ## Install
 
 ```bash

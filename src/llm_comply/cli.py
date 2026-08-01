@@ -102,11 +102,30 @@ def _add_run_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--list", action="store_true", dest="list_tests", help="List available test IDs"
     )
+    parser.add_argument(
+        "--web",
+        action="store_true",
+        help="Start the web UI server instead of running CLI tests",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8090,
+        help="Port for web UI server (default: 8090)",
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host for web UI server (default: 127.0.0.1)",
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    if getattr(args, "web", False):
+        return _cmd_web(args)
 
     # Route subcommands
     fmt = getattr(args, "api_format", "open-responses")
@@ -136,6 +155,15 @@ def _get_tests(fmt: str) -> list:
     from .tests.open_responses import OPEN_RESPONSES_TESTS
 
     return OPEN_RESPONSES_TESTS
+
+
+def _cmd_web(args: argparse.Namespace) -> int:
+    from .web import app
+
+    print(f"llm-comply web UI v{__version__}")
+    print(f"Open http://{args.host}:{args.port} in your browser")
+    app.run(host=args.host, port=args.port)
+    return 0
 
 
 def _cmd_list(fmt: str) -> int:

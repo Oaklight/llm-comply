@@ -179,8 +179,11 @@ function onFormatChange() {
   stopTests();
   const fmt = $('fmt').value;
   const d = DEFAULTS[fmt] || {};
-  $('auth-header').value = d.auth || 'Authorization';
-  $('bearer').checked = d.bearer !== false;
+  const customUrl = $('url').value && !defaultUrls.has($('url').value);
+  if (!customUrl) {
+    $('auth-header').value = d.auth || 'Authorization';
+    $('bearer').checked = d.bearer !== false;
+  }
   if (!$('url').value || defaultUrls.has($('url').value)) $('url').value = d.url || '';
   if (!$('model').value || defaultModels.has($('model').value)) $('model').value = d.model || '';
   $('run-btn').textContent = 'Run Tests';

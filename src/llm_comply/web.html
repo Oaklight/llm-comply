@@ -165,6 +165,7 @@ const DEFAULTS = {
   'google-genai': { url: 'https://generativelanguage.googleapis.com', model: 'gemini-2.5-flash', auth: 'x-goog-api-key', bearer: false },
 };
 const defaultUrls = new Set(Object.values(DEFAULTS).map(d => d.url));
+const defaultModels = new Set(Object.values(DEFAULTS).map(d => d.model));
 let testData = [];
 
 function $(id) { return document.getElementById(id); }
@@ -173,10 +174,10 @@ function esc(s) { const d = document.createElement('div'); d.textContent = s; re
 function onFormatChange() {
   const fmt = $('fmt').value;
   const d = DEFAULTS[fmt] || {};
-  $('model').value = d.model || '';
   $('auth-header').value = d.auth || 'Authorization';
   $('bearer').checked = d.bearer !== false;
   if (!$('url').value || defaultUrls.has($('url').value)) $('url').value = d.url || '';
+  if (!$('model').value || defaultModels.has($('model').value)) $('model').value = d.model || '';
   loadTests();
 }
 

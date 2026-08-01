@@ -43,6 +43,8 @@ a { color: var(--blue); text-decoration: none; }
 .btn-run { flex: 1; padding: 10px 24px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: background 0.15s; font-family: var(--font); }
 .btn-run:hover { background: var(--accent-hover); }
 .btn-run:disabled { background: var(--border); cursor: not-allowed; }
+.btn-run.stopping { background: var(--red); }
+.btn-run.stopping:hover { background: #b91c1c; }
 .btn-clear { padding: 10px 14px; background: transparent; color: var(--text-dim); border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem; cursor: pointer; font-family: var(--font); }
 .btn-clear:hover { background: var(--red-bg); color: var(--red); border-color: var(--red-border); }
 
@@ -167,17 +169,21 @@ const DEFAULTS = {
 const defaultUrls = new Set(Object.values(DEFAULTS).map(d => d.url));
 const defaultModels = new Set(Object.values(DEFAULTS).map(d => d.model));
 let testData = [];
+let abortCtrl = null;
 
 function $(id) { return document.getElementById(id); }
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 function onFormatChange() {
+  stopTests();
   const fmt = $('fmt').value;
   const d = DEFAULTS[fmt] || {};
   $('auth-header').value = d.auth || 'Authorization';
   $('bearer').checked = d.bearer !== false;
   if (!$('url').value || defaultUrls.has($('url').value)) $('url').value = d.url || '';
   if (!$('model').value || defaultModels.has($('model').value)) $('model').value = d.model || '';
+  $('run-btn').textContent = 'Run Tests';
+  $('run-btn').classList.remove('stopping');
   loadTests();
 }
 
@@ -226,10 +232,17 @@ function renderTests() {
 
 function toggleCard(id) { document.getElementById(id).classList.toggle('expanded'); }
 
+function stopTests() {
+  if (abortCtrl) { abortCtrl.abort(); abortCtrl = null; }
+}
+
 async function runTests() {
+  if (abortCtrl) { stopTests(); return; }
+
   const btn = $('run-btn');
-  btn.disabled = true;
-  btn.textContent = 'Running...';
+  abortCtrl = new AbortController();
+  btn.textContent = 'Stop';
+  btn.classList.add('stopping');
   renderTests();
 
   const payload = {
@@ -245,6 +258,8 @@ async function runTests() {
   let passed = 0, failed = 0, skipped = 0;
 
   for (const t of testData) {
+    if (!abortCtrl || abortCtrl.signal.aborted) break;
+
     const card = document.getElementById('t-' + t.id);
     const icon = card.querySelector('.test-icon');
     icon.className = 'test-icon running';
@@ -256,6 +271,7 @@ async function runTests() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...payload, test_id: t.id }),
+        signal: abortCtrl.signal,
       });
       const r = await resp.json();
       applyResult(card, r);
@@ -263,15 +279,18 @@ async function runTests() {
       else if (r.status === 'skipped') skipped++;
       else failed++;
     } catch(e) {
+      if (e.name === 'AbortError') break;
       icon.className = 'test-icon fail';
       icon.textContent = '✗';
       failed++;
     }
   }
 
-  updateSummary(passed, failed, skipped, testData.length, false);
-  btn.disabled = false;
+  const wasCancelled = abortCtrl && abortCtrl.signal.aborted;
+  abortCtrl = null;
+  updateSummary(passed, failed, skipped, testData.length, false, wasCancelled);
   btn.textContent = 'Run Tests';
+  btn.classList.remove('stopping');
 }
 
 function applyResult(card, r) {
@@ -318,12 +337,15 @@ function buildDetailHtml(r) {
   return html;
 }
 
-function updateSummary(passed, failed, skipped, total, running) {
+function updateSummary(passed, failed, skipped, total, running, cancelled) {
   const el = $('summary');
   const done = passed + failed + skipped;
   if (running) {
     el.className = 'summary running';
     el.textContent = 'Running... ' + done + '/' + total;
+  } else if (cancelled) {
+    el.className = 'summary fail';
+    el.textContent = 'Stopped — ' + passed + ' passed, ' + failed + ' failed (' + done + '/' + total + ' run)';
   } else if (failed === 0) {
     el.className = 'summary pass';
     el.textContent = 'All ' + passed + ' tests passed!';

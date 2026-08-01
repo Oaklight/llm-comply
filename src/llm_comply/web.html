@@ -7,32 +7,17 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #f8f9fb;
-  --bg-card: #ffffff;
-  --border: #e5e7eb;
-  --text: #1a1a2e;
-  --text-dim: #6b7280;
-  --accent: #111827;
-  --accent-hover: #374151;
-  --green: #16a34a;
-  --green-bg: #dcfce7;
-  --green-border: #bbf7d0;
-  --red: #dc2626;
-  --red-bg: #fef2f2;
-  --red-border: #fecaca;
-  --blue: #2563eb;
-  --blue-bg: #eff6ff;
-  --blue-border: #bfdbfe;
-  --yellow: #d97706;
-  --yellow-bg: #fef3c7;
-  --yellow-border: #fde68a;
-  --radius: 8px;
+  --bg: #f8f9fb; --bg-card: #fff; --border: #e5e7eb; --text: #1a1a2e;
+  --text-dim: #6b7280; --accent: #111827; --accent-hover: #374151;
+  --green: #16a34a; --green-bg: #dcfce7; --green-border: #bbf7d0;
+  --red: #dc2626; --red-bg: #fef2f2; --red-border: #fecaca;
+  --blue: #2563eb; --blue-bg: #eff6ff; --blue-border: #bfdbfe;
+  --yellow: #d97706; --radius: 8px;
   --font: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.6; }
 a { color: var(--blue); text-decoration: none; }
 
-/* Layout */
 .container { max-width: 1080px; margin: 0 auto; padding: 48px 24px; }
 .header { margin-bottom: 32px; }
 .header h1 { font-size: 2.2rem; font-weight: 700; letter-spacing: -0.02em; }
@@ -40,7 +25,7 @@ a { color: var(--blue); text-decoration: none; }
 .content { display: grid; grid-template-columns: 340px 1fr; gap: 28px; align-items: start; }
 @media (max-width: 768px) { .content { grid-template-columns: 1fr; } }
 
-/* Config panel */
+/* Config */
 .config { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; position: sticky; top: 24px; }
 .config h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; }
 .field { margin-bottom: 14px; }
@@ -50,54 +35,62 @@ a { color: var(--blue); text-decoration: none; }
 .field-row { display: flex; gap: 10px; align-items: center; }
 .field-row label { margin-bottom: 0; font-size: 0.82rem; text-transform: none; letter-spacing: 0; }
 .field-row input[type="checkbox"] { width: auto; }
-.advanced-toggle { font-size: 0.82rem; color: var(--text-dim); cursor: pointer; user-select: none; margin-bottom: 10px; }
-.advanced-toggle:hover { color: var(--text); }
-.advanced { display: none; }
-.advanced.open { display: block; }
-.btn-run { width: 100%; padding: 10px 24px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: background 0.15s; font-family: var(--font); }
+.adv-toggle { font-size: 0.82rem; color: var(--text-dim); cursor: pointer; user-select: none; margin-bottom: 10px; }
+.adv-toggle:hover { color: var(--text); }
+.adv { display: none; }
+.adv.open { display: block; }
+.btn-row { display: flex; gap: 8px; }
+.btn-run { flex: 1; padding: 10px 24px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: background 0.15s; font-family: var(--font); }
 .btn-run:hover { background: var(--accent-hover); }
 .btn-run:disabled { background: var(--border); cursor: not-allowed; }
+.btn-clear { padding: 10px 14px; background: transparent; color: var(--text-dim); border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem; cursor: pointer; font-family: var(--font); }
+.btn-clear:hover { background: var(--red-bg); color: var(--red); border-color: var(--red-border); }
 
-/* Test suite */
+/* Suite */
 .suite h2 { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
 .suite .meta { color: var(--text-dim); font-size: 0.82rem; margin-bottom: 14px; }
 
-/* Summary bar */
+/* Summary */
 .summary { padding: 10px 16px; border-radius: var(--radius); font-weight: 500; font-size: 0.9rem; text-align: center; margin-bottom: 14px; display: none; }
 .summary.pass { display: block; background: var(--green-bg); color: #166534; border: 1px solid var(--green-border); }
 .summary.fail { display: block; background: var(--red-bg); color: #991b1b; border: 1px solid var(--red-border); }
 .summary.running { display: block; background: var(--blue-bg); color: #1e40af; border: 1px solid var(--blue-border); }
 
-/* Test list */
-.test-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.test-item { display: flex; align-items: flex-start; gap: 12px; padding: 13px 16px; background: var(--bg-card); border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
-.test-item:last-child { border-bottom: none; }
-.test-item:hover { background: #f9fafb; }
-.test-icon { width: 22px; font-size: 1rem; text-align: center; flex-shrink: 0; margin-top: 1px; }
+/* Test cards */
+.test-list { display: flex; flex-direction: column; gap: 8px; }
+.test-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color 0.15s; }
+.test-card.pass { border-color: var(--green-border); }
+.test-card.fail { border-color: var(--red-border); }
+.test-head { display: grid; grid-template-columns: 24px 1fr auto auto; align-items: start; gap: 12px; padding: 13px 16px; cursor: pointer; transition: background 0.1s; }
+.test-head:hover { background: #f9fafb; }
+.test-icon { font-size: 1rem; text-align: center; margin-top: 1px; }
 .test-icon.pass { color: var(--green); }
 .test-icon.fail { color: var(--red); }
 .test-icon.skip { color: var(--yellow); }
 .test-icon.pending { color: #ccc; }
 .test-icon.running { color: var(--blue); animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.test-body { flex: 1; min-width: 0; }
+.test-info { min-width: 0; }
 .test-name { font-weight: 500; font-size: 0.9rem; }
 .test-desc { color: var(--text-dim); font-size: 0.78rem; margin-top: 1px; }
-.test-time { color: var(--text-dim); font-size: 0.78rem; flex-shrink: 0; margin-top: 2px; }
+.test-time { color: var(--text-dim); font-size: 0.78rem; margin-top: 2px; white-space: nowrap; }
+.test-arrow { color: var(--text-dim); font-size: 0.8rem; margin-top: 2px; transition: transform 0.15s; }
+.test-card.expanded .test-arrow { transform: rotate(180deg); }
 .tag { display: inline-block; font-size: 0.65rem; font-weight: 500; padding: 1px 6px; border-radius: 3px; vertical-align: middle; margin-left: 5px; }
 .tag-stream { background: #e0f2fe; color: #0284c7; }
 
-/* Error details */
-.test-errors { display: none; margin-top: 8px; padding: 10px 12px; background: var(--red-bg); border: 1px solid var(--red-border); border-radius: 6px; font-size: 0.78rem; }
-.test-item.expanded .test-errors { display: block; }
+/* Expandable detail */
+.test-detail { display: none; padding: 0 16px 14px; font-size: 0.82rem; }
+.test-card.expanded .test-detail { display: block; }
+.section { margin-bottom: 10px; }
+.section-label { font-weight: 600; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.test-detail pre { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; font-size: 0.72rem; overflow-x: auto; max-height: 200px; white-space: pre-wrap; word-break: break-all; margin: 0; }
+.err-box { background: var(--red-bg); border: 1px solid var(--red-border); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
 .err-label { font-weight: 600; color: var(--red); font-size: 0.75rem; margin-bottom: 4px; }
-.test-errors ul { padding-left: 16px; color: #991b1b; margin: 0; }
-.test-errors li { margin-bottom: 2px; }
-.detail-block { margin-top: 8px; }
-.detail-block strong { display: block; color: var(--text-dim); font-size: 0.75rem; margin-bottom: 3px; }
-.detail-block pre { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; font-size: 0.72rem; overflow-x: auto; max-height: 180px; white-space: pre-wrap; word-break: break-all; margin: 0; }
+.err-list { padding-left: 16px; color: #991b1b; margin: 0 0 8px; }
+.err-list li { margin-bottom: 2px; font-size: 0.78rem; }
+.pass-msg { color: var(--green); }
 
-/* Footer */
 .footer { text-align: center; color: var(--text-dim); font-size: 0.78rem; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); }
 </style>
 </head>
@@ -107,9 +100,7 @@ a { color: var(--blue); text-decoration: none; }
     <h1>llm-comply</h1>
     <p>Test any API endpoint for compliance with OpenAI Chat, Open Responses, Anthropic, or Google GenAI specifications.</p>
   </div>
-
   <div class="content">
-    <!-- Config -->
     <div class="config">
       <h2>Configuration</h2>
       <div class="field">
@@ -133,8 +124,8 @@ a { color: var(--blue); text-decoration: none; }
         <label>API Key</label>
         <input id="key" type="password" placeholder="sk-...">
       </div>
-      <div class="advanced-toggle" onclick="toggleAdvanced()">▸ Advanced</div>
-      <div class="advanced" id="adv">
+      <div class="adv-toggle" onclick="toggleAdv()">▸ Advanced</div>
+      <div class="adv" id="adv">
         <div class="field">
           <label>Auth Header</label>
           <input id="auth-header" type="text" value="Authorization">
@@ -144,14 +135,16 @@ a { color: var(--blue); text-decoration: none; }
           <label for="bearer">Use "Bearer" prefix</label>
         </div>
         <div class="field">
-          <label>Ignore Errors (comma-separated)</label>
+          <label>Ignore Errors</label>
           <input id="ignore" type="text" placeholder="refusal,verbosity">
         </div>
       </div>
-      <button class="btn-run" id="run-btn" onclick="runTests()">Run Tests</button>
+      <div class="btn-row">
+        <button class="btn-run" id="run-btn" onclick="runTests()">Run Tests</button>
+        <button class="btn-clear" onclick="clearCreds()" title="Clear API key and base URL">Clear</button>
+      </div>
     </div>
 
-    <!-- Results -->
     <div class="suite">
       <h2>Test Suite</h2>
       <div class="meta" id="suite-meta"></div>
@@ -159,7 +152,6 @@ a { color: var(--blue); text-decoration: none; }
       <div class="test-list" id="tests"></div>
     </div>
   </div>
-
   <div class="footer">
     <a href="https://github.com/Oaklight/llm-comply" target="_blank">llm-comply</a> — Multi-format LLM API compliance testing
   </div>
@@ -172,26 +164,34 @@ const DEFAULTS = {
   'anthropic': { url: 'https://api.anthropic.com/v1', model: 'claude-haiku-4-5-20251001', auth: 'x-api-key', bearer: false },
   'google-genai': { url: 'https://generativelanguage.googleapis.com', model: 'gemini-2.5-flash', auth: 'x-goog-api-key', bearer: false },
 };
-
+const defaultUrls = new Set(Object.values(DEFAULTS).map(d => d.url));
 let testData = [];
 
 function $(id) { return document.getElementById(id); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 function onFormatChange() {
   const fmt = $('fmt').value;
   const d = DEFAULTS[fmt] || {};
-  $('url').value = d.url || '';
   $('model').value = d.model || '';
   $('auth-header').value = d.auth || 'Authorization';
   $('bearer').checked = d.bearer !== false;
+  if (!$('url').value || defaultUrls.has($('url').value)) $('url').value = d.url || '';
   loadTests();
 }
 
-function toggleAdvanced() {
+function toggleAdv() {
   const adv = $('adv');
   const toggle = adv.previousElementSibling;
   adv.classList.toggle('open');
   toggle.textContent = adv.classList.contains('open') ? '▾ Advanced' : '▸ Advanced';
+}
+
+function clearCreds() {
+  $('url').value = '';
+  $('key').value = '';
+  $('ignore').value = '';
+  onFormatChange();
 }
 
 async function loadTests() {
@@ -204,23 +204,26 @@ async function loadTests() {
 }
 
 function renderTests() {
-  const el = $('tests');
   $('suite-meta').textContent = testData.length + ' tests';
   $('summary').className = 'summary';
   $('summary').textContent = '';
-  el.innerHTML = testData.map(t => `
-    <div class="test-item" id="t-${t.id}">
-      <div class="test-icon pending">○</div>
-      <div class="test-body">
-        <div class="test-name">${esc(t.name)}${t.streaming ? '<span class="tag tag-stream">streaming</span>' : ''}</div>
-        <div class="test-desc">${esc(t.description)}</div>
+  $('tests').innerHTML = testData.map(t => `
+    <div class="test-card" id="t-${t.id}">
+      <div class="test-head" onclick="toggleCard('t-${t.id}')">
+        <div class="test-icon pending">○</div>
+        <div class="test-info">
+          <div class="test-name">${esc(t.name)}${t.streaming ? '<span class="tag tag-stream">streaming</span>' : ''}</div>
+          <div class="test-desc">${esc(t.description)}</div>
+        </div>
+        <div class="test-time"></div>
+        <div class="test-arrow">▼</div>
       </div>
-      <div class="test-time"></div>
+      <div class="test-detail"></div>
     </div>
   `).join('');
 }
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function toggleCard(id) { document.getElementById(id).classList.toggle('expanded'); }
 
 async function runTests() {
   const btn = $('run-btn');
@@ -228,9 +231,8 @@ async function runTests() {
   btn.textContent = 'Running...';
   renderTests();
 
-  const fmt = $('fmt').value;
   const payload = {
-    format: fmt,
+    format: $('fmt').value,
     base_url: $('url').value,
     api_key: $('key').value,
     model: $('model').value,
@@ -242,8 +244,8 @@ async function runTests() {
   let passed = 0, failed = 0, skipped = 0;
 
   for (const t of testData) {
-    const item = document.getElementById('t-' + t.id);
-    const icon = item.querySelector('.test-icon');
+    const card = document.getElementById('t-' + t.id);
+    const icon = card.querySelector('.test-icon');
     icon.className = 'test-icon running';
     icon.textContent = '⟳';
     updateSummary(passed, failed, skipped, testData.length, true);
@@ -255,26 +257,14 @@ async function runTests() {
         body: JSON.stringify({ ...payload, test_id: t.id }),
       });
       const r = await resp.json();
-
-      const timeEl = item.querySelector('.test-time');
-      timeEl.textContent = r.duration_ms ? Math.round(r.duration_ms) + 'ms' : '';
-
-      if (r.status === 'passed') {
-        icon.className = 'test-icon pass'; icon.textContent = '✓'; passed++;
-      } else if (r.status === 'skipped') {
-        icon.className = 'test-icon skip'; icon.textContent = '⏭'; skipped++;
-      } else {
-        icon.className = 'test-icon fail'; icon.textContent = '✗'; failed++;
-        if (r.errors && r.errors.length) {
-          const errHtml = buildErrorHtml(r);
-          const body = item.querySelector('.test-body');
-          body.insertAdjacentHTML('beforeend', errHtml);
-          item.onclick = () => item.classList.toggle('expanded');
-          item.classList.add('expanded');
-        }
-      }
+      applyResult(card, r);
+      if (r.status === 'passed') passed++;
+      else if (r.status === 'skipped') skipped++;
+      else failed++;
     } catch(e) {
-      icon.className = 'test-icon fail'; icon.textContent = '✗'; failed++;
+      icon.className = 'test-icon fail';
+      icon.textContent = '✗';
+      failed++;
     }
   }
 
@@ -283,15 +273,47 @@ async function runTests() {
   btn.textContent = 'Run Tests';
 }
 
-function buildErrorHtml(r) {
-  let html = '<div class="test-errors"><div class="err-label">Errors</div><ul>';
-  const max = 6;
-  r.errors.slice(0, max).forEach(e => { html += '<li>' + esc(e) + '</li>'; });
-  if (r.errors.length > max) html += '<li>... and ' + (r.errors.length - max) + ' more</li>';
-  html += '</ul>';
-  if (r.request) html += '<div class="detail-block"><strong>Request</strong><pre>' + esc(r.request) + '</pre></div>';
-  if (r.response) html += '<div class="detail-block"><strong>Response</strong><pre>' + esc(r.response) + '</pre></div>';
-  html += '</div>';
+function applyResult(card, r) {
+  const icon = card.querySelector('.test-icon');
+  const timeEl = card.querySelector('.test-time');
+  const detail = card.querySelector('.test-detail');
+
+  timeEl.textContent = r.duration_ms ? Math.round(r.duration_ms) + 'ms' : '';
+
+  if (r.status === 'passed') {
+    icon.className = 'test-icon pass'; icon.textContent = '✓';
+    card.classList.add('pass');
+    detail.innerHTML = '<div class="section pass-msg">All validations passed</div>';
+  } else if (r.status === 'skipped') {
+    icon.className = 'test-icon skip'; icon.textContent = '⏭';
+    detail.innerHTML = '<div class="section"><em>' + esc(r.errors?.[0] || 'Skipped') + '</em></div>';
+  } else {
+    icon.className = 'test-icon fail'; icon.textContent = '✗';
+    card.classList.add('fail');
+    detail.innerHTML = buildDetailHtml(r);
+    card.classList.add('expanded');
+  }
+}
+
+function buildDetailHtml(r) {
+  let html = '';
+  if (r.errors && r.errors.length) {
+    html += '<div class="err-box"><div class="err-label">Errors</div><ul class="err-list">';
+    const max = 8;
+    r.errors.slice(0, max).forEach(e => { html += '<li>' + esc(e) + '</li>'; });
+    if (r.errors.length > max) html += '<li>... and ' + (r.errors.length - max) + ' more</li>';
+    html += '</ul></div>';
+  }
+  if (r.request) {
+    let pretty = r.request;
+    try { pretty = JSON.stringify(JSON.parse(r.request), null, 2); } catch(e) {}
+    html += '<div class="section"><div class="section-label">Request</div><pre>' + esc(pretty) + '</pre></div>';
+  }
+  if (r.response) {
+    let pretty = r.response;
+    try { pretty = JSON.stringify(JSON.parse(r.response), null, 2); } catch(e) {}
+    html += '<div class="section"><div class="section-label">Response</div><pre>' + esc(pretty) + '</pre></div>';
+  }
   return html;
 }
 
@@ -310,7 +332,6 @@ function updateSummary(passed, failed, skipped, total, running) {
   }
 }
 
-// Init
 onFormatChange();
 </script>
 </body>

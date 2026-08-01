@@ -27,7 +27,10 @@ def make_request(
     Returns:
         (status_code, response_body_or_final, sse_events_or_None)
     """
-    url = f"{config.base_url}{endpoint}"
+    base = config.base_url
+    if endpoint.startswith("/v1beta") and base.rstrip("/").endswith("/v1"):
+        base = base.rstrip("/").removesuffix("/v1")
+    url = f"{base}{endpoint}"
     headers = {
         config.auth_header: config.auth_value,
         "Content-Type": "application/json",

@@ -169,6 +169,7 @@ const DEFAULTS = {
 };
 const defaultUrls = new Set(Object.values(DEFAULTS).map(d => d.url));
 const defaultModels = new Set(Object.values(DEFAULTS).map(d => d.model));
+const defaultAuths = new Set(Object.values(DEFAULTS).map(d => d.auth));
 let testData = [];
 let abortCtrl = null;
 
@@ -179,13 +180,12 @@ function onFormatChange() {
   stopTests();
   const fmt = $('fmt').value;
   const d = DEFAULTS[fmt] || {};
-  const customUrl = $('url').value && !defaultUrls.has($('url').value);
-  if (!customUrl) {
+  if (!$('url').value || defaultUrls.has($('url').value)) $('url').value = d.url || '';
+  if (!$('model').value || defaultModels.has($('model').value)) $('model').value = d.model || '';
+  if (!$('auth-header').value || defaultAuths.has($('auth-header').value)) {
     $('auth-header').value = d.auth || 'Authorization';
     $('bearer').checked = d.bearer !== false;
   }
-  if (!$('url').value || defaultUrls.has($('url').value)) $('url').value = d.url || '';
-  if (!$('model').value || defaultModels.has($('model').value)) $('model').value = d.model || '';
   $('run-btn').textContent = 'Run Tests';
   $('run-btn').classList.remove('stopping');
   loadTests();

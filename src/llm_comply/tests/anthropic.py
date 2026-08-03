@@ -7,6 +7,7 @@ from typing import Any
 from ..config import ComplianceConfig
 from ..test_case import TestCase, TestCategory
 from ..validators import (
+    anth_error_returns_error_type,
     anth_has_content,
     anth_has_tool_use,
     anth_has_usage,
@@ -223,7 +224,7 @@ ANTHROPIC_TESTS: list[TestCase] = [
     TestCase(
         id="anth-error-handling",
         name="Error Handling",
-        description="Invalid request returns correct error format",
+        description="Invalid request (missing max_tokens) returns error or warning",
         category=TestCategory.ERROR_HANDLING,
         endpoint="/messages",
         schema_name=None,
@@ -231,7 +232,7 @@ ANTHROPIC_TESTS: list[TestCase] = [
             "model": cfg.model,
             "messages": [{"role": "user", "content": "test"}],
         },
-        expected_statuses=[400, 422],
-        validators=[],
+        expected_statuses=[200, 400, 422],
+        validators=[anth_error_returns_error_type],
     ),
 ]

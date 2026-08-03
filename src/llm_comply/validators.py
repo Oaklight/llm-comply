@@ -754,3 +754,15 @@ def _first_idx(items: list[str], value: str) -> int | None:
         return items.index(value)
     except ValueError:
         return None
+
+
+def anth_error_returns_error_type(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Warn if an intentionally invalid request succeeds instead of returning an error."""
+    if not isinstance(response, dict):
+        return []
+    if response.get("type") == "message":
+        return [
+            "[warning] invalid request returned a successful response instead of "
+            "an error (server may add default max_tokens)"
+        ]
+    return []

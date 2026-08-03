@@ -22,6 +22,7 @@ class TestResult:
     status: TestStatus
     duration_ms: float = 0.0
     errors: list[str] = dataclasses.field(default_factory=list)
+    warnings: list[str] = dataclasses.field(default_factory=list)
     request: dict[str, Any] | None = None
     response: Any = None
     stream_events: list[dict[str, Any]] | None = None
@@ -35,6 +36,8 @@ class TestResult:
         }
         if self.errors:
             d["errors"] = self.errors
+        if self.warnings:
+            d["warnings"] = self.warnings
         return d
 
 
@@ -55,6 +58,12 @@ class SuiteResult:
     @property
     def skipped(self) -> int:
         return sum(1 for r in self.results if r.status == TestStatus.SKIPPED)
+
+    @property
+    def warned(self) -> int:
+        return sum(
+            1 for r in self.results if r.warnings and r.status == TestStatus.PASSED
+        )
 
     @property
     def total(self) -> int:

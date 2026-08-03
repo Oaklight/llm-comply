@@ -107,6 +107,13 @@ class TestRunner:
             ]
 
         elapsed = (time.monotonic() - start) * 1000.0
+
+        _WARNING_PREFIX = "[warning] "
+        warnings = [
+            e[len(_WARNING_PREFIX) :] for e in errors if e.startswith(_WARNING_PREFIX)
+        ]
+        errors = [e for e in errors if not e.startswith(_WARNING_PREFIX)]
+
         status = TestStatus.PASSED if not errors else TestStatus.FAILED
 
         return TestResult(
@@ -115,6 +122,7 @@ class TestRunner:
             status=status,
             duration_ms=elapsed,
             errors=errors,
+            warnings=warnings,
             request=request_body if self._config.verbose else None,
             response=response_data if self._config.verbose else None,
             stream_events=sse_events if self._config.verbose else None,

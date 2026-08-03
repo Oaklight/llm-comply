@@ -42,7 +42,10 @@ class PlainDisplay(Display):
         self._out.write("-" * 60 + "\n\n")
 
     def print_result(self, result: TestResult, verbose: bool = False) -> None:
-        icon = self._ICONS.get(result.status, "?")
+        if result.status == TestStatus.PASSED and result.warnings:
+            icon = "⚠️ "
+        else:
+            icon = self._ICONS.get(result.status, "?")
         duration = f" ({result.duration_ms:.0f}ms)" if result.duration_ms else ""
         self._out.write(f"  {icon} {result.name}{duration}\n")
 
@@ -51,6 +54,9 @@ class PlainDisplay(Display):
                 self._out.write(f"     └─ {err}\n")
             if len(result.errors) > 5:
                 self._out.write(f"     └─ ... and {len(result.errors) - 5} more\n")
+        if result.warnings:
+            for warn in result.warnings[:3]:
+                self._out.write(f"     └─ ⚠ {warn}\n")
 
         if verbose and result.status == TestStatus.FAILED:
             if result.request:
@@ -70,6 +76,8 @@ class PlainDisplay(Display):
         self._out.write(f"Results: {suite.passed}/{suite.total} passed")
         if suite.failed:
             self._out.write(f", {suite.failed} failed")
+        if suite.warned:
+            self._out.write(f", {suite.warned} with warnings")
         if suite.skipped:
             self._out.write(f", {suite.skipped} skipped")
         self._out.write("\n\n")
@@ -93,7 +101,9 @@ class RichDisplay(Display):
         self._console.print()
 
     def print_result(self, result: TestResult, verbose: bool = False) -> None:
-        if result.status == TestStatus.PASSED:
+        if result.status == TestStatus.PASSED and result.warnings:
+            icon = "[yellow]✓[/yellow]"
+        elif result.status == TestStatus.PASSED:
             icon = "[green]✓[/green]"
         elif result.status == TestStatus.FAILED:
             icon = "[red]✗[/red]"
@@ -112,6 +122,9 @@ class RichDisplay(Display):
                 self._console.print(
                     f"     [dim]└─ ... and {len(result.errors) - 5} more[/dim]"
                 )
+        if result.warnings:
+            for warn in result.warnings[:3]:
+                self._console.print(f"     [dim]└─[/dim] [yellow]⚠ {warn}[/yellow]")
 
         if verbose and result.status == TestStatus.FAILED:
             if result.request:
@@ -135,6 +148,8 @@ class RichDisplay(Display):
             style = "bold red"
             msg = f"{suite.passed}/{suite.total} passed, {suite.failed} failed"
 
+        if suite.warned:
+            msg += f", {suite.warned} with warnings"
         if suite.skipped:
             msg += f", {suite.skipped} skipped"
 

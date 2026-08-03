@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Warning-level validator support for non-fatal compliance issues
+- Google GenAI spec compliance validators
+
+### Changed
+
+- Auth header now follows format switch unless user has customized it
+  (same preserve-on-custom logic as URL and model)
+
+### Fixed
+
+- Strip `/v1` suffix from base URL for Google GenAI `/v1beta` endpoints
+- Web UI auth settings preserved when base URL is custom
+- Replaced GoatCounter with hits.sh badge only (GoatCounter was blocked by adblockers)
+- Improved hits.sh badge visibility with explicit height and margin
+
 ## [0.2.0] — 2026-08-01
 
 ### Added

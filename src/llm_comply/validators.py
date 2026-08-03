@@ -315,6 +315,90 @@ def chat_streaming_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
     return ["no streaming chunk contained usage data"]
 
 
+# -- Chat Completions advisory (warning) validators --
+
+
+def chat_has_refusal_field(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Warn if message lacks the refusal field (OpenAI spec: required, nullable)."""
+    if not isinstance(response, dict):
+        return []
+    choices = response.get("choices", [])
+    if not choices:
+        return []
+    msg = choices[0].get("message", {})
+    if "refusal" not in msg:
+        return [
+            "[warning] choices[0].message missing 'refusal' field (spec: required, nullable)"
+        ]
+    return []
+
+
+def chat_has_annotations_field(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Warn if message lacks the annotations field (OpenAI always returns [])."""
+    if not isinstance(response, dict):
+        return []
+    choices = response.get("choices", [])
+    if not choices:
+        return []
+    msg = choices[0].get("message", {})
+    if "annotations" not in msg:
+        return ["[warning] choices[0].message missing 'annotations' field"]
+    return []
+
+
+def chat_has_logprobs_field(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Warn if choice lacks the logprobs field (spec: required, nullable)."""
+    if not isinstance(response, dict):
+        return []
+    choices = response.get("choices", [])
+    if not choices:
+        return []
+    if "logprobs" not in choices[0]:
+        return [
+            "[warning] choices[0] missing 'logprobs' field (spec: required, nullable)"
+        ]
+    return []
+
+
+def chat_id_has_prefix(prefix: str) -> Validator:
+    """Factory: warn if response id does not start with expected prefix."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not isinstance(response, dict):
+            return []
+        rid = response.get("id", "")
+        if rid and not rid.startswith(prefix):
+            return [f"[warning] response.id '{rid[:20]}...' missing '{prefix}' prefix"]
+        return []
+
+    _check.__qualname__ = f"chat_id_has_prefix({prefix!r})"
+    return _check
+
+
+def chat_streaming_all_have_finish_reason(
+    response: Any, ctx: ValidatorContext
+) -> list[str]:
+    """Warn if any streaming chunk choice lacks the finish_reason key."""
+    if not ctx.sse_events:
+        return []
+    missing = 0
+    total = 0
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        for choice in data.get("choices", []):
+            total += 1
+            if "finish_reason" not in choice:
+                missing += 1
+    if missing:
+        return [
+            f"[warning] {missing}/{total} streaming chunk choices missing "
+            f"'finish_reason' key (spec: required, nullable)"
+        ]
+    return []
+
+
 # -- Anthropic Messages validators --
 
 

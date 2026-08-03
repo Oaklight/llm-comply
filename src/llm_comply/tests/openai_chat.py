@@ -8,10 +8,15 @@ from ..config import ComplianceConfig
 from ..test_case import TestCase, TestCategory
 from ..validators import (
     chat_finish_reason,
+    chat_has_annotations_field,
     chat_has_choices,
+    chat_has_logprobs_field,
     chat_has_message,
+    chat_has_refusal_field,
     chat_has_tool_calls,
     chat_has_usage,
+    chat_id_has_prefix,
+    chat_streaming_all_have_finish_reason,
     chat_streaming_has_delta,
     chat_streaming_has_done,
     chat_streaming_has_finish,
@@ -19,6 +24,18 @@ from ..validators import (
     has_response_id,
     streaming_has_events,
 )
+
+_CHAT_RESPONSE_WARNINGS = [
+    chat_has_refusal_field,
+    chat_has_annotations_field,
+    chat_has_logprobs_field,
+    chat_id_has_prefix("chatcmpl-"),
+]
+
+_CHAT_STREAMING_WARNINGS = [
+    chat_streaming_all_have_finish_reason,
+    chat_id_has_prefix("chatcmpl-"),
+]
 
 
 def _load_test_image_b64() -> str:
@@ -100,6 +117,7 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
             chat_has_message,
             chat_finish_reason("stop"),
             chat_has_usage,
+            *_CHAT_RESPONSE_WARNINGS,
         ],
     ),
     TestCase(
@@ -124,6 +142,7 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
             chat_has_choices,
             chat_has_message,
             chat_finish_reason("stop"),
+            *_CHAT_RESPONSE_WARNINGS,
         ],
     ),
     TestCase(
@@ -149,6 +168,7 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
             chat_has_choices,
             chat_has_message,
             chat_finish_reason("stop"),
+            *_CHAT_RESPONSE_WARNINGS,
         ],
     ),
     TestCase(
@@ -164,6 +184,7 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
             chat_has_choices,
             chat_has_tool_calls,
             chat_finish_reason("tool_calls"),
+            *_CHAT_RESPONSE_WARNINGS,
         ],
     ),
     TestCase(
@@ -184,6 +205,7 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
             chat_streaming_has_delta,
             chat_streaming_has_finish,
             chat_streaming_has_done,
+            *_CHAT_STREAMING_WARNINGS,
         ],
     ),
     TestCase(
@@ -204,6 +226,7 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
             streaming_has_events,
             chat_streaming_has_usage,
             chat_streaming_has_done,
+            *_CHAT_STREAMING_WARNINGS,
         ],
     ),
     TestCase(
@@ -219,6 +242,7 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
             chat_has_choices,
             chat_has_message,
             chat_finish_reason("stop"),
+            *_CHAT_RESPONSE_WARNINGS,
         ],
     ),
     TestCase(

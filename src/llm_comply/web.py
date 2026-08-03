@@ -111,6 +111,12 @@ def _run_single_test(
     if errors and ignore_list:
         errors = [e for e in errors if not any(pat in e for pat in ignore_list)]
 
+    _WARNING_PREFIX = "[warning] "
+    warnings = [
+        e[len(_WARNING_PREFIX) :] for e in errors if e.startswith(_WARNING_PREFIX)
+    ]
+    errors = [e for e in errors if not e.startswith(_WARNING_PREFIX)]
+
     status = "passed" if not errors else "failed"
 
     result: dict[str, Any] = {
@@ -121,6 +127,8 @@ def _run_single_test(
         "errors": errors,
         "streaming": tc.streaming,
     }
+    if warnings:
+        result["warnings"] = warnings
     if status == "failed" and request_body:
         req_str = json.dumps(request_body, ensure_ascii=False)
         result["request"] = req_str[:800] if len(req_str) > 800 else req_str

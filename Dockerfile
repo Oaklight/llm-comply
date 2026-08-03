@@ -28,6 +28,6 @@ RUN groupadd -r comply && useradd -r -g comply -s /usr/sbin/nologin comply
 USER comply
 WORKDIR /home/comply
 
-EXPOSE 7860
+EXPOSE 8090
 
-CMD ["llm-comply", "--web", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["llm-comply", "--web", "--host", "0.0.0.0", "--port", "8090"]

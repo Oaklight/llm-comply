@@ -552,30 +552,32 @@ def google_streaming_has_usage(response: Any, ctx: ValidatorContext) -> list[str
 
 
 def google_has_response_id(response: Any, ctx: ValidatorContext) -> list[str]:
-    """Response must have a responseId field."""
+    """Response must have a responseId / response_id field."""
     if not isinstance(response, dict):
         return ["response is not a JSON object"]
-    if not response.get("responseId"):
+    if not (response.get("responseId") or response.get("response_id")):
         return ["response.responseId is missing"]
     return []
 
 
 def google_has_model_version(response: Any, ctx: ValidatorContext) -> list[str]:
-    """Response must have a modelVersion field."""
+    """Response must have a modelVersion / model_version field."""
     if not isinstance(response, dict):
         return ["response is not a JSON object"]
-    if not response.get("modelVersion"):
+    if not (response.get("modelVersion") or response.get("model_version")):
         return ["response.modelVersion is missing"]
     return []
 
 
 def google_streaming_has_response_id(response: Any, ctx: ValidatorContext) -> list[str]:
-    """At least one streaming chunk must have responseId."""
+    """At least one streaming chunk must have responseId / response_id."""
     if not ctx.sse_events:
         return ["no SSE events to check"]
     for event in ctx.sse_events:
         data = event.get("data")
-        if isinstance(data, dict) and data.get("responseId"):
+        if isinstance(data, dict) and (
+            data.get("responseId") or data.get("response_id")
+        ):
             return []
     return ["no streaming chunk contained responseId"]
 
@@ -583,12 +585,14 @@ def google_streaming_has_response_id(response: Any, ctx: ValidatorContext) -> li
 def google_streaming_has_model_version(
     response: Any, ctx: ValidatorContext
 ) -> list[str]:
-    """At least one streaming chunk must have modelVersion."""
+    """At least one streaming chunk must have modelVersion / model_version."""
     if not ctx.sse_events:
         return ["no SSE events to check"]
     for event in ctx.sse_events:
         data = event.get("data")
-        if isinstance(data, dict) and data.get("modelVersion"):
+        if isinstance(data, dict) and (
+            data.get("modelVersion") or data.get("model_version")
+        ):
             return []
     return ["no streaming chunk contained modelVersion"]
 
@@ -621,10 +625,15 @@ def google_usage_valid_modalities(response: Any, ctx: ValidatorContext) -> list[
     if not isinstance(usage, dict):
         return []
     errors: list[str] = []
-    for field in ("promptTokensDetails", "candidatesTokensDetails"):
-        details = usage.get(field, [])
+    _DETAIL_FIELDS = (
+        ("promptTokensDetails", "prompt_tokens_details"),
+        ("candidatesTokensDetails", "candidates_tokens_details"),
+    )
+    for camel, snake in _DETAIL_FIELDS:
+        details = usage.get(camel) or usage.get(snake, [])
         if not isinstance(details, list):
             continue
+        field = camel
         for entry in details:
             modality = entry.get("modality", "")
             if modality and modality not in _GOOGLE_VALID_MODALITIES:

@@ -1,8 +1,24 @@
 FROM python:3.12-slim AS builder
 
+ARG LOCAL_WHEEL
+ARG PYPI_MIRROR
+
 WORKDIR /build
-COPY . .
-RUN pip install --no-cache-dir --prefix=/install .
+
+RUN mkdir -p /tmp/dist/
+COPY dist/ /tmp/dist/
+
+RUN set -e; \
+    WHEEL=$(ls /tmp/dist/*.whl 2>/dev/null | head -1); \
+    if [ -n "$WHEEL" ]; then \
+        pip install --no-cache-dir --prefix=/install "$WHEEL"; \
+    else \
+        if [ -n "$PYPI_MIRROR" ]; then \
+            pip install --no-cache-dir --prefix=/install -i "$PYPI_MIRROR" llm-comply; \
+        else \
+            pip install --no-cache-dir --prefix=/install llm-comply; \
+        fi; \
+    fi
 
 FROM python:3.12-slim
 

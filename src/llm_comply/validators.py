@@ -551,6 +551,105 @@ def google_streaming_has_usage(response: Any, ctx: ValidatorContext) -> list[str
     return ["no streaming chunk contained usageMetadata"]
 
 
+def google_has_response_id(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a responseId field."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    if not response.get("responseId"):
+        return ["response.responseId is missing"]
+    return []
+
+
+def google_has_model_version(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a modelVersion field."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    if not response.get("modelVersion"):
+        return ["response.modelVersion is missing"]
+    return []
+
+
+def google_streaming_has_response_id(response: Any, ctx: ValidatorContext) -> list[str]:
+    """At least one streaming chunk must have responseId."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if isinstance(data, dict) and data.get("responseId"):
+            return []
+    return ["no streaming chunk contained responseId"]
+
+
+def google_streaming_has_model_version(
+    response: Any, ctx: ValidatorContext
+) -> list[str]:
+    """At least one streaming chunk must have modelVersion."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if isinstance(data, dict) and data.get("modelVersion"):
+            return []
+    return ["no streaming chunk contained modelVersion"]
+
+
+def google_error_format(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Error response must follow Google format: {error: {code, message, status}}."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    error = response.get("error")
+    if not isinstance(error, dict):
+        return ["response.error is missing or not an object"]
+    errors: list[str] = []
+    if "code" not in error:
+        errors.append("error.code is missing")
+    if "message" not in error:
+        errors.append("error.message is missing")
+    if "status" not in error:
+        errors.append("error.status is missing")
+    return errors
+
+
+_GOOGLE_VALID_MODALITIES = {"TEXT", "IMAGE", "VIDEO", "AUDIO", "DOCUMENT"}
+
+
+def google_usage_valid_modalities(response: Any, ctx: ValidatorContext) -> list[str]:
+    """ModalityTokenCount entries must use valid Google Modality enum values."""
+    if not isinstance(response, dict):
+        return []
+    usage = response.get("usageMetadata") or response.get("usage_metadata")
+    if not isinstance(usage, dict):
+        return []
+    errors: list[str] = []
+    for field in ("promptTokensDetails", "candidatesTokensDetails"):
+        details = usage.get(field, [])
+        if not isinstance(details, list):
+            continue
+        for entry in details:
+            modality = entry.get("modality", "")
+            if modality and modality not in _GOOGLE_VALID_MODALITIES:
+                errors.append(
+                    f"{field}[].modality: '{modality}' is not a valid "
+                    f"Google Modality enum value"
+                )
+    return errors
+
+
+def google_function_call_has_id(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Warn if functionCall parts lack an id field (Gemini 3.x provides it)."""
+    if not isinstance(response, dict):
+        return []
+    cands = response.get("candidates", [])
+    if not cands:
+        return []
+    parts = cands[0].get("content", {}).get("parts", [])
+    for p in parts:
+        fc = p.get("functionCall") or p.get("function_call")
+        if fc and "id" not in fc:
+            return ["[warning] functionCall part has no id field"]
+    return []
+
+
 def _camel_to_snake(name: str) -> str:
     import re
 

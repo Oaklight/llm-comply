@@ -8,13 +8,19 @@ from ..config import ComplianceConfig
 from ..test_case import TestCase, TestCategory
 from ..validators import (
     google_finish_reason,
+    google_function_call_has_id,
     google_has_candidates,
     google_has_content_parts,
     google_has_function_call,
+    google_has_model_version,
+    google_has_response_id,
     google_has_usage,
     google_streaming_has_finish,
+    google_streaming_has_model_version,
+    google_streaming_has_response_id,
     google_streaming_has_text,
     google_streaming_has_usage,
+    google_usage_valid_modalities,
     streaming_has_events,
 )
 
@@ -150,6 +156,9 @@ GOOGLE_GENAI_TESTS: list[TestCase] = [
             google_has_content_parts,
             google_finish_reason("STOP"),
             google_has_usage,
+            google_usage_valid_modalities,
+            google_has_response_id,
+            google_has_model_version,
         ],
     ),
     _make_test(
@@ -201,6 +210,7 @@ GOOGLE_GENAI_TESTS: list[TestCase] = [
         validators=[
             google_has_candidates,
             google_has_function_call,
+            google_function_call_has_id,
             google_finish_reason("STOP"),
         ],
     ),
@@ -219,6 +229,8 @@ GOOGLE_GENAI_TESTS: list[TestCase] = [
             streaming_has_events,
             google_streaming_has_text,
             google_streaming_has_finish,
+            google_streaming_has_response_id,
+            google_streaming_has_model_version,
         ],
     ),
     _make_test(

@@ -1,6 +1,5 @@
 FROM python:3.12-slim AS builder
 
-ARG LOCAL_WHEEL
 ARG PYPI_MIRROR
 
 WORKDIR /build

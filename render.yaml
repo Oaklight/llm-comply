@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: llm-comply
-    runtime: docker
-    plan: free
-    dockerfilePath: ./Dockerfile
-    envVars:
-      - key: PORT
-        value: "7860"

@@ -12,7 +12,8 @@
   --green: #16a34a; --green-bg: #dcfce7; --green-border: #bbf7d0;
   --red: #dc2626; --red-bg: #fef2f2; --red-border: #fecaca;
   --blue: #2563eb; --blue-bg: #eff6ff; --blue-border: #bfdbfe;
-  --yellow: #d97706; --radius: 8px;
+  --yellow: #d97706; --yellow-bg: #fffbeb; --yellow-border: #fde68a;
+  --radius: 8px;
   --font: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.6; }
@@ -56,17 +57,20 @@ a { color: var(--blue); text-decoration: none; }
 .summary { padding: 10px 16px; border-radius: var(--radius); font-weight: 500; font-size: 0.9rem; text-align: center; margin-bottom: 14px; display: none; }
 .summary.pass { display: block; background: var(--green-bg); color: #166534; border: 1px solid var(--green-border); }
 .summary.fail { display: block; background: var(--red-bg); color: #991b1b; border: 1px solid var(--red-border); }
+.summary.warn { display: block; background: var(--yellow-bg); color: #92400e; border: 1px solid var(--yellow-border); }
 .summary.running { display: block; background: var(--blue-bg); color: #1e40af; border: 1px solid var(--blue-border); }
 
 /* Test cards */
 .test-list { display: flex; flex-direction: column; gap: 8px; }
 .test-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color 0.15s; }
 .test-card.pass { border-color: var(--green-border); }
+.test-card.warn { border-color: var(--yellow-border); }
 .test-card.fail { border-color: var(--red-border); }
 .test-head { display: grid; grid-template-columns: 24px 1fr auto auto; align-items: start; gap: 12px; padding: 13px 16px; cursor: pointer; transition: background 0.1s; }
 .test-head:hover { background: #f9fafb; }
 .test-icon { font-size: 1rem; text-align: center; margin-top: 1px; }
 .test-icon.pass { color: var(--green); }
+.test-icon.warn { color: var(--yellow); }
 .test-icon.fail { color: var(--red); }
 .test-icon.skip { color: var(--yellow); }
 .test-icon.pending { color: #ccc; }
@@ -91,6 +95,10 @@ a { color: var(--blue); text-decoration: none; }
 .err-label { font-weight: 600; color: var(--red); font-size: 0.75rem; margin-bottom: 4px; }
 .err-list { padding-left: 16px; color: #991b1b; margin: 0 0 8px; }
 .err-list li { margin-bottom: 2px; font-size: 0.78rem; }
+.warn-box { background: var(--yellow-bg); border: 1px solid var(--yellow-border); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+.warn-label { font-weight: 600; color: var(--yellow); font-size: 0.75rem; margin-bottom: 4px; }
+.warn-list { padding-left: 16px; color: #92400e; margin: 0 0 8px; }
+.warn-list li { margin-bottom: 2px; font-size: 0.78rem; }
 .pass-msg { color: var(--green); }
 
 .footer { text-align: center; color: var(--text-dim); font-size: 0.78rem; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); }
@@ -259,7 +267,7 @@ async function runTests() {
     ignore: $('ignore').value,
   };
 
-  let passed = 0, failed = 0, skipped = 0;
+  let passed = 0, failed = 0, skipped = 0, warned = 0;
 
   for (const t of testData) {
     if (!abortCtrl || abortCtrl.signal.aborted) break;
@@ -268,7 +276,7 @@ async function runTests() {
     const icon = card.querySelector('.test-icon');
     icon.className = 'test-icon running';
     icon.textContent = '⟳';
-    updateSummary(passed, failed, skipped, testData.length, true);
+    updateSummary(passed, failed, skipped, warned, testData.length, true);
 
     try {
       const resp = await fetch('/api/run', {
@@ -279,7 +287,10 @@ async function runTests() {
       });
       const r = await resp.json();
       applyResult(card, r);
-      if (r.status === 'passed') passed++;
+      if (r.status === 'passed') {
+        passed++;
+        if (r.warnings && r.warnings.length) warned++;
+      }
       else if (r.status === 'skipped') skipped++;
       else failed++;
     } catch(e) {
@@ -292,7 +303,7 @@ async function runTests() {
 
   const wasCancelled = abortCtrl && abortCtrl.signal.aborted;
   abortCtrl = null;
-  updateSummary(passed, failed, skipped, testData.length, false, wasCancelled);
+  updateSummary(passed, failed, skipped, warned, testData.length, false, wasCancelled);
   btn.textContent = 'Run Tests';
   btn.classList.remove('stopping');
 }
@@ -304,7 +315,11 @@ function applyResult(card, r) {
 
   timeEl.textContent = r.duration_ms ? Math.round(r.duration_ms) + 'ms' : '';
 
-  if (r.status === 'passed') {
+  if (r.status === 'passed' && r.warnings && r.warnings.length) {
+    icon.className = 'test-icon warn'; icon.textContent = '⚠';
+    card.classList.add('warn');
+    detail.innerHTML = buildWarningsHtml(r);
+  } else if (r.status === 'passed') {
     icon.className = 'test-icon pass'; icon.textContent = '✓';
     card.classList.add('pass');
     detail.innerHTML = '<div class="section pass-msg">All validations passed</div>';
@@ -319,6 +334,20 @@ function applyResult(card, r) {
   }
 }
 
+function _buildWarningSection(warnings) {
+  if (!warnings || !warnings.length) return '';
+  let html = '<div class="warn-box"><div class="warn-label">Warnings</div><ul class="warn-list">';
+  const max = 8;
+  warnings.slice(0, max).forEach(w => { html += '<li>' + esc(w) + '</li>'; });
+  if (warnings.length > max) html += '<li>... and ' + (warnings.length - max) + ' more</li>';
+  html += '</ul></div>';
+  return html;
+}
+
+function buildWarningsHtml(r) {
+  return '<div class="section pass-msg">Passed with warnings</div>' + _buildWarningSection(r.warnings);
+}
+
 function buildDetailHtml(r) {
   let html = '';
   if (r.errors && r.errors.length) {
@@ -328,6 +357,7 @@ function buildDetailHtml(r) {
     if (r.errors.length > max) html += '<li>... and ' + (r.errors.length - max) + ' more</li>';
     html += '</ul></div>';
   }
+  html += _buildWarningSection(r.warnings);
   if (r.request) {
     let pretty = r.request;
     try { pretty = JSON.stringify(JSON.parse(r.request), null, 2); } catch(e) {}
@@ -341,21 +371,25 @@ function buildDetailHtml(r) {
   return html;
 }
 
-function updateSummary(passed, failed, skipped, total, running, cancelled) {
+function updateSummary(passed, failed, skipped, warned, total, running, cancelled) {
   const el = $('summary');
   const done = passed + failed + skipped;
+  const warnSuffix = warned ? ' (' + warned + ' with warnings)' : '';
   if (running) {
     el.className = 'summary running';
     el.textContent = 'Running... ' + done + '/' + total;
   } else if (cancelled) {
     el.className = 'summary fail';
     el.textContent = 'Stopped — ' + passed + ' passed, ' + failed + ' failed (' + done + '/' + total + ' run)';
+  } else if (failed === 0 && warned > 0) {
+    el.className = 'summary warn';
+    el.textContent = 'All ' + passed + ' tests passed' + warnSuffix;
   } else if (failed === 0) {
     el.className = 'summary pass';
     el.textContent = 'All ' + passed + ' tests passed!';
   } else {
     el.className = 'summary fail';
-    el.textContent = passed + '/' + total + ' passed, ' + failed + ' failed' + (skipped ? ', ' + skipped + ' skipped' : '');
+    el.textContent = passed + '/' + total + ' passed, ' + failed + ' failed' + (skipped ? ', ' + skipped + ' skipped' : '') + warnSuffix;
   }
 }
 

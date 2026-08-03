@@ -151,6 +151,22 @@ def _build_image_input_request(cfg: ComplianceConfig) -> dict[str, Any]:
     }
 
 
+def _compact_warn_has_output(response: Any, ctx: ValidatorContext) -> list[str]:
+    errs = has_output(response, ctx)
+    return [f"[warning] {e}" for e in errs]
+
+
+def _compact_warn_object(response: Any, ctx: ValidatorContext) -> list[str]:
+    errs = compact_object(response, ctx)
+    return [f"[warning] {e}" for e in errs]
+
+
+def _compact_warn_has_compaction(response: Any, ctx: ValidatorContext) -> list[str]:
+    checker = has_output_type("compaction")
+    errs = checker(response, ctx)
+    return [f"[warning] {e}" for e in errs]
+
+
 OPEN_RESPONSES_TESTS: list[TestCase] = [
     TestCase(
         id="basic-response",
@@ -337,10 +353,11 @@ OPEN_RESPONSES_TESTS: list[TestCase] = [
     TestCase(
         id="compact-response",
         name="Compaction Endpoint",
-        description="POST /v1/responses/compact validates compacted response",
+        description="POST /v1/responses/compact validates compacted response (advisory — many providers lack this endpoint)",
         category=TestCategory.BASIC,
         endpoint="/responses/compact",
         schema_name=None,
+        expected_statuses=[200, 404],
         build_request=lambda cfg: {
             "model": cfg.model,
             "prompt_cache_key": "openresponses-compact-test",
@@ -357,12 +374,16 @@ OPEN_RESPONSES_TESTS: list[TestCase] = [
                 },
             ],
         },
-        validators=[has_output, compact_object, has_output_type("compaction")],
+        validators=[
+            _compact_warn_has_output,
+            _compact_warn_object,
+            _compact_warn_has_compaction,
+        ],
     ),
     TestCase(
         id="compact-missing-model",
         name="Compaction Missing Required Model",
-        description="Compact request without model field is rejected",
+        description="Compact request without model field is rejected (advisory — many providers lack this endpoint)",
         category=TestCategory.ERROR_HANDLING,
         endpoint="/responses/compact",
         schema_name=None,
@@ -375,7 +396,7 @@ OPEN_RESPONSES_TESTS: list[TestCase] = [
                 }
             ],
         },
-        expected_statuses=[400, 422],
+        expected_statuses=[400, 404, 422],
         validators=[],
     ),
     TestCase(

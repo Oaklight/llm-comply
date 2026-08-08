@@ -7,19 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-09
+
 ### Added
 
 - Warning-level validator support for non-fatal compliance issues
 - Google GenAI spec compliance validators
+- OpenAI Chat Completions advisory warning validators
+- Web UI displays warnings alongside pass/fail results
+- `deploy-dev` and Docker targets in Makefile
 
 ### Changed
 
 - Auth header now follows format switch unless user has customized it
   (same preserve-on-custom logic as URL and model)
+- Anthropic error handling test demoted from failure to warning
+- Removed unused `LOCAL_WHEEL` Docker build arg
 
 ### Fixed
 
 - Strip `/v1` suffix from base URL for Google GenAI `/v1beta` endpoints
+- Google GenAI validators accept both camelCase and snake_case field names
 - Web UI auth settings preserved when base URL is custom
 - Replaced GoatCounter with hits.sh badge only (GoatCounter was blocked by adblockers)
 - Improved hits.sh badge visibility with explicit height and margin
@@ -73,5 +81,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Release workflow with Trusted Publisher (PyPI)
 - Pre-commit hooks (ruff check + ruff format)
 
+[0.3.0]: https://github.com/Oaklight/llm-comply/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Oaklight/llm-comply/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Oaklight/llm-comply/releases/tag/v0.1.0

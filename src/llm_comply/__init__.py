@@ -1,6 +1,6 @@
 """llm-comply: Multi-format LLM API compliance testing tool."""
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from .config import ComplianceConfig
 from .display import get_display

@@ -20,6 +20,7 @@ class ComplianceConfig:
     verbose: bool = False
     json_output: bool = False
     timeout: float = 60.0
+    delay: float = 0.0
     spec_path: str | None = None
     ignore_errors: list[str] | None = None
     extra_headers: dict[str, str] | None = None
@@ -60,6 +61,7 @@ class ComplianceConfig:
             verbose=getattr(args, "verbose", False),
             json_output=getattr(args, "json", False),
             timeout=getattr(args, "timeout", 60.0),
+            delay=getattr(args, "delay", 0.0),
             spec_path=getattr(args, "spec", None),
             ignore_errors=ignore_errors,
             extra_headers=extra_headers,

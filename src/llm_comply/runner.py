@@ -32,8 +32,11 @@ class TestRunner:
     def run_all(self) -> SuiteResult:
         suite = SuiteResult()
         tests = self._filtered_tests()
+        delay = self._config.delay
 
-        for tc in tests:
+        for i, tc in enumerate(tests):
+            if delay > 0 and i > 0:
+                time.sleep(delay)
             result = self.run_one(tc)
             suite.results.append(result)
             if self._on_result:

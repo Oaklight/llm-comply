@@ -81,6 +81,12 @@ def _add_run_args(parser: argparse.ArgumentParser) -> None:
         default=60.0,
         help="Per-request timeout in seconds (default: 60)",
     )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.0,
+        help="Delay in seconds between tests (default: 0, useful for rate-limited APIs)",
+    )
     parser.add_argument("--spec", help="Path to custom OpenAPI spec JSON")
     parser.add_argument(
         "--format",

@@ -898,7 +898,7 @@ def interactions_status(expected: str) -> Validator:
             return [f"expected status='{expected}', got '{status}'"]
         return []
 
-    _check.__doc__ = f"status must be '{expected}'"
+    _check.__qualname__ = f"interactions_status({expected!r})"
     return _check
 
 
@@ -975,19 +975,23 @@ def interactions_has_object_field(response: Any, ctx: ValidatorContext) -> list[
 # ── Google Interactions streaming validators ───────────────────────
 
 
+def _interactions_event_type(event: dict) -> str:
+    data = event.get("data")
+    if not isinstance(data, dict):
+        return ""
+    return data.get("event_type", event.get("type", ""))
+
+
 def interactions_streaming_has_text(response: Any, ctx: ValidatorContext) -> list[str]:
     """Streaming events must contain step.delta events with text content."""
     if not ctx.sse_events:
         return ["no SSE events received"]
     for event in ctx.sse_events:
-        data = event.get("data")
-        if not isinstance(data, dict):
+        if _interactions_event_type(event) != "step.delta":
             continue
-        etype = data.get("event_type", event.get("type", ""))
-        if etype == "step.delta":
-            delta = data.get("delta", {})
-            if delta.get("type") == "text" and delta.get("text"):
-                return []
+        delta = event.get("data", {}).get("delta", {})
+        if delta.get("type") == "text" and delta.get("text"):
+            return []
     return ["no step.delta event with text content found"]
 
 
@@ -997,13 +1001,7 @@ def interactions_streaming_has_lifecycle(
     """Streaming must have interaction.created, step.start, step.stop events."""
     if not ctx.sse_events:
         return ["no SSE events received"]
-    seen: set[str] = set()
-    for event in ctx.sse_events:
-        data = event.get("data")
-        if not isinstance(data, dict):
-            continue
-        etype = data.get("event_type", event.get("type", ""))
-        seen.add(etype)
+    seen = {_interactions_event_type(e) for e in ctx.sse_events}
     errors: list[str] = []
     for required in ("interaction.created", "step.start", "step.stop"):
         if required not in seen:
@@ -1018,13 +1016,7 @@ def interactions_streaming_has_completed(
     if not ctx.sse_events:
         return ["no SSE events received"]
     for event in reversed(ctx.sse_events):
-        data = event.get("data")
-        if not isinstance(data, dict):
-            if data == "[DONE]":
-                continue
-            continue
-        etype = data.get("event_type", event.get("type", ""))
-        if etype == "interaction.completed":
+        if _interactions_event_type(event) == "interaction.completed":
             return []
     return ["no interaction.completed event found"]
 
@@ -1034,14 +1026,11 @@ def interactions_streaming_has_usage(response: Any, ctx: ValidatorContext) -> li
     if not ctx.sse_events:
         return ["no SSE events received"]
     for event in ctx.sse_events:
-        data = event.get("data")
-        if not isinstance(data, dict):
+        if _interactions_event_type(event) != "interaction.completed":
             continue
-        etype = data.get("event_type", event.get("type", ""))
-        if etype == "interaction.completed":
-            interaction = data.get("interaction", {})
-            usage = interaction.get("usage")
-            if isinstance(usage, dict):
-                return []
-            return ["interaction.completed event missing usage data"]
+        interaction = event.get("data", {}).get("interaction", {})
+        usage = interaction.get("usage")
+        if isinstance(usage, dict):
+            return []
+        return ["interaction.completed event missing usage data"]
     return ["no interaction.completed event found"]

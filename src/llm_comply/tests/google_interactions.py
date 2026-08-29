@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import dataclasses
+
 from ..config import ComplianceConfig
 from ..test_case import TestCase, TestCategory
 from ..validators import (
@@ -48,8 +50,6 @@ def _make_test(
     streaming: bool = False,
     expected_statuses: list[int] | None = None,
 ) -> TestCase:
-    import dataclasses
-
     tc = TestCase(
         id=id,
         name=name,

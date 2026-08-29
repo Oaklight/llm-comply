@@ -1,0 +1,31 @@
+# Minimal binary-only image for llm-comply.
+# Uses a pre-built Nuitka binary — no Python runtime needed.
+#
+# Build:
+#   Alpine (musl binary, ~21 MB):
+#     docker build -f docker/Dockerfile.binary --build-arg BASE_IMAGE=alpine \
+#       --build-arg BINARY=build/llm-comply-0.4.0-linux-x86_64-musl .
+#
+#   Glibc (native binary, ~25 MB):
+#     docker build -f docker/Dockerfile.binary --build-arg BASE_IMAGE=busybox:glibc \
+#       --build-arg BINARY=build/llm-comply-0.4.0-linux-x86_64 .
+#
+# Run:
+#   docker run -p 8090:8090 llm-comply
+#   docker run llm-comply /usr/local/bin/llm-comply --help
+
+ARG BASE_IMAGE=alpine
+FROM ${BASE_IMAGE}
+
+ARG BINARY=llm-comply
+COPY --chmod=755 ${BINARY} /usr/local/bin/llm-comply
+
+RUN addgroup -g 1000 appgroup && \
+    adduser -D -u 1000 -G appgroup appuser
+
+USER appuser
+EXPOSE 8090
+
+COPY --chmod=755 docker/entrypoint-binary.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/usr/local/bin/llm-comply", "--web", "--host", "0.0.0.0", "--port", "8090"]

@@ -54,7 +54,8 @@ a:hover { text-decoration: underline; }
 .theme-toggle { appearance: none; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; width: 44px; height: 24px; cursor: pointer; position: relative; transition: background var(--transition), border-color var(--transition); }
 .theme-toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-dim); transition: transform var(--transition), background var(--transition); }
 .theme-toggle:checked::after { transform: translateX(20px); background: var(--accent); }
-.theme-label { font-size: 0.75rem; color: var(--text-muted); cursor: pointer; user-select: none; }
+.theme-label { font-size: 1rem; color: var(--text-dim); cursor: pointer; user-select: none; line-height: 1; transition: color var(--transition); }
+.theme-label:hover { color: var(--text); }
 
 .content { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
 @media (max-width: 820px) {
@@ -75,6 +76,7 @@ a:hover { text-decoration: underline; }
 }
 .field input:focus, .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
 .field input::placeholder { color: var(--text-muted); }
+.field-hint { font-size: 0.68rem; color: var(--text-muted); margin-top: 3px; font-style: italic; }
 .field select { cursor: pointer; }
 
 .field-row { display: flex; gap: 8px; align-items: center; }
@@ -145,9 +147,10 @@ a:hover { text-decoration: underline; }
 .test-head {
   display: grid; grid-template-columns: 20px 1fr auto auto;
   align-items: center; gap: 10px; padding: 10px 14px;
-  cursor: pointer; transition: background var(--transition);
+  transition: background var(--transition);
 }
-.test-head:hover { background: rgba(255,255,255,0.03); }
+.test-card.pass .test-head, .test-card.fail .test-head, .test-card.warn .test-head { cursor: pointer; }
+.test-card.pass .test-head:hover, .test-card.fail .test-head:hover, .test-card.warn .test-head:hover { background: rgba(255,255,255,0.03); }
 [data-theme="light"] .test-head:hover { background: rgba(0,0,0,0.015); }
 
 .test-icon { font-size: 0.85rem; text-align: center; font-family: var(--mono); }
@@ -163,7 +166,8 @@ a:hover { text-decoration: underline; }
 .test-name { font-weight: 500; font-size: 0.82rem; }
 .test-desc { color: var(--text-muted); font-size: 0.72rem; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .test-time { color: var(--text-muted); font-size: 0.72rem; font-family: var(--mono); white-space: nowrap; }
-.test-arrow { color: var(--text-muted); font-size: 0.7rem; transition: transform 0.2s; }
+.test-arrow { color: var(--text-muted); font-size: 0.7rem; transition: transform 0.2s, opacity 0.2s; opacity: 0; }
+.test-card.pass .test-arrow, .test-card.fail .test-arrow, .test-card.warn .test-arrow { opacity: 1; }
 .test-card.expanded .test-arrow { transform: rotate(180deg); }
 
 .tag { display: inline-block; font-size: 0.6rem; font-weight: 600; padding: 1px 5px; border-radius: 3px; vertical-align: middle; margin-left: 6px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -211,7 +215,7 @@ a:hover { text-decoration: underline; }
       <span class="tagline">API compliance tester for OpenAI, Anthropic, Google GenAI &amp; Interactions</span>
     </div>
     <div class="top-actions">
-      <label class="theme-label" for="theme-switch">theme</label>
+      <span class="theme-label" id="theme-icon" onclick="document.getElementById('theme-switch').click()">☾</span>
       <input type="checkbox" class="theme-toggle" id="theme-switch" onchange="toggleTheme()">
     </div>
   </div>
@@ -240,6 +244,7 @@ a:hover { text-decoration: underline; }
       <div class="field">
         <label>API Key</label>
         <input id="key" type="password" placeholder="sk-...">
+        <div class="field-hint">Keys are sent directly to the target API. Nothing is stored or logged.</div>
       </div>
       <div class="adv-toggle" onclick="toggleAdv()">+ advanced</div>
       <div class="adv" id="adv">
@@ -275,7 +280,7 @@ a:hover { text-decoration: underline; }
 
   <div class="footer">
     <a href="https://github.com/Oaklight/llm-comply" target="_blank">llm-comply</a> &middot; multi-format LLM API compliance testing
-    <div style="margin-top:6px"><a href="https://hits.sh/llm-comply.service.oaklight.top/" target="_blank" rel="noopener"><img src="https://hits.sh/llm-comply.service.oaklight.top.svg?style=flat&label=visits&color=888" alt="visits" height="18" loading="lazy" referrerpolicy="no-referrer"></a></div>
+
   </div>
 </div>
 
@@ -303,11 +308,13 @@ function initTheme() {
   const dark = saved ? saved === 'dark' : prefersDark;
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
   $('theme-switch').checked = !dark;
+  $('theme-icon').textContent = dark ? '☾' : '☀';
 }
 function toggleTheme() {
   const light = $('theme-switch').checked;
   document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
   localStorage.setItem('llm-comply-theme', light ? 'light' : 'dark');
+  $('theme-icon').textContent = light ? '☀' : '☾';
 }
 initTheme();
 
@@ -379,7 +386,7 @@ function renderTests() {
   `).join('');
 }
 
-function toggleCard(id) { document.getElementById(id).classList.toggle('expanded'); }
+function toggleCard(id) { const c = document.getElementById(id); if (c.classList.contains('pass') || c.classList.contains('fail') || c.classList.contains('warn') || c.querySelector('.test-icon.skip')) c.classList.toggle('expanded'); }
 
 function stopTests() {
   if (abortCtrl) { abortCtrl.abort(); abortCtrl = null; }

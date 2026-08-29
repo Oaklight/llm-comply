@@ -14,6 +14,7 @@ from ..validators import (
     has_output_type,
     has_response_id,
     has_usage,
+    responses_has_reasoning_summary,
     streaming_has_events,
     streaming_has_terminal,
     streaming_has_usage,
@@ -398,6 +399,41 @@ OPEN_RESPONSES_TESTS: list[TestCase] = [
         },
         expected_statuses=[400, 404, 422],
         validators=[],
+    ),
+    TestCase(
+        id="reasoning-summary",
+        name="Reasoning Summary",
+        description="reasoning.effort + reasoning.summary produces reasoning output with summary content",
+        category=TestCategory.BASIC,
+        build_request=lambda cfg: {
+            "model": cfg.model,
+            "input": [
+                {
+                    "type": "message",
+                    "role": "user",
+                    "content": "What is 15 * 37? Show your reasoning.",
+                }
+            ],
+            "reasoning": {
+                "effort": "low",
+                "summary": "auto",
+            },
+        },
+        validators=[
+            has_response_id,
+            has_output,
+            completed_status,
+            has_usage,
+            responses_has_reasoning_summary,
+        ],
+        skip_reason=lambda cfg: (
+            "reasoning requires o-series or gpt-5 models"
+            if not any(
+                p in (cfg.model or "")
+                for p in ("o1", "o3", "o4", "gpt-5", "deepseek-r")
+            )
+            else None
+        ),
     ),
     TestCase(
         id="error-handling",

@@ -766,3 +766,85 @@ def anth_error_returns_error_type(response: Any, ctx: ValidatorContext) -> list[
             "an error (server may add default max_tokens)"
         ]
     return []
+
+
+# ── Reasoning / Thinking summary validators ─────────────────────────────
+
+
+def responses_has_reasoning_summary(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Responses API: response.reasoning.summary should be present when requested."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    reasoning = response.get("reasoning")
+    if not isinstance(reasoning, dict):
+        return ["response.reasoning is missing or not an object"]
+    summary = reasoning.get("summary")
+    if summary is None:
+        return ["response.reasoning.summary is null (expected a value when requested)"]
+    return []
+
+
+def chat_has_reasoning_summary(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Chat Completions: usage should report reasoning_tokens > 0 when reasoning is enabled."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    usage = response.get("usage", {})
+    details = usage.get("completion_tokens_details") or {}
+    reasoning_tokens = details.get("reasoning_tokens", 0)
+    if reasoning_tokens == 0:
+        return [
+            "[warning] usage.completion_tokens_details.reasoning_tokens is 0 "
+            "(model may not support reasoning)"
+        ]
+    return []
+
+
+def google_has_thought_parts(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Google GenAI: response should contain thought parts when thinking is enabled."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    cands = response.get("candidates", [])
+    if not cands:
+        return ["response.candidates is empty"]
+    content = cands[0].get("content", {})
+    parts = content.get("parts", [])
+    has_thought = any(p.get("thought") is True for p in parts)
+    if not has_thought:
+        return [
+            "[warning] no thought parts found in candidates[0].content.parts "
+            "(model may not emit thoughts at current thinking level)"
+        ]
+    return []
+
+
+def google_has_thoughts_token_count(
+    response: Any,
+    ctx: ValidatorContext,
+) -> list[str]:
+    """Google GenAI: usageMetadata should include thoughtsTokenCount."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    usage = response.get("usageMetadata") or response.get("usage_metadata") or {}
+    count = usage.get("thoughtsTokenCount") or usage.get("thoughts_token_count")
+    if count is None or count == 0:
+        return [
+            "[warning] usageMetadata.thoughtsTokenCount is missing or 0 "
+            "(model may not report thinking tokens)"
+        ]
+    return []
+
+
+def anth_has_thinking_content(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Anthropic: response should contain a thinking content block."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    content = response.get("content", [])
+    has_thinking = any(
+        isinstance(c, dict) and c.get("type") == "thinking" for c in content
+    )
+    if not has_thinking:
+        return [
+            "[warning] no thinking content block found in response.content "
+            "(model may not emit thinking at current config)"
+        ]
+    return []

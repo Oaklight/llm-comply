@@ -14,6 +14,8 @@ from ..validators import (
     google_has_function_call,
     google_has_model_version,
     google_has_response_id,
+    google_has_thought_parts,
+    google_has_thoughts_token_count,
     google_has_usage,
     google_streaming_has_finish,
     google_streaming_has_model_version,
@@ -259,6 +261,34 @@ GOOGLE_GENAI_TESTS: list[TestCase] = [
             google_has_candidates,
             google_has_content_parts,
             google_finish_reason("STOP"),
+        ],
+    ),
+    _make_test(
+        id="google-thinking",
+        name="Thinking Config",
+        description="generationConfig.thinkingConfig with thinkingLevel is accepted and produces thought output",
+        category=TestCategory.BASIC,
+        build_request=lambda cfg: {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": "What is 15 * 37? Show your reasoning."}],
+                }
+            ],
+            "generationConfig": {
+                "thinkingConfig": {
+                    "thinkingLevel": "low",
+                    "includeThoughts": True,
+                }
+            },
+        },
+        validators=[
+            google_has_candidates,
+            google_has_content_parts,
+            google_finish_reason("STOP"),
+            google_has_usage,
+            google_has_thought_parts,
+            google_has_thoughts_token_count,
         ],
     ),
     _make_test(

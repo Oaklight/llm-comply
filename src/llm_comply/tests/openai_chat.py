@@ -12,6 +12,7 @@ from ..validators import (
     chat_has_choices,
     chat_has_logprobs_field,
     chat_has_message,
+    chat_has_reasoning_summary,
     chat_has_refusal_field,
     chat_has_tool_calls,
     chat_has_usage,
@@ -244,6 +245,41 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
             chat_finish_reason("stop"),
             *_CHAT_RESPONSE_WARNINGS,
         ],
+    ),
+    TestCase(
+        id="chat-reasoning-summary",
+        name="Reasoning Summary",
+        description="reasoning.summary parameter is accepted and produces reasoning tokens",
+        category=TestCategory.BASIC,
+        endpoint="/chat/completions",
+        schema_name="CreateChatCompletionResponse",
+        build_request=lambda cfg: {
+            "model": cfg.model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "What is 15 * 37? Show your reasoning.",
+                }
+            ],
+            "reasoning_effort": "low",
+            "reasoning": {"summary": "auto"},
+        },
+        validators=[
+            has_response_id,
+            chat_has_choices,
+            chat_has_message,
+            chat_finish_reason("stop"),
+            chat_has_usage,
+            chat_has_reasoning_summary,
+        ],
+        skip_reason=lambda cfg: (
+            "reasoning requires o-series or gpt-5 models"
+            if not any(
+                p in (cfg.model or "")
+                for p in ("o1", "o3", "o4", "gpt-5", "deepseek-r")
+            )
+            else None
+        ),
     ),
     TestCase(
         id="chat-error-handling",

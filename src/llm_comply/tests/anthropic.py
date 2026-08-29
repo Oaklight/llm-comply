@@ -9,6 +9,7 @@ from ..test_case import TestCase, TestCategory
 from ..validators import (
     anth_error_returns_error_type,
     anth_has_content,
+    anth_has_thinking_content,
     anth_has_tool_use,
     anth_has_usage,
     anth_role_assistant,
@@ -220,6 +221,53 @@ ANTHROPIC_TESTS: list[TestCase] = [
             anth_has_content,
             anth_stop_reason("end_turn"),
         ],
+    ),
+    TestCase(
+        id="anth-thinking-display",
+        name="Thinking Display",
+        description="thinking config with display=summarized produces thinking content blocks",
+        category=TestCategory.BASIC,
+        endpoint="/messages",
+        schema_name="Message",
+        build_request=lambda cfg: {
+            "model": cfg.model,
+            "max_tokens": 4096,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "What is 15 * 37? Show your reasoning.",
+                }
+            ],
+            "thinking": {
+                "type": "enabled",
+                "budget_tokens": 2048,
+                "display": "summarized",
+            },
+        },
+        validators=[
+            has_response_id,
+            anth_type_message,
+            anth_role_assistant,
+            anth_has_content,
+            anth_stop_reason("end_turn"),
+            anth_has_usage,
+            anth_has_thinking_content,
+        ],
+        skip_reason=lambda cfg: (
+            "extended thinking requires claude-3.5-sonnet or later"
+            if not any(
+                p in (cfg.model or "")
+                for p in (
+                    "claude-3-5",
+                    "claude-3.5",
+                    "claude-4",
+                    "claude-opus",
+                    "claude-sonnet-4",
+                    "claude-haiku-4",
+                )
+            )
+            else None
+        ),
     ),
     TestCase(
         id="anth-error-handling",

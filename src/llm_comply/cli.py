@@ -15,6 +15,7 @@ FORMATS = (
     "google-genai",
     "google-interactions",
 )
+# None = bundled spec is reference-only; validators do structural checks
 _SPEC_FILES = {
     "open-responses": "openresponses.json",
     "openai-chat": "openai_chat.json",

@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>llm-comply — LLM API Compliance Tester</title>
 <style>
-@import url('data:text/css,');
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -297,6 +296,7 @@ const defaultModels = new Set(Object.values(DEFAULTS).map(d => d.model));
 const defaultAuths = new Set(Object.values(DEFAULTS).map(d => d.auth));
 let testData = [];
 let abortCtrl = null;
+let hideTimer = null;
 
 function $(id) { return document.getElementById(id); }
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -386,7 +386,8 @@ function renderTests() {
   `).join('');
 }
 
-function toggleCard(id) { const c = document.getElementById(id); if (c.classList.contains('pass') || c.classList.contains('fail') || c.classList.contains('warn') || c.querySelector('.test-icon.skip')) c.classList.toggle('expanded'); }
+function hasResult(c) { return c.classList.contains('pass') || c.classList.contains('fail') || c.classList.contains('warn') || c.querySelector('.test-icon.skip'); }
+function toggleCard(id) { const c = document.getElementById(id); if (hasResult(c)) c.classList.toggle('expanded'); }
 
 function stopTests() {
   if (abortCtrl) { abortCtrl.abort(); abortCtrl = null; }
@@ -453,7 +454,7 @@ async function runTests() {
   updateSummary(passed, failed, skipped, warned, testData.length, false, wasCancelled);
   btn.textContent = 'Run Tests';
   btn.classList.remove('stopping');
-  if (!wasCancelled) setTimeout(hideProgress, 2000);
+  if (!wasCancelled) { clearTimeout(hideTimer); hideTimer = setTimeout(hideProgress, 2000); }
 }
 
 function applyResult(card, r) {

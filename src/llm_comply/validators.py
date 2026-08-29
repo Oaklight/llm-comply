@@ -881,9 +881,12 @@ def interactions_has_model_output(response: Any, ctx: ValidatorContext) -> list[
     for step in steps:
         if step.get("type") == "model_output":
             content = step.get("content")
-            if isinstance(content, list) and len(content) > 0:
-                return []
-            return ["model_output step has no content"]
+            if not isinstance(content, list) or len(content) == 0:
+                return ["model_output step has no content"]
+            has_text = any(isinstance(c, dict) and c.get("text") for c in content)
+            if not has_text:
+                return ["model_output step has no text content"]
+            return []
     return ["no model_output step found in response.steps"]
 
 

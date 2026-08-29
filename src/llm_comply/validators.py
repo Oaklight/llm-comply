@@ -848,3 +848,200 @@ def anth_has_thinking_content(response: Any, ctx: ValidatorContext) -> list[str]
             "(model may not emit thinking at current config)"
         ]
     return []
+
+
+# ── Google Interactions API validators ─────────────────────────────
+
+
+def interactions_has_id(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a non-empty id field."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    rid = response.get("id")
+    if not rid or not isinstance(rid, str):
+        return ["response.id is missing or empty"]
+    return []
+
+
+def interactions_has_steps(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a non-empty steps array."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    steps = response.get("steps")
+    if not isinstance(steps, list) or len(steps) == 0:
+        return ["response.steps is missing or empty"]
+    return []
+
+
+def interactions_has_model_output(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Steps must contain at least one model_output step with text content."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    steps = response.get("steps", [])
+    for step in steps:
+        if step.get("type") == "model_output":
+            content = step.get("content")
+            if isinstance(content, list) and len(content) > 0:
+                return []
+            return ["model_output step has no content"]
+    return ["no model_output step found in response.steps"]
+
+
+def interactions_status(expected: str) -> Validator:
+    """Factory: validate response.status matches expected value."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not isinstance(response, dict):
+            return ["response is not a JSON object"]
+        status = response.get("status")
+        if status != expected:
+            return [f"expected status='{expected}', got '{status}'"]
+        return []
+
+    _check.__doc__ = f"status must be '{expected}'"
+    return _check
+
+
+def interactions_has_function_call(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Steps must contain at least one function_call step."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    steps = response.get("steps", [])
+    for step in steps:
+        if step.get("type") == "function_call":
+            return []
+    return ["no function_call step found in response.steps"]
+
+
+def interactions_function_call_has_id(
+    response: Any, ctx: ValidatorContext
+) -> list[str]:
+    """Function call steps must have a non-empty id field."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    errors: list[str] = []
+    for step in response.get("steps", []):
+        if step.get("type") == "function_call":
+            fc_id = step.get("id")
+            if not fc_id or not isinstance(fc_id, str):
+                errors.append("function_call step missing id field")
+    return errors
+
+
+def interactions_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a usage object with token counts."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    usage = response.get("usage")
+    if not isinstance(usage, dict):
+        return ["response.usage is missing"]
+    errors: list[str] = []
+    for field in ("total_input_tokens", "total_output_tokens", "total_tokens"):
+        if field not in usage:
+            errors.append(f"response.usage.{field} is missing")
+    return errors
+
+
+def interactions_has_thought(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Steps must contain at least one thought step."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    for step in response.get("steps", []):
+        if step.get("type") == "thought":
+            return []
+    return ["no thought step found in response.steps"]
+
+
+def interactions_has_model_field(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response must have a model field."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    model = response.get("model")
+    if not model or not isinstance(model, str):
+        return ["response.model is missing or empty"]
+    return []
+
+
+def interactions_has_object_field(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response.object must be 'interaction'."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    obj = response.get("object")
+    if obj != "interaction":
+        return [f"[warning] expected object='interaction', got '{obj}'"]
+    return []
+
+
+# ── Google Interactions streaming validators ───────────────────────
+
+
+def interactions_streaming_has_text(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Streaming events must contain step.delta events with text content."""
+    if not ctx.sse_events:
+        return ["no SSE events received"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        etype = data.get("event_type", event.get("type", ""))
+        if etype == "step.delta":
+            delta = data.get("delta", {})
+            if delta.get("type") == "text" and delta.get("text"):
+                return []
+    return ["no step.delta event with text content found"]
+
+
+def interactions_streaming_has_lifecycle(
+    response: Any, ctx: ValidatorContext
+) -> list[str]:
+    """Streaming must have interaction.created, step.start, step.stop events."""
+    if not ctx.sse_events:
+        return ["no SSE events received"]
+    seen: set[str] = set()
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        etype = data.get("event_type", event.get("type", ""))
+        seen.add(etype)
+    errors: list[str] = []
+    for required in ("interaction.created", "step.start", "step.stop"):
+        if required not in seen:
+            errors.append(f"missing streaming event: {required}")
+    return errors
+
+
+def interactions_streaming_has_completed(
+    response: Any, ctx: ValidatorContext
+) -> list[str]:
+    """Streaming must end with an interaction.completed event."""
+    if not ctx.sse_events:
+        return ["no SSE events received"]
+    for event in reversed(ctx.sse_events):
+        data = event.get("data")
+        if not isinstance(data, dict):
+            if data == "[DONE]":
+                continue
+            continue
+        etype = data.get("event_type", event.get("type", ""))
+        if etype == "interaction.completed":
+            return []
+    return ["no interaction.completed event found"]
+
+
+def interactions_streaming_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
+    """interaction.completed event must contain usage data."""
+    if not ctx.sse_events:
+        return ["no SSE events received"]
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        etype = data.get("event_type", event.get("type", ""))
+        if etype == "interaction.completed":
+            interaction = data.get("interaction", {})
+            usage = interaction.get("usage")
+            if isinstance(usage, dict):
+                return []
+            return ["interaction.completed event missing usage data"]
+    return ["no interaction.completed event found"]

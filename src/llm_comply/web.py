@@ -20,6 +20,7 @@ FORMATS = {
     "openai-chat": "openai_chat.json",
     "anthropic": "anthropic.json",
     "google-genai": None,
+    "google-interactions": None,
 }
 
 EXTRA_HEADERS_MAP = {
@@ -40,6 +41,10 @@ def _get_tests(fmt: str) -> list[TestCase]:
         from llm_comply.tests.google_genai import GOOGLE_GENAI_TESTS
 
         return GOOGLE_GENAI_TESTS
+    if fmt == "google-interactions":
+        from llm_comply.tests.google_interactions import GOOGLE_INTERACTIONS_TESTS
+
+        return GOOGLE_INTERACTIONS_TESTS
     from llm_comply.tests.open_responses import OPEN_RESPONSES_TESTS
 
     return OPEN_RESPONSES_TESTS

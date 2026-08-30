@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Nuitka binary build CI — multi-platform compilation (linux x86_64/arm64 native + musl, macOS arm64, Windows x86_64)
+- Minimal Docker images from Nuitka binaries (Alpine ~21 MB, busybox:glibc ~25 MB)
+- `docker.yml` workflow for multi-arch binary Docker image builds
+- Makefile targets: `build-binary`, `build-binary-musl`, `build-docker-alpine`, `build-docker-glibc`
+
+### Changed
+
+- Release workflow now chains: PyPI publish → Nuitka binaries → Docker images → GitHub Release with binaries attached
+
+## [0.4.0] — 2026-08-29
+
+### Added
+
+- **Google Interactions API** compliance test suite
+- Reasoning/thinking compliance tests for all four API formats
+- `--delay` option for rate-limited APIs
+- Web UI redesign with Google Interactions format support
+
+### Fixed
+
+- Tighten `interactions_has_model_output` to verify text in content blocks
+- Web UI UX polish — expand only after test run, privacy hint, theme icon
+
 ## [0.3.0] — 2026-08-09
 
 ### Added
@@ -81,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Release workflow with Trusted Publisher (PyPI)
 - Pre-commit hooks (ruff check + ruff format)
 
+[0.4.0]: https://github.com/Oaklight/llm-comply/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Oaklight/llm-comply/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Oaklight/llm-comply/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Oaklight/llm-comply/releases/tag/v0.1.0

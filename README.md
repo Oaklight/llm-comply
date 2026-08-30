@@ -52,6 +52,35 @@ llm-comply --format google-genai -u https://generativelanguage.googleapis.com -k
 --list                 List available test IDs
 ```
 
+## Docker
+
+```bash
+docker run -p 8090:8090 oaklight/llm-comply:latest
+```
+
+Reference `compose.yaml` for production deployment:
+
+```yaml
+services:
+  llm-comply:
+    image: oaklight/llm-comply:latest
+    container_name: llm-comply
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:8090:8090
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,exec
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 256m
+    cpus: 0.5
+```
+
+> **Note**: The binary image uses Nuitka onefile format, which extracts to `/tmp` at startup. The `tmpfs` mount with `exec` is required when using `read_only: true`.
+
 ## Test Coverage
 
 | Format | Tests | What's Validated |

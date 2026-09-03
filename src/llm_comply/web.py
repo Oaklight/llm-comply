@@ -192,7 +192,9 @@ async def run_tests(request):
     test_id = body.get("test_id")
 
     if not base_url or not api_key:
-        return JSONResponse({"error": "base_url and api_key are required"}, status=400)
+        return JSONResponse(
+            {"error": "base_url and api_key are required"}, status_code=400
+        )
 
     extra = EXTRA_HEADERS_MAP.get(fmt)
     ignore_list = (
@@ -214,7 +216,7 @@ async def run_tests(request):
     if test_id:
         tc = next((t for t in tests if t.id == test_id), None)
         if not tc:
-            return JSONResponse({"error": f"test {test_id} not found"}, status=404)
+            return JSONResponse({"error": f"test {test_id} not found"}, status_code=404)
         result = _run_single_test(tc, config, spec, ignore_list)
         return JSONResponse(result)
 

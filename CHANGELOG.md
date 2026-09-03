@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Release workflow now chains: PyPI publish → Nuitka binaries → Docker images → GitHub Release with binaries attached
 
+## [0.4.1] — 2026-09-03
+
+### Fixed
+
+- Fix JSONResponse error-path crash in web UI (`status` → `status_code` keyword argument)
+
 ## [0.4.0] — 2026-08-29
 
 ### Added

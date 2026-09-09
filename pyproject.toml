@@ -70,3 +70,6 @@ exclude = ["src/llm_comply/_vendor"]
 [tool.ruff.lint]
 select = ["E", "F", "UP"]
 ignore = ["UP007", "E501"]
+
+[tool.zerodep]
+vendor-dir = "src/llm_comply/_vendor"

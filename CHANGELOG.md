@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Minimal Docker images from Nuitka binaries (Alpine ~21 MB, busybox:glibc ~25 MB)
 - `docker.yml` workflow for multi-arch binary Docker image builds
 - Makefile targets: `build-binary`, `build-binary-musl`, `build-docker-alpine`, `build-docker-glibc`
+- SSE streaming endpoint (`POST /api/run/stream`) for real-time test progress in web UI
+- CORS headers and request logging middleware (`before_request`/`after_request`)
+- Structured JSON error handlers for 400, 404, 405, 500, and unhandled exceptions
+- Startup/shutdown lifecycle hooks — preload specs on startup, clean up connection pool on shutdown
+- HTTP connection pooling via `httpclient.Client` for TCP reuse across test runs
 
 ### Changed
 
@@ -20,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Vendored zerodep modules updated: httpclient 0.4.5 → 0.5.0, httpserver 0.2.1 → 0.4.0, sse 0.3.2 → 0.3.3
 - Bilingual README (English + 中文) with language switcher; `README.md` is now a symlink to `README_en.md`
 - Web UI footer now shows "by Oaklight" attribution
+- Web UI frontend rewritten to use SSE streaming (single request) instead of per-test POST loop
+- Deduplicated `_get_tests()` into shared `tests/__init__.py`; removed 72-line `_run_single_test()` from web.py
 
 ## [0.4.1] — 2026-09-03
 

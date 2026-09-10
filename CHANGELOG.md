@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Release workflow now chains: PyPI publish → Nuitka binaries → Docker images → GitHub Release with binaries attached
+- Vendored zerodep modules updated: httpclient 0.4.5 → 0.5.0, httpserver 0.2.1 → 0.4.0, sse 0.3.2 → 0.3.3
+- Bilingual README (English + 中文) with language switcher; `README.md` is now a symlink to `README_en.md`
+- Web UI footer now shows "by Oaklight" attribution
 
 ## [0.4.1] — 2026-09-03
 
@@ -112,6 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Release workflow with Trusted Publisher (PyPI)
 - Pre-commit hooks (ruff check + ruff format)
 
+[0.4.1]: https://github.com/Oaklight/llm-comply/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Oaklight/llm-comply/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Oaklight/llm-comply/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Oaklight/llm-comply/compare/v0.1.0...v0.2.0

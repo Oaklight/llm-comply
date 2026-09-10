@@ -6,6 +6,7 @@ import argparse
 import sys
 
 from llm_comply import __version__
+from llm_comply.tests import get_tests as _get_tests
 
 
 FORMATS = (
@@ -151,28 +152,6 @@ def main(argv: list[str] | None = None) -> int:
 
     # Default: run tests
     return _cmd_run(args, parser)
-
-
-def _get_tests(fmt: str) -> list:
-    if fmt == "openai-chat":
-        from .tests.openai_chat import OPENAI_CHAT_TESTS
-
-        return OPENAI_CHAT_TESTS
-    if fmt == "anthropic":
-        from .tests.anthropic import ANTHROPIC_TESTS
-
-        return ANTHROPIC_TESTS
-    if fmt == "google-genai":
-        from .tests.google_genai import GOOGLE_GENAI_TESTS
-
-        return GOOGLE_GENAI_TESTS
-    if fmt == "google-interactions":
-        from .tests.google_interactions import GOOGLE_INTERACTIONS_TESTS
-
-        return GOOGLE_INTERACTIONS_TESTS
-    from .tests.open_responses import OPEN_RESPONSES_TESTS
-
-    return OPEN_RESPONSES_TESTS
 
 
 def _cmd_web(args: argparse.Namespace) -> int:

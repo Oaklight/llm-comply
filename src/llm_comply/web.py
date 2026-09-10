@@ -181,6 +181,42 @@ async def handle_exception(request, exc):
     return JSONResponse({"error": str(exc), "status": 500}, status_code=500)
 
 
+# ── Middleware ────────────────────────────────────────────────────────────────
+
+_CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+}
+
+
+@app.before_request
+async def handle_cors_and_timing(request):
+    request.state.start_time = time.monotonic()
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=204,
+            headers={**_CORS_HEADERS, "Access-Control-Max-Age": "86400"},
+        )
+
+
+@app.after_request
+async def add_cors_and_log(request, response):
+    for k, v in _CORS_HEADERS.items():
+        response.headers[k] = v
+    start = getattr(request.state, "start_time", None)
+    if start is not None:
+        elapsed_ms = (time.monotonic() - start) * 1000
+        logger.info(
+            "%s %s -> %d (%.1fms)",
+            request.method,
+            request.path,
+            response.status_code,
+            elapsed_ms,
+        )
+    return response
+
+
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 

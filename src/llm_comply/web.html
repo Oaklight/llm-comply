@@ -392,6 +392,15 @@ function stopTests() {
   if (abortCtrl) { abortCtrl.abort(); abortCtrl = null; }
 }
 
+function parseSSEBlock(raw) {
+  let type = 'message', data = '';
+  for (const line of raw.split('\n')) {
+    if (line.startsWith('event: ')) type = line.slice(7);
+    else if (line.startsWith('data: ')) data += (data ? '\n' : '') + line.slice(6);
+  }
+  return data ? { type, data } : null;
+}
+
 async function runTests() {
   if (abortCtrl) { stopTests(); return; }
 
@@ -414,38 +423,69 @@ async function runTests() {
 
   let passed = 0, failed = 0, skipped = 0, warned = 0;
 
-  for (let i = 0; i < testData.length; i++) {
-    const t = testData[i];
-    if (!abortCtrl || abortCtrl.signal.aborted) break;
+  try {
+    const resp = await fetch('/api/run/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: abortCtrl.signal,
+    });
 
-    const card = document.getElementById('t-' + t.id);
-    const icon = card.querySelector('.test-icon');
-    icon.className = 'test-icon running';
-    icon.textContent = '●';
-    updateSummary(passed, failed, skipped, warned, testData.length, true);
-
-    try {
-      const resp = await fetch('/api/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, test_id: t.id }),
-        signal: abortCtrl.signal,
-      });
-      const r = await resp.json();
-      applyResult(card, r);
-      if (r.status === 'passed') {
-        passed++;
-        if (r.warnings && r.warnings.length) warned++;
-      }
-      else if (r.status === 'skipped') skipped++;
-      else failed++;
-    } catch(e) {
-      if (e.name === 'AbortError') break;
-      icon.className = 'test-icon fail';
-      icon.textContent = '✗';
-      failed++;
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText }));
+      $('summary').className = 'summary fail';
+      $('summary').textContent = 'Error: ' + (err.error || resp.statusText);
+      abortCtrl = null;
+      btn.textContent = 'Run Tests';
+      btn.classList.remove('stopping');
+      return;
     }
-    updateProgress(passed + failed + skipped, testData.length, failed > 0);
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      while (true) {
+        const idx = buffer.indexOf('\n\n');
+        if (idx === -1) break;
+        const raw = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        const ev = parseSSEBlock(raw);
+        if (!ev) continue;
+
+        if (ev.type === 'test_start') {
+          const d = JSON.parse(ev.data);
+          const card = document.getElementById('t-' + d.id);
+          if (card) {
+            const icon = card.querySelector('.test-icon');
+            icon.className = 'test-icon running';
+            icon.textContent = '●';
+          }
+          updateSummary(passed, failed, skipped, warned, testData.length, true);
+        } else if (ev.type === 'test_result') {
+          const r = JSON.parse(ev.data);
+          const card = document.getElementById('t-' + r.id);
+          if (card) {
+            applyResult(card, r);
+            if (r.status === 'passed') { passed++; if (r.warnings && r.warnings.length) warned++; }
+            else if (r.status === 'skipped') skipped++;
+            else failed++;
+          }
+          updateProgress(passed + failed + skipped, testData.length, failed > 0);
+          updateSummary(passed, failed, skipped, warned, testData.length, true);
+        }
+      }
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      $('summary').className = 'summary fail';
+      $('summary').textContent = 'Connection error: ' + e.message;
+    }
   }
 
   const wasCancelled = abortCtrl && abortCtrl.signal.aborted;

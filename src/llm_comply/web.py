@@ -2,17 +2,25 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import pathlib
 import time
 from typing import Any
 
-from llm_comply._vendor.httpserver import App, JSONResponse, Response, abort
+from llm_comply._vendor.httpserver import (
+    App,
+    JSONResponse,
+    Response,
+    StreamingResponse,
+    abort,
+)
 from llm_comply.config import ComplianceConfig
-from llm_comply.http import make_request
+from llm_comply.result import TestStatus
+from llm_comply.runner import TestRunner
 from llm_comply.schema import SpecLoader
-from llm_comply.test_case import TestCase, ValidatorContext
+from llm_comply.tests import get_tests
 
 logger = logging.getLogger(__name__)
 
@@ -33,28 +41,6 @@ EXTRA_HEADERS_MAP = {
 _spec_cache: dict[str, SpecLoader] = {}
 
 
-def _get_tests(fmt: str) -> list[TestCase]:
-    if fmt == "openai-chat":
-        from llm_comply.tests.openai_chat import OPENAI_CHAT_TESTS
-
-        return OPENAI_CHAT_TESTS
-    if fmt == "anthropic":
-        from llm_comply.tests.anthropic import ANTHROPIC_TESTS
-
-        return ANTHROPIC_TESTS
-    if fmt == "google-genai":
-        from llm_comply.tests.google_genai import GOOGLE_GENAI_TESTS
-
-        return GOOGLE_GENAI_TESTS
-    if fmt == "google-interactions":
-        from llm_comply.tests.google_interactions import GOOGLE_INTERACTIONS_TESTS
-
-        return GOOGLE_INTERACTIONS_TESTS
-    from llm_comply.tests.open_responses import OPEN_RESPONSES_TESTS
-
-    return OPEN_RESPONSES_TESTS
-
-
 def _get_spec(fmt: str) -> SpecLoader:
     spec_file = FORMATS.get(fmt)
     if spec_file:
@@ -63,90 +49,63 @@ def _get_spec(fmt: str) -> SpecLoader:
     return SpecLoader(None)
 
 
-def _run_single_test(
-    tc: TestCase,
-    config: ComplianceConfig,
-    spec: SpecLoader,
-    ignore_list: list[str] | None,
-) -> dict[str, Any]:
-    if tc.skip_reason:
-        reason = tc.skip_reason(config)
-        if reason:
-            return {
-                "id": tc.id,
-                "name": tc.name,
-                "status": "skipped",
-                "duration_ms": 0,
-                "errors": [reason],
-            }
-
-    errors: list[str] = []
-    request_body: dict[str, Any] = {}
-    response_data: Any = None
-    start = time.monotonic()
-
-    try:
-        request_body = tc.build_request(config)
-        endpoint = request_body.pop("_google_endpoint", None) or tc.endpoint
-        status_code, response_data, sse_events = make_request(
-            config,
-            endpoint,
-            request_body,
-            streaming=tc.streaming,
-        )
-
-        if status_code not in tc.expected_statuses:
-            errors.append(f"HTTP {status_code} (expected {tc.expected_statuses})")
-
-        if tc.schema_name and isinstance(response_data, dict) and not errors:
-            errors.extend(spec.validate(response_data, tc.schema_name))
-
-        if tc.streaming and tc.validate_stream_events and sse_events:
-            for event in sse_events:
-                etype = event.get("type", "")
-                edata = event.get("data")
-                if etype == "[DONE]" or not isinstance(edata, dict):
-                    continue
-                errors.extend(spec.validate_sse_event(etype, edata))
-
-        ctx = ValidatorContext(streaming=tc.streaming, sse_events=sse_events)
-        for validator in tc.validators:
-            errors.extend(validator(response_data, ctx))
-
-    except Exception as exc:
-        errors.append(f"exception: {exc}")
-
-    elapsed = (time.monotonic() - start) * 1000.0
-
-    if errors and ignore_list:
-        errors = [e for e in errors if not any(pat in e for pat in ignore_list)]
-
-    _WARNING_PREFIX = "[warning] "
-    warnings = [
-        e[len(_WARNING_PREFIX) :] for e in errors if e.startswith(_WARNING_PREFIX)
-    ]
-    errors = [e for e in errors if not e.startswith(_WARNING_PREFIX)]
-
-    status = "passed" if not errors else "failed"
-
-    result: dict[str, Any] = {
-        "id": tc.id,
-        "name": tc.name,
-        "status": status,
-        "duration_ms": round(elapsed, 1),
-        "errors": errors,
+def _result_to_dict(result, tc) -> dict[str, Any]:
+    """Convert a TestResult to the dict format expected by the web UI."""
+    d: dict[str, Any] = {
+        "id": result.id,
+        "name": result.name,
+        "status": result.status.value,
+        "duration_ms": round(result.duration_ms, 1),
+        "errors": result.errors or [],
         "streaming": tc.streaming,
     }
-    if warnings:
-        result["warnings"] = warnings
-    if status == "failed" and request_body:
-        req_str = json.dumps(request_body, ensure_ascii=False)
-        result["request"] = req_str[:800] if len(req_str) > 800 else req_str
-    if status == "failed" and isinstance(response_data, dict):
-        resp_str = json.dumps(response_data, ensure_ascii=False)
-        result["response"] = resp_str[:800] if len(resp_str) > 800 else resp_str
+    if result.warnings:
+        d["warnings"] = result.warnings
+    if result.status == TestStatus.FAILED:
+        if result.request:
+            req_str = json.dumps(result.request, ensure_ascii=False)
+            d["request"] = req_str[:800] if len(req_str) > 800 else req_str
+        if result.response and isinstance(result.response, dict):
+            resp_str = json.dumps(result.response, ensure_ascii=False)
+            d["response"] = resp_str[:800] if len(resp_str) > 800 else resp_str
+    return d
 
-    return result
+
+def _parse_run_body(request):
+    """Parse and validate the /api/run request body."""
+    body = request.json()
+    fmt = body.get("format", "open-responses")
+    base_url = body.get("base_url", "").rstrip("/")
+    api_key = body.get("api_key", "")
+    model = body.get("model", "gpt-4o-mini")
+    auth_header = body.get("auth_header", "Authorization")
+    use_bearer = body.get("use_bearer", True)
+    ignore_str = body.get("ignore", "")
+
+    if not base_url or not api_key:
+        abort(400, "base_url and api_key are required")
+
+    extra = EXTRA_HEADERS_MAP.get(fmt)
+    ignore_list = (
+        [s.strip() for s in ignore_str.split(",") if s.strip()] if ignore_str else None
+    )
+
+    config = ComplianceConfig(
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
+        auth_header=auth_header,
+        use_bearer_prefix=use_bearer,
+        extra_headers=extra,
+        verbose=True,
+        ignore_errors=ignore_list,
+    )
+
+    tests = get_tests(fmt)
+    spec = _spec_cache.get(fmt) or _get_spec(fmt)
+    runner = TestRunner(config=config, test_cases=tests, spec_loader=spec)
+
+    return body, fmt, tests, runner
 
 
 app = App()
@@ -265,7 +224,7 @@ async def list_tests(request):
     fmt = (
         request.query_params.get("format", ["open-responses"]) or ["open-responses"]
     )[0]
-    tests = _get_tests(fmt)
+    tests = get_tests(fmt)
     return JSONResponse(
         [
             {
@@ -281,47 +240,58 @@ async def list_tests(request):
 
 @app.post("/api/run")
 async def run_tests(request):
-    body = request.json()
-    fmt = body.get("format", "open-responses")
-    base_url = body.get("base_url", "").rstrip("/")
-    api_key = body.get("api_key", "")
-    model = body.get("model", "gpt-4o-mini")
-    auth_header = body.get("auth_header", "Authorization")
-    use_bearer = body.get("use_bearer", True)
-    ignore_str = body.get("ignore", "")
+    body, fmt, tests, runner = _parse_run_body(request)
     test_id = body.get("test_id")
-
-    if not base_url or not api_key:
-        abort(400, "base_url and api_key are required")
-
-    extra = EXTRA_HEADERS_MAP.get(fmt)
-    ignore_list = (
-        [s.strip() for s in ignore_str.split(",") if s.strip()] if ignore_str else None
-    )
-
-    config = ComplianceConfig(
-        base_url=base_url,
-        api_key=api_key,
-        model=model,
-        auth_header=auth_header,
-        use_bearer_prefix=use_bearer,
-        extra_headers=extra,
-    )
-
-    tests = _get_tests(fmt)
-    spec = _spec_cache.get(fmt) or _get_spec(fmt)
 
     if test_id:
         tc = next((t for t in tests if t.id == test_id), None)
         if not tc:
             abort(404, f"test {test_id} not found")
-        result = _run_single_test(tc, config, spec, ignore_list)
-        return JSONResponse(result)
+        result = runner.run_one(tc)
+        return JSONResponse(_result_to_dict(result, tc))
 
     results = []
     for tc in tests:
-        results.append(_run_single_test(tc, config, spec, ignore_list))
+        result = runner.run_one(tc)
+        results.append(_result_to_dict(result, tc))
     return JSONResponse(results)
+
+
+@app.post("/api/run/stream")
+async def run_tests_stream(request):
+    """Stream test results as SSE events."""
+    _body, fmt, tests, runner = _parse_run_body(request)
+
+    async def generate():
+        passed = failed = skipped = warned = 0
+        for i, tc in enumerate(tests):
+            start_data = json.dumps({"id": tc.id, "name": tc.name, "index": i})
+            yield f"event: test_start\ndata: {start_data}\n\n"
+
+            result = await asyncio.to_thread(runner.run_one, tc)
+            result_dict = _result_to_dict(result, tc)
+
+            if result.status == TestStatus.PASSED:
+                passed += 1
+                if result.warnings:
+                    warned += 1
+            elif result.status == TestStatus.SKIPPED:
+                skipped += 1
+            else:
+                failed += 1
+
+            yield f"event: test_result\ndata: {json.dumps(result_dict)}\n\n"
+
+        summary = {
+            "total": len(tests),
+            "passed": passed,
+            "failed": failed,
+            "skipped": skipped,
+            "warned": warned,
+        }
+        yield f"event: suite_complete\ndata: {json.dumps(summary)}\n\n"
+
+    return StreamingResponse(generate(), content_type="text/event-stream")
 
 
 def main():

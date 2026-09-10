@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import json
+import logging
 import pathlib
 import time
 from typing import Any
 
-from llm_comply._vendor.httpserver import App, JSONResponse, Response
+from llm_comply._vendor.httpserver import App, JSONResponse, Response, abort
 from llm_comply.config import ComplianceConfig
 from llm_comply.http import make_request
 from llm_comply.schema import SpecLoader
 from llm_comply.test_case import TestCase, ValidatorContext
+
+logger = logging.getLogger(__name__)
 
 _HTML_PATH = pathlib.Path(__file__).parent / "web.html"
 
@@ -147,6 +150,40 @@ def _run_single_test(
 app = App()
 
 
+# ── Error handlers ───────────────────────────────────────────────────────────
+
+
+@app.errorhandler(400)
+async def handle_bad_request(request, exc):
+    return JSONResponse({"error": exc.message, "status": 400}, status_code=400)
+
+
+@app.errorhandler(404)
+async def handle_not_found(request, exc):
+    return JSONResponse({"error": exc.message, "status": 404}, status_code=404)
+
+
+@app.errorhandler(405)
+async def handle_method_not_allowed(request, exc):
+    return JSONResponse({"error": exc.message, "status": 405}, status_code=405)
+
+
+@app.errorhandler(500)
+async def handle_internal_error(request, exc):
+    return JSONResponse(
+        {"error": "Internal server error", "status": 500}, status_code=500
+    )
+
+
+@app.errorhandler(Exception)
+async def handle_exception(request, exc):
+    logger.exception("Unhandled exception in %s %s", request.method, request.path)
+    return JSONResponse({"error": str(exc), "status": 500}, status_code=500)
+
+
+# ── Routes ───────────────────────────────────────────────────────────────────
+
+
 @app.get("/")
 async def index(request):
     html = _HTML_PATH.read_text(encoding="utf-8")
@@ -192,9 +229,7 @@ async def run_tests(request):
     test_id = body.get("test_id")
 
     if not base_url or not api_key:
-        return JSONResponse(
-            {"error": "base_url and api_key are required"}, status_code=400
-        )
+        abort(400, "base_url and api_key are required")
 
     extra = EXTRA_HEADERS_MAP.get(fmt)
     ignore_list = (
@@ -216,7 +251,7 @@ async def run_tests(request):
     if test_id:
         tc = next((t for t in tests if t.id == test_id), None)
         if not tc:
-            return JSONResponse({"error": f"test {test_id} not found"}, status_code=404)
+            abort(404, f"test {test_id} not found")
         result = _run_single_test(tc, config, spec, ignore_list)
         return JSONResponse(result)
 

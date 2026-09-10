@@ -6,14 +6,21 @@ import json
 from typing import Any
 
 from llm_comply._vendor.httpclient import (
+    Client,
     Response,
     StreamingResponse,
-    post as http_post,
 )
 from llm_comply._vendor.sse import EventSource
 
 from .config import ComplianceConfig
 from .schema import TERMINAL_EVENTS
+
+_client = Client()
+
+
+def close_client() -> None:
+    """Close the shared HTTP client and its connection pool."""
+    _client.close()
 
 
 def make_request(
@@ -50,7 +57,7 @@ def _standard_request(
     body: dict[str, Any],
     timeout: float,
 ) -> tuple[int, Any, None]:
-    raw = http_post(url, json=body, headers=headers, timeout=timeout)
+    raw = _client.post(url, json=body, headers=headers, timeout=timeout)
     assert isinstance(raw, Response)
     try:
         data = raw.json()
@@ -67,7 +74,7 @@ def _streaming_request(
 ) -> tuple[int, Any, list[dict[str, Any]]]:
     if "alt=sse" not in url:
         body["stream"] = True
-    raw = http_post(url, json=body, headers=headers, timeout=timeout, stream=True)
+    raw = _client.post(url, json=body, headers=headers, timeout=timeout, stream=True)
     assert isinstance(raw, StreamingResponse)
 
     events: list[dict[str, Any]] = []

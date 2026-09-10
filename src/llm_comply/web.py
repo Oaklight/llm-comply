@@ -30,6 +30,8 @@ EXTRA_HEADERS_MAP = {
     "anthropic": {"anthropic-version": "2023-06-01"},
 }
 
+_spec_cache: dict[str, SpecLoader] = {}
+
 
 def _get_tests(fmt: str) -> list[TestCase]:
     if fmt == "openai-chat":
@@ -217,6 +219,31 @@ async def add_cors_and_log(request, response):
     return response
 
 
+# ── Lifecycle hooks ───────────────────────────────────────────────────────────
+
+
+@app.on_startup
+async def preload_specs():
+    for fmt in FORMATS:
+        _spec_cache[fmt] = _get_spec(fmt)
+    logger.info("Preloaded specs for %d formats", len(_spec_cache))
+
+
+@app.on_startup
+async def log_startup():
+    from llm_comply import __version__
+
+    logger.info("llm-comply web UI v%s ready", __version__)
+
+
+@app.on_shutdown
+async def cleanup_resources():
+    from llm_comply.http import close_client
+
+    close_client()
+    logger.info("Closed HTTP client connection pool")
+
+
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 
@@ -282,7 +309,7 @@ async def run_tests(request):
     )
 
     tests = _get_tests(fmt)
-    spec = _get_spec(fmt)
+    spec = _spec_cache.get(fmt) or _get_spec(fmt)
 
     if test_id:
         tc = next((t for t in tests if t.id == test_id), None)

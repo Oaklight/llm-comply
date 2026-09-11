@@ -40,6 +40,18 @@ EXTRA_HEADERS_MAP = {
 
 _spec_cache: dict[str, SpecLoader] = {}
 
+_CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+}
+
+
+def _add_cors(response: Response | JSONResponse) -> None:
+    """Add CORS headers to a response."""
+    for k, v in _CORS_HEADERS.items():
+        response.headers[k] = v
+
 
 def _get_spec(fmt: str) -> SpecLoader:
     spec_file = FORMATS.get(fmt)
@@ -116,45 +128,53 @@ app = App()
 
 @app.errorhandler(400)
 async def handle_bad_request(request, exc):
-    return JSONResponse({"error": exc.message, "status": 400}, status_code=400)
+    resp = JSONResponse({"error": exc.message, "status": 400}, status_code=400)
+    _add_cors(resp)
+    return resp
 
 
 @app.errorhandler(404)
 async def handle_not_found(request, exc):
-    return JSONResponse({"error": exc.message, "status": 404}, status_code=404)
+    resp = JSONResponse({"error": exc.message, "status": 404}, status_code=404)
+    _add_cors(resp)
+    return resp
 
 
 @app.errorhandler(405)
 async def handle_method_not_allowed(request, exc):
-    return JSONResponse({"error": exc.message, "status": 405}, status_code=405)
+    resp = JSONResponse({"error": exc.message, "status": 405}, status_code=405)
+    _add_cors(resp)
+    return resp
 
 
 @app.errorhandler(500)
 async def handle_internal_error(request, exc):
-    return JSONResponse(
+    # Handles explicit abort(500) calls
+    resp = JSONResponse(
         {"error": "Internal server error", "status": 500}, status_code=500
     )
+    _add_cors(resp)
+    return resp
 
 
 @app.errorhandler(Exception)
 async def handle_exception(request, exc):
     logger.exception("Unhandled exception in %s %s", request.method, request.path)
-    return JSONResponse({"error": str(exc), "status": 500}, status_code=500)
+    resp = JSONResponse(
+        {"error": "Internal server error", "status": 500}, status_code=500
+    )
+    _add_cors(resp)
+    return resp
 
 
 # ── Middleware ────────────────────────────────────────────────────────────────
-
-_CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-}
 
 
 @app.before_request
 async def handle_cors_and_timing(request):
     request.state.start_time = time.monotonic()
     if request.method == "OPTIONS":
+        logger.info("OPTIONS %s -> 204", request.path)
         return Response(
             status_code=204,
             headers={**_CORS_HEADERS, "Access-Control-Max-Age": "86400"},
@@ -163,8 +183,7 @@ async def handle_cors_and_timing(request):
 
 @app.after_request
 async def add_cors_and_log(request, response):
-    for k, v in _CORS_HEADERS.items():
-        response.headers[k] = v
+    _add_cors(response)
     start = getattr(request.state, "start_time", None)
     if start is not None:
         elapsed_ms = (time.monotonic() - start) * 1000

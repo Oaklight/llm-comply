@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/llm-comply)](https://pypi.org/project/llm-comply/)
 [![License](https://img.shields.io/github/license/Oaklight/llm-comply)](https://github.com/Oaklight/llm-comply/blob/master/LICENSE)
 
-多格式 LLM API 合规性测试工具 — 根据官方规范验证 **OpenAI Chat Completions**、**Open Responses**、**Anthropic Messages** 和 **Google GenAI** 端点的合规性。
+多格式 LLM API 合规性测试工具 — 根据官方规范验证 **OpenAI Chat Completions**、**Open Responses**、**Anthropic Messages**、**Google GenAI generateContent** 和 **Google GenAI Interactions** 端点的合规性。
 
 **[在线体验 →](https://llm-comply.service.oaklight.top)**
 
@@ -32,8 +32,12 @@ llm-comply --format openai-chat -u https://api.openai.com/v1 -k $OPENAI_API_KEY 
 llm-comply --format anthropic -u https://api.anthropic.com/v1 -k $KEY -m claude-haiku-4-5 \
   --auth-header x-api-key --no-bearer -H anthropic-version:2023-06-01
 
-# Google GenAI
+# Google GenAI — generateContent
 llm-comply --format google-genai -u https://generativelanguage.googleapis.com -k $KEY \
+  -m gemini-2.5-flash --auth-header x-goog-api-key --no-bearer
+
+# Google GenAI — Interactions
+llm-comply --format google-interactions -u https://generativelanguage.googleapis.com -k $KEY \
   -m gemini-2.5-flash --auth-header x-goog-api-key --no-bearer
 ```
 
@@ -43,7 +47,8 @@ llm-comply --format google-genai -u https://generativelanguage.googleapis.com -k
 -u, --base-url URL     API 基础 URL（必填）
 -k, --api-key KEY      API 密钥（或设置 OPENRESPONSES_API_KEY 环境变量）
 -m, --model MODEL      模型名称（默认：gpt-4o-mini）
---format FORMAT        API 格式：open-responses、openai-chat、anthropic、google-genai
+--format FORMAT        API 格式：open-responses、openai-chat、anthropic、
+                       google-genai、google-interactions
 -f, --filter IDS       要运行的测试 ID，逗号分隔
 -i, --ignore PATTERNS  忽略匹配子串的错误（如 refusal,verbosity）
 -H, --header K:V       额外请求头（如 anthropic-version:2023-06-01）
@@ -87,10 +92,11 @@ services:
 
 | 格式 | 测试数 | 验证内容 |
 |------|:------:|----------|
-| Open Responses | 12 | Schema + 语义（生命周期、阶段、压缩） |
+| Open Responses | 13 | Schema + 语义（生命周期、阶段、压缩、思维链） |
 | OpenAI Chat | 8 | Schema + 语义（choices、finish_reason、delta） |
-| Anthropic Messages | 8 | Schema + 语义（content blocks、stop_reason） |
-| Google GenAI | 8 | 仅语义（candidates、parts、finishReason） |
+| Anthropic Messages | 9 | Schema + 语义（content blocks、stop_reason、思维链） |
+| Google GenAI generateContent | 9 | 仅语义（candidates、parts、finishReason、思维链） |
+| Google GenAI Interactions | 9 | 仅语义（steps、model_output、思维链） |
 
 ## 许可证
 

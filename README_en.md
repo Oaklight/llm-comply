@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/llm-comply)](https://pypi.org/project/llm-comply/)
 [![License](https://img.shields.io/github/license/Oaklight/llm-comply)](https://github.com/Oaklight/llm-comply/blob/master/LICENSE)
 
-Multi-format LLM API compliance testing tool — validates endpoints against official specs for **OpenAI Chat Completions**, **Open Responses**, **Anthropic Messages**, and **Google GenAI**.
+Multi-format LLM API compliance testing tool — validates endpoints against official specs for **OpenAI Chat Completions**, **Open Responses**, **Anthropic Messages**, **Google GenAI generateContent**, and **Google GenAI Interactions**.
 
 **[Try it online →](https://llm-comply.service.oaklight.top)**
 
@@ -32,8 +32,12 @@ llm-comply --format openai-chat -u https://api.openai.com/v1 -k $OPENAI_API_KEY 
 llm-comply --format anthropic -u https://api.anthropic.com/v1 -k $KEY -m claude-haiku-4-5 \
   --auth-header x-api-key --no-bearer -H anthropic-version:2023-06-01
 
-# Google GenAI
+# Google GenAI — generateContent
 llm-comply --format google-genai -u https://generativelanguage.googleapis.com -k $KEY \
+  -m gemini-2.5-flash --auth-header x-goog-api-key --no-bearer
+
+# Google GenAI — Interactions
+llm-comply --format google-interactions -u https://generativelanguage.googleapis.com -k $KEY \
   -m gemini-2.5-flash --auth-header x-goog-api-key --no-bearer
 ```
 
@@ -43,7 +47,8 @@ llm-comply --format google-genai -u https://generativelanguage.googleapis.com -k
 -u, --base-url URL     API base URL (required)
 -k, --api-key KEY      API key (or set OPENRESPONSES_API_KEY env)
 -m, --model MODEL      Model name (default: gpt-4o-mini)
---format FORMAT        API format: open-responses, openai-chat, anthropic, google-genai
+--format FORMAT        API format: open-responses, openai-chat, anthropic,
+                       google-genai, google-interactions
 -f, --filter IDS       Comma-separated test IDs to run
 -i, --ignore PATTERNS  Ignore errors matching substrings (e.g. refusal,verbosity)
 -H, --header K:V       Extra headers (e.g. anthropic-version:2023-06-01)
@@ -87,10 +92,11 @@ services:
 
 | Format | Tests | What's Validated |
 |--------|:-----:|-----------------|
-| Open Responses | 12 | Schema + semantic (lifecycle, phases, compaction) |
+| Open Responses | 13 | Schema + semantic (lifecycle, phases, compaction, thinking) |
 | OpenAI Chat | 8 | Schema + semantic (choices, finish_reason, delta) |
-| Anthropic Messages | 8 | Schema + semantic (content blocks, stop_reason) |
-| Google GenAI | 8 | Semantic only (candidates, parts, finishReason) |
+| Anthropic Messages | 9 | Schema + semantic (content blocks, stop_reason, thinking) |
+| Google GenAI generateContent | 9 | Semantic only (candidates, parts, finishReason, thinking) |
+| Google GenAI Interactions | 9 | Semantic only (steps, model_output, thinking) |
 
 ## License
 

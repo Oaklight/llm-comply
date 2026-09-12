@@ -53,7 +53,7 @@ a:hover { text-decoration: underline; }
 .theme-toggle { appearance: none; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; width: 44px; height: 24px; cursor: pointer; position: relative; transition: background var(--transition), border-color var(--transition); }
 .theme-toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-dim); transition: transform var(--transition), background var(--transition); }
 .theme-toggle:checked::after { transform: translateX(20px); background: var(--accent); }
-.theme-label { font-size: 1rem; color: var(--text-dim); cursor: pointer; user-select: none; line-height: 1; transition: color var(--transition); }
+.theme-label { color: var(--text-dim); cursor: pointer; user-select: none; line-height: 1; transition: color var(--transition); display: flex; align-items: center; }
 .theme-label:hover { color: var(--text); }
 
 .content { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
@@ -214,7 +214,10 @@ a:hover { text-decoration: underline; }
       <span class="tagline">API compliance tester for OpenAI, Anthropic &amp; Google GenAI</span>
     </div>
     <div class="top-actions">
-      <span class="theme-label" id="theme-icon" onclick="document.getElementById('theme-switch').click()">☾</span>
+      <span class="theme-label" id="theme-icon" onclick="document.getElementById('theme-switch').click()">
+        <svg id="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </span>
       <input type="checkbox" class="theme-toggle" id="theme-switch" onchange="toggleTheme()">
     </div>
   </div>
@@ -307,13 +310,15 @@ function initTheme() {
   const dark = saved ? saved === 'dark' : prefersDark;
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
   $('theme-switch').checked = !dark;
-  $('theme-icon').textContent = dark ? '☾' : '☀';
+  document.getElementById('icon-moon').style.display = dark ? '' : 'none';
+  document.getElementById('icon-sun').style.display = dark ? 'none' : '';
 }
 function toggleTheme() {
   const light = $('theme-switch').checked;
   document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
   localStorage.setItem('llm-comply-theme', light ? 'light' : 'dark');
-  $('theme-icon').textContent = light ? '☀' : '☾';
+  document.getElementById('icon-moon').style.display = light ? 'none' : '';
+  document.getElementById('icon-sun').style.display = light ? '' : 'none';
 }
 initTheme();
 

@@ -45,8 +45,10 @@ llm-comply --format google_interactions -u https://generativelanguage.googleapis
 
 Auth headers and defaults are selected per format: `Authorization` + `Bearer` for the
 OpenAI-facing formats, `x-api-key` for Messages (with `anthropic-version`), and
-`x-goog-api-key` for Google. `--auth-header` and `--no-bearer` override them, and
-`-H name:value` overrides or adds headers.
+`x-goog-api-key` for Google. `--auth-header` selects the header name only; the
+prefix follows `--bearer`/`--no-bearer` when given, otherwise the format default.
+`-H name:value` overrides or adds headers, but cannot replace the resolved
+credential header.
 
 ## Options
 
@@ -65,7 +67,8 @@ OpenAI-facing formats, `x-api-key` for Messages (with `anthropic-version`), and
 -H, --header K:V       Extra headers (e.g. anthropic-version:2023-06-01)
 --auth-header NAME     Auth header name (default: per format: Authorization,
                        x-api-key, or x-goog-api-key)
---no-bearer            Don't prepend "Bearer " to API key (default: per format)
+--bearer               Prepend "Bearer " to the API key (overrides the format default)
+--no-bearer            Don't prepend "Bearer " to API key (overrides the format default)
 -v, --verbose          Show request/response on failure
 --json                 JSON output for CI
 --list                 List available test IDs

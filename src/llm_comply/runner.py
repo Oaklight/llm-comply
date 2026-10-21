@@ -85,6 +85,14 @@ class TestRunner:
             if tc.streaming and tc.validate_stream_events and sse_events:
                 for event in sse_events:
                     edata = event.get("data")
+                    if event.get("_parse_error"):
+                        errors.append(
+                            f"stream event is not valid JSON: {str(edata)[:200]}"
+                        )
+                        continue
+                    if event.get("_invalid_payload"):
+                        errors.append(f"stream event is not a JSON object: {edata!r}")
+                        continue
                     if not isinstance(edata, dict):
                         continue
                     # Untyped providers send {"error": {...}} when the stream

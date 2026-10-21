@@ -130,6 +130,16 @@ def _streaming_request(
                 )
                 continue
 
+            if not isinstance(parsed, dict):
+                events.append(
+                    {
+                        "type": sse.event,
+                        "data": parsed,
+                        "_invalid_payload": True,
+                    }
+                )
+                continue
+
             event_type = parsed.get("type", sse.event)
             events.append({"type": event_type, "data": parsed})
 

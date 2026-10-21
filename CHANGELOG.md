@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Refreshed the bundled Anthropic Messages spec from the official SDK's `scripts/mock-spec.json.gz` artifact (the Python and TypeScript copies are byte-identical): 928 → 2008 schemas, 89 → 224 paths. `Message` now requires `diagnostics` (nullable) and `Usage` requires `speed`; the spec carries no `info.version`, so the manifest records `unknown`.
 - Added a bundled `google_generate.json` from Google's official OpenAPI discovery document: 252 schemas, 71 paths (`v1beta`). Runtime validation remains semantic until the validators are extended.
 - Refreshed `google_interactions.json` from the official Interactions API document: 186 → 213 schemas, 15 → 20 paths (`v1beta`); runtime validation remains semantic.
-- `llm-comply update-spec` now takes `--format` or `--all` and supports all five formats; it validates the fetched document before writing and updates the manifest automatically.
+- `llm-comply update-spec` now takes `--format` or `--all` and supports all six formats; it validates the fetched document before writing and updates the manifest automatically.
 - Format definitions are centralized in `llm_comply/formats.py`, removing duplicated mappings across the CLI, web UI, test registry, and spec loader.
 
 ### Fixed

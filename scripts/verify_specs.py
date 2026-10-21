@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import sys
 
@@ -54,9 +55,22 @@ def main() -> int:
     assert openai_responses.validate(
         {"id": "resp_1", "object": "response"}, "Response"
     ), "incomplete response should have errors"
-    assert openai_responses.validate_sse_event(
-        "error", {"type": "error", "code": "server_error", "message": "boom"}
+    assert not openai_responses.validate_sse_event(
+        "error",
+        {
+            "type": "error",
+            "code": "server_error",
+            "message": "boom",
+            "param": None,
+            "sequence_number": 1,
+        },
     ), "SSE error events must validate against ResponseErrorEvent"
+    subset = json.loads((SPECS_DIR / "openai_responses.json").read_text())
+    schemes = set(subset.get("components", {}).get("securitySchemes", {}))
+    for requirement in subset.get("security", []):
+        assert set(requirement) <= schemes, (
+            f"unresolved security scheme in openai_responses: {requirement}"
+        )
     print(f"openai_responses: {len(openai_responses.schema_names)} schemas")
 
     messages = SpecLoader(str(SPECS_DIR / "anthropic.json"))

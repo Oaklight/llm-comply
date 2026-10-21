@@ -16,6 +16,7 @@ from llm_comply.result import TestStatus
 from llm_comply.runner import TestRunner
 from llm_comply.schema import SpecLoader
 from llm_comply.test_case import TestCase, TestCategory
+from llm_comply.tests import get_tests
 
 SPECS_DIR = pathlib.Path(__file__).resolve().parent.parent / "src/llm_comply/specs"
 
@@ -86,6 +87,15 @@ def _test_case() -> TestCase:
 def main() -> int:
     """Run the valid and invalid stream cases against captured SSE."""
     spec = SpecLoader(str(SPECS_DIR / "openai_chat.json"))
+
+    # The shipped streaming cases must use the mechanism the runner exercises.
+    chat_streams = [tc for tc in get_tests("chat_completions") if tc.streaming]
+    assert chat_streams, "no streaming chat_completions cases"
+    for tc in chat_streams:
+        assert tc.validate_stream_events, tc.id
+        assert tc.stream_schema_name == "CreateChatCompletionStreamResponse", tc.id
+        assert tc.stream_schema_name in spec.schema_names, tc.id
+
     server = ThreadingHTTPServer(("127.0.0.1", 0), _SSEHandler)
     port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True)

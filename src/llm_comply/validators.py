@@ -210,7 +210,7 @@ _CHAT_PAYLOAD_FIELDS = (
 
 
 def chat_has_message(response: Any, ctx: ValidatorContext) -> list[str]:
-    """First choice must have a message with role and content."""
+    """First choice must have an assistant role and a payload field."""
     if not isinstance(response, dict):
         return ["response is not a JSON object"]
     choices = response.get("choices", [])

@@ -199,6 +199,16 @@ def chat_has_choices(response: Any, ctx: ValidatorContext) -> list[str]:
     return []
 
 
+# Non-content fields that represent a real Chat Completions payload.
+_CHAT_PAYLOAD_FIELDS = (
+    "tool_calls",
+    "function_call",
+    "refusal",
+    "reasoning_content",
+    "reasoning",
+)
+
+
 def chat_has_message(response: Any, ctx: ValidatorContext) -> list[str]:
     """First choice must have a message with role and content."""
     if not isinstance(response, dict):
@@ -212,8 +222,13 @@ def chat_has_message(response: Any, ctx: ValidatorContext) -> list[str]:
         errors.append(
             f"choices[0].message.role: expected 'assistant', got '{msg.get('role')}'"
         )
-    if msg.get("content") is None and not msg.get("tool_calls"):
-        errors.append("choices[0].message has neither content nor tool_calls")
+    if msg.get("content") is None and not any(
+        msg.get(field) for field in _CHAT_PAYLOAD_FIELDS
+    ):
+        errors.append(
+            "choices[0].message has none of: content, "
+            + ", ".join(_CHAT_PAYLOAD_FIELDS)
+        )
     return errors
 
 
@@ -266,14 +281,7 @@ def chat_streaming_has_delta(response: Any, ctx: ValidatorContext) -> list[str]:
     """At least one streaming chunk must carry content, tools, or reasoning."""
     if not ctx.sse_events:
         return ["no SSE events to check"]
-    progress_fields = (
-        "content",
-        "tool_calls",
-        "function_call",
-        "refusal",
-        "reasoning_content",
-        "reasoning",
-    )
+    progress_fields = ("content", *_CHAT_PAYLOAD_FIELDS)
     for event in ctx.sse_events:
         data = event.get("data")
         if not isinstance(data, dict):

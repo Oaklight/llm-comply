@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `llm-comply specs` command with `--json` and `--check` (CI drift detection).
 - `GET /api/specs` endpoint; the web UI footer shows the active spec targets.
 - `llm-comply update-spec --all` and a weekly `spec-update` workflow that refreshes every upstream-backed format and opens a PR when bundled specs change; the workflow shares CI's new `make verify` gate and proposes successful refreshes even if one upstream fails.
+- **OpenAI Responses API** format (`openai_responses`, alias `openai-responses`) with 11 tests. Its bundled spec is extracted from the same upstream OpenAI OpenAPI document as `chat_completions`: the `/responses` paths plus their transitive `$ref` closure (357 schemas, 6 paths). SSE events resolve to their concrete event schema dynamically, with `ResponseStreamEvent` as the fallback.
 
 ### Changed
 
@@ -29,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Schema validation no longer rejects valid `ReasoningEffort` values (`none`, `minimal`, `xhigh`, `max`) that the stale bundled spec omitted.
 - Manifest regeneration tolerates configured specs that are not bundled yet, and `update-spec --all` writes the manifest once after all fetches instead of after each one.
+- `update-spec` compares specs canonically (sorted keys, volatile metadata such as `info.x-google-revision` dropped) before writing. Google's discovery endpoint re-serializes every response with a different key order and revision marker, which previously produced a spurious diff on every refresh.
 
 ## [0.5.0] — 2026-09-12
 

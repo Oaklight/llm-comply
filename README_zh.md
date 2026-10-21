@@ -28,6 +28,9 @@ llm-comply -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o-mini
 # OpenAI Chat Completions
 llm-comply --format chat_completions -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o-mini
 
+# OpenAI Responses API
+llm-comply --format openai_responses -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o-mini
+
 # Anthropic Messages
 llm-comply --format messages -u https://api.anthropic.com/v1 -k $KEY -m claude-haiku-4-5 \
   --auth-header x-api-key --no-bearer -H anthropic-version:2023-06-01
@@ -47,10 +50,12 @@ llm-comply --format google_interactions -u https://generativelanguage.googleapis
 -u, --base-url URL     API 基础 URL（必填）
 -k, --api-key KEY      API 密钥（或设置 OPENRESPONSES_API_KEY 环境变量）
 -m, --model MODEL      模型名称（默认：gpt-4o-mini）
---format FORMAT        API 格式：open_responses、chat_completions、messages、
+--format FORMAT        API 格式：open_responses、openai_responses、
+                       chat_completions、messages、
                        google_generate、google_interactions
-                       （兼容旧名称：open-responses、openai-chat、anthropic、
-                       google-genai、google-interactions）
+                       （兼容旧名称：open-responses、openai-responses、
+                       openai-chat、anthropic、google-genai、
+                       google-interactions）
 -f, --filter IDS       要运行的测试 ID，逗号分隔
 -i, --ignore PATTERNS  忽略匹配子串的错误（如 refusal,verbosity）
 -H, --header K:V       额外请求头（如 anthropic-version:2023-06-01）
@@ -71,6 +76,7 @@ llm-comply --format google_interactions -u https://generativelanguage.googleapis
 | 格式 | 内置规范 | 版本 | Schema 数 | 验证方式 | 刷新日期 |
 |------|----------|------|----------:|----------|----------|
 | `open_responses` | `openresponses.json` | 2026-04-24 | 108 | Schema | 2026-10-21 |
+| `openai_responses` | `openai_responses.json` | 2.3.0 | 357 | Schema | 2026-10-21 |
 | `chat_completions` | `openai_chat.json` | 2.3.0 | 2094 | Schema | 2026-10-21 |
 | `messages` | `anthropic.json` | unknown（规范无版本号） | 2008 | Schema | 2026-10-21 |
 | `google_generate` | `google_generate.json` | v1beta | 252 | 语义 | 2026-10-21 |
@@ -91,7 +97,10 @@ llm-comply update-spec --format messages         # Anthropic Messages
 ```
 
 `messages` 来自 Anthropic 官方 SDK 内置的 `scripts/mock-spec.json.gz`
-（Python 与 TypeScript SDK 中的副本字节完全一致）。Google 规范来自官方
+（Python 与 TypeScript SDK 中的副本字节完全一致）。`chat_completions` 与
+`openai_responses` 来自同一份 OpenAI OpenAPI 文档；Responses 规范只内置
+`/responses` 路径及其传递依赖的 `$ref` 闭包。
+Google 规范来自官方
 OpenAPI discovery 文档（`google_generate`）和 Interactions API 文档
 （`google_interactions`）；两者仅用于版本跟踪，运行时验证仍为语义验证。
 每周一次的 `spec-update` workflow 会运行 `update-spec --all`，有变化时自动创建 PR。
@@ -130,6 +139,7 @@ services:
 | 格式 | 测试数 | 验证内容 |
 |------|:------:|----------|
 | `open_responses` | 13 | Schema + 语义（生命周期、阶段、压缩、思维链） |
+| `openai_responses` | 11 | Schema + 语义（生命周期、流式事件、工具、推理） |
 | `chat_completions` | 9 | Schema + 语义（choices、finish_reason、delta） |
 | `messages` | 9 | Schema + 语义（content blocks、stop_reason、思维链） |
 | `google_generate` | 9 | 仅语义（candidates、parts、finishReason、思维链） |

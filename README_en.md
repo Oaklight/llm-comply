@@ -28,6 +28,9 @@ llm-comply -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o-mini
 # OpenAI Chat Completions
 llm-comply --format chat_completions -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o-mini
 
+# OpenAI Responses API
+llm-comply --format openai_responses -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o-mini
+
 # Anthropic Messages
 llm-comply --format messages -u https://api.anthropic.com/v1 -k $KEY -m claude-haiku-4-5 \
   --auth-header x-api-key --no-bearer -H anthropic-version:2023-06-01
@@ -47,10 +50,12 @@ llm-comply --format google_interactions -u https://generativelanguage.googleapis
 -u, --base-url URL     API base URL (required)
 -k, --api-key KEY      API key (or set OPENRESPONSES_API_KEY env)
 -m, --model MODEL      Model name (default: gpt-4o-mini)
---format FORMAT        API format: open_responses, chat_completions, messages,
+--format FORMAT        API format: open_responses, openai_responses,
+                       chat_completions, messages,
                        google_generate, google_interactions
-                       (legacy aliases: open-responses, openai-chat, anthropic,
-                       google-genai, google-interactions)
+                       (legacy aliases: open-responses, openai-responses,
+                       openai-chat, anthropic, google-genai,
+                       google-interactions)
 -f, --filter IDS       Comma-separated test IDs to run
 -i, --ignore PATTERNS  Ignore errors matching substrings (e.g. refusal,verbosity)
 -H, --header K:V       Extra headers (e.g. anthropic-version:2023-06-01)
@@ -71,6 +76,7 @@ commit and release tag records exactly which upstream spec version it targets.
 | Format | Bundled spec | Version | Schemas | Validation | Refreshed |
 |--------|--------------|---------|--------:|------------|-----------|
 | `open_responses` | `openresponses.json` | 2026-04-24 | 108 | Schema | 2026-10-21 |
+| `openai_responses` | `openai_responses.json` | 2.3.0 | 357 | Schema | 2026-10-21 |
 | `chat_completions` | `openai_chat.json` | 2.3.0 | 2094 | Schema | 2026-10-21 |
 | `messages` | `anthropic.json` | unknown (no version in spec) | 2008 | Schema | 2026-10-21 |
 | `google_generate` | `google_generate.json` | v1beta | 252 | Semantic | 2026-10-21 |
@@ -92,6 +98,9 @@ llm-comply update-spec --format messages         # Anthropic Messages
 
 `messages` is pulled from the official Anthropic SDK's bundled
 `scripts/mock-spec.json.gz` (the Python and TypeScript copies are byte-identical).
+`chat_completions` and `openai_responses` come from the same upstream OpenAI
+OpenAPI document; the Responses spec bundles only the `/responses` paths and
+their transitive `$ref` closure.
 Google specs come from the official OpenAPI discovery document
 (`google_generate`) and the Interactions API document (`google_interactions`);
 both are bundled for tracking while runtime validation stays semantic.
@@ -132,6 +141,7 @@ services:
 | Format | Tests | What's Validated |
 |--------|:-----:|-----------------|
 | `open_responses` | 13 | Schema + semantic (lifecycle, phases, compaction, thinking) |
+| `openai_responses` | 11 | Schema + semantic (lifecycle, streaming events, tools, reasoning) |
 | `chat_completions` | 9 | Schema + semantic (choices, finish_reason, delta) |
 | `messages` | 9 | Schema + semantic (content blocks, stop_reason, thinking) |
 | `google_generate` | 9 | Semantic only (candidates, parts, finishReason, thinking) |

@@ -29,6 +29,7 @@ _MANIFEST_PATH = _SPECS_DIR / "manifest.json"
 _MANIFEST_SCHEMA_VERSION = 1
 
 _FORMAT_NOTES = {
+    "openai_responses": "Extracted from the full OpenAI OpenAPI document; Responses API subset",
     "google_generate": "Bundled from Google's OpenAPI discovery document; runtime validation is semantic",
     "google_interactions": "Bundled from Google's Interactions OpenAPI spec; runtime validation is semantic",
 }
@@ -86,6 +87,34 @@ def _patch_nullable(obj: Any) -> Any:
     return obj
 
 
+# Fields that change without the API surface changing. Google's discovery
+# endpoint rotates this while serving two revisions concurrently.
+_VOLATILE_SPEC_PATHS = (("info", "x-google-revision"),)
+
+
+def canonical_spec(spec: dict[str, Any]) -> str:
+    """Serialize a spec for change detection, ignoring volatile metadata.
+
+    Some upstreams reorder keys or rotate revision metadata on every request.
+    Comparing a canonical form keeps the weekly change detector from treating
+    serialization-only differences as spec changes.
+
+    Args:
+        spec: A parsed OpenAPI document.
+
+    Returns:
+        A canonical JSON string.
+    """
+    snapshot = json.loads(json.dumps(spec))
+    for path in _VOLATILE_SPEC_PATHS:
+        node: Any = snapshot
+        for key in path[:-1]:
+            node = node.get(key) if isinstance(node, dict) else None
+        if isinstance(node, dict):
+            node.pop(path[-1], None)
+    return json.dumps(snapshot, sort_keys=True, separators=(",", ":"))
+
+
 class SpecLoader:
     """Loads an OpenAPI spec and validates data against extracted schemas."""
 
@@ -101,6 +130,7 @@ class SpecLoader:
             "schemas", {}
         )
         self._validator_cache: dict[str, Any] = {}
+        self._event_schema_map: dict[str, str] | None = None
 
     @property
     def spec_version(self) -> str:
@@ -140,9 +170,58 @@ class SpecLoader:
     ) -> list[str]:
         """Validate a single SSE event against its schema."""
         schema_name = SSE_EVENT_TO_SCHEMA.get(event_type)
-        if schema_name is None:
-            return [f"unknown SSE event type: {event_type}"]
-        return self.validate(event_data, schema_name)
+        if schema_name is not None and schema_name in self._schemas:
+            return self.validate(event_data, schema_name)
+
+        schema_name = self._event_schema_for(event_type)
+        if schema_name is not None:
+            return self.validate(event_data, schema_name)
+
+        # Some specs expose one union of all event shapes instead of named
+        # per-event schemas (e.g. OpenAI's ResponseStreamEvent).
+        if "ResponseStreamEvent" in self._schemas:
+            return self.validate(event_data, "ResponseStreamEvent")
+        return [f"unknown SSE event type: {event_type}"]
+
+    def _event_schema_for(self, event_type: str) -> str | None:
+        """Find the event schema whose ``type`` property declares *event_type*.
+
+        Several schemas can declare the same type string (OpenAI has both
+        ``ModerationErrorBody`` and ``ResponseErrorEvent`` for ``"error"``).
+        Prefer schemas named as SSE events so validation uses the shape that
+        actually describes the event.
+        """
+        if self._event_schema_map is None:
+            candidates: dict[str, list[str]] = {}
+            for name, schema in self._schemas.items():
+                if not isinstance(schema, dict):
+                    continue
+                properties = schema.get("properties")
+                if not isinstance(properties, dict):
+                    continue
+                type_schema = properties.get("type")
+                if not isinstance(type_schema, dict):
+                    continue
+                values: list[Any] = []
+                if "const" in type_schema:
+                    values = [type_schema["const"]]
+                elif isinstance(type_schema.get("enum"), list):
+                    values = type_schema["enum"]
+                for value in values:
+                    if isinstance(value, str):
+                        names = candidates.setdefault(value, [])
+                        if name not in names:
+                            names.append(name)
+            self._event_schema_map = {
+                event: min(names, key=self._schema_priority)
+                for event, names in candidates.items()
+            }
+        return self._event_schema_map.get(event_type)
+
+    @staticmethod
+    def _schema_priority(name: str) -> tuple[bool, int, str]:
+        """Order event-schema candidates, preferring ``*Event`` names."""
+        return (not name.endswith("Event"), len(name), name)
 
     def _get_validator(self, name: str, schema: dict[str, Any]) -> Any:
         if name in self._validator_cache:
@@ -340,19 +419,40 @@ class SpecLoader:
 
         # Parse before writing so a bad response never corrupts the bundled spec.
         spec = json.loads(payload)
+        if fmt == "openai_responses":
+            from .spec_extract import extract_openai_responses
+
+            spec = extract_openai_responses(spec)
+            payload = json.dumps(spec, separators=(",", ":")).encode()
+
         schemas = spec.get("components", {}).get("schemas", {})
         if not spec.get("openapi") or not schemas:
             raise ValueError(
                 f"fetched document for '{fmt}' is not an OpenAPI spec with schemas"
             )
 
+        version = spec.get("info", {}).get("version", "unknown")
         dest = pathlib.Path(output_path) if output_path else _SPECS_DIR / filename
+        if dest.exists():
+            try:
+                same = canonical_spec(spec) == canonical_spec(
+                    json.loads(dest.read_text(encoding="utf-8"))
+                )
+            except (OSError, ValueError):
+                same = False
+            if same:
+                if output_path is None and update_manifest:
+                    cls.write_manifest()
+                return (
+                    f"{fmt} spec v{version} unchanged at {dest} "
+                    "(upstream bytes differ only in serialization)"
+                )
+
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(payload)
         if output_path is None and update_manifest:
             cls.write_manifest()
 
-        version = spec.get("info", {}).get("version", "unknown")
         return (
             f"Saved {fmt} spec v{version} to {dest} "
             f"({len(schemas)} schemas, {len(payload)} bytes)"

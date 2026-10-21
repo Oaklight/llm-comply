@@ -7,7 +7,7 @@ import pathlib
 import sys
 
 from llm_comply.formats import VALIDATION_SPEC_FILES
-from llm_comply.schema import SpecLoader
+from llm_comply.schema import SpecLoader, canonical_spec
 
 SPECS_DIR = pathlib.Path(__file__).resolve().parent.parent / "src/llm_comply/specs"
 
@@ -45,6 +45,20 @@ def main() -> int:
     assert chat.validate(CHAT_STREAM_CHUNK, "CreateChatCompletionStreamResponse") == []
     print(f"chat_completions: {len(chat.schema_names)} schemas")
 
+    openai_responses = SpecLoader(str(SPECS_DIR / "openai_responses.json"))
+    assert len(openai_responses.schema_names) > 300, (
+        "bundled OpenAI Responses spec is stale"
+    )
+    assert "Response" in openai_responses.schema_names
+    assert "ResponseStreamEvent" in openai_responses.schema_names
+    assert openai_responses.validate(
+        {"id": "resp_1", "object": "response"}, "Response"
+    ), "incomplete response should have errors"
+    assert openai_responses.validate_sse_event(
+        "error", {"type": "error", "code": "server_error", "message": "boom"}
+    ), "SSE error events must validate against ResponseErrorEvent"
+    print(f"openai_responses: {len(openai_responses.schema_names)} schemas")
+
     messages = SpecLoader(str(SPECS_DIR / "anthropic.json"))
     assert len(messages.schema_names) > 1500, "bundled Anthropic spec is stale"
     assert "Message" in messages.schema_names
@@ -60,6 +74,12 @@ def main() -> int:
         assert VALIDATION_SPEC_FILES[fmt] is None, f"{fmt} should stay semantic"
         print(f"{fmt}: {len(google.schema_names)} schemas (semantic)")
     print("google formats: semantic validation mode")
+
+    assert canonical_spec({"b": 1, "a": 2}) == canonical_spec({"a": 2, "b": 1})
+    assert canonical_spec({"info": {"x-google-revision": "1"}}) == canonical_spec(
+        {"info": {"x-google-revision": "2"}}
+    )
+    print("canonical spec comparison ignores key order and volatile metadata")
 
     problems = SpecLoader.check_manifest()
     assert not problems, f"spec manifest drift: {problems}"

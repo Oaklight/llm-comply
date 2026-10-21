@@ -14,6 +14,20 @@
       "source_url": "https://raw.githubusercontent.com/openresponses/openresponses/main/public/openapi/openapi.json",
       "refreshed_at": "2026-10-21"
     },
+    "openai_responses": {
+      "bundled_file": "openai_responses.json",
+      "validation": "schema",
+      "spec_version": "2.3.0",
+      "openapi_version": "3.1.0",
+      "schema_count": 357,
+      "path_count": 6,
+      "size_bytes": 357923,
+      "sha256": "7a68802db29630ce6d518c17dcfb3ee24790939c165f6c627da3bab5bcbb638f",
+      "source_type": "upstream",
+      "source_url": "https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.json",
+      "note": "Extracted from the full OpenAI OpenAPI document; Responses API subset",
+      "refreshed_at": "2026-10-21"
+    },
     "chat_completions": {
       "bundled_file": "openai_chat.json",
       "validation": "schema",

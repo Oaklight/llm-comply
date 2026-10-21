@@ -229,7 +229,11 @@ def streaming_sequence_numbers(response: Any, ctx: ValidatorContext) -> list[str
 
 
 def responses_streaming_output_text(response: Any, ctx: ValidatorContext) -> list[str]:
-    """Stream must carry non-empty ``response.output_text.delta`` text."""
+    """Stream must carry non-empty ``response.output_text.delta`` text.
+
+    Assumes the test elicited text: a valid stream that carries only tool
+    calls has no text deltas and must not use this validator.
+    """
     if not ctx.sse_events:
         return ["no SSE events to check"]
     errors: list[str] = []

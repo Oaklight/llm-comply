@@ -228,6 +228,33 @@ def streaming_sequence_numbers(response: Any, ctx: ValidatorContext) -> list[str
     return errors
 
 
+def responses_streaming_output_text(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Stream must carry non-empty ``response.output_text.delta`` text."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    errors: list[str] = []
+    parts: list[str] = []
+    for position, event in enumerate(ctx.sse_events):
+        if event.get("type") != "response.output_text.delta":
+            continue
+        data = event.get("data")
+        if not isinstance(data, dict):
+            errors.append(f"event {position}: output_text.delta has no data object")
+            continue
+        delta = data.get("delta")
+        if not isinstance(delta, str):
+            errors.append(f"event {position}: output_text.delta.delta is not a string")
+            continue
+        parts.append(delta)
+    if errors:
+        return errors
+    if not parts:
+        return ["no response.output_text.delta events found"]
+    if not "".join(parts).strip():
+        return ["response.output_text.delta events carried no text"]
+    return []
+
+
 # -- Open Responses phase / compact validators --
 
 

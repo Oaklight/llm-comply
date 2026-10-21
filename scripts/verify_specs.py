@@ -9,7 +9,9 @@ import sys
 
 from llm_comply.formats import VALIDATION_SPEC_FILES
 from llm_comply.schema import SpecLoader, canonical_spec
+from llm_comply.test_case import TestCategory
 from llm_comply.tests import get_tests
+from llm_comply.tests.google_genai import _make_test
 
 SPECS_DIR = pathlib.Path(__file__).resolve().parent.parent / "src/llm_comply/specs"
 
@@ -123,6 +125,23 @@ def main() -> int:
         if tc.streaming:
             assert tc.stream_schema_name == "GenerateContentResponse", tc.id
             assert tc.validate_stream_events, tc.id
+
+    # Lock the mixed-status branch in both directions: a test that can return
+    # 200 must validate the success body, while an error-only test must not.
+    def _status_test(statuses: list[int]):
+        return _make_test(
+            id="status-test",
+            name="Status Test",
+            description="",
+            category=TestCategory.BASIC,
+            build_request=lambda cfg: {},
+            validators=[],
+            expected_statuses=statuses,
+        )
+
+    assert _status_test([200, 500]).schema_name == "GenerateContentResponse"
+    assert _status_test([429, 200, 500]).schema_name == "GenerateContentResponse"
+    assert _status_test([500]).schema_name is None
 
     google_interactions = SpecLoader(str(SPECS_DIR / "google_interactions.json"))
     assert len(google_interactions.schema_names) > 200, (

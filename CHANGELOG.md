@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Google validators now report malformed `candidates` / `content.parts` containers instead of raising `AttributeError`. Because the runner shares one `try` across validators, the crash previously masked every later finding for the same response.
 - Non-streaming Chat Completions tests now accept a message with `tool_calls`, `function_call`, `refusal`, `reasoning_content`, or `reasoning` instead of requiring `content` or `tool_calls`. The message-payload rules are shared with the streaming delta validator, though the emptiness rule differs deliberately: a non-streaming message with `content: ""` is accepted (present but empty), while a stream needs at least one truthy delta.
 - `chat-streaming-response` no longer rejects correct streams that carry only tool calls, legacy function calls, refusals, or reasoning: the delta validator accepts `delta.content`, `delta.tool_calls`, `delta.function_call`, `delta.refusal`, `delta.reasoning_content`, and `delta.reasoning`. Empty or absent deltas still fail, and the error message names every accepted field.
 - Streaming payloads that are not valid JSON, or parse to something other than an object, now fail with a clear diagnosis instead of being silently skipped or raising an attribute error. Bare and whitespace-only `data:` lines are treated as heartbeats and ignored. Clarifies the "every chunk is validated" guarantee.

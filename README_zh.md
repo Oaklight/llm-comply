@@ -111,7 +111,8 @@ Google 规范来自官方
 OpenAPI discovery 文档（`google_generate`）和 Interactions API 文档
 （`google_interactions`）。`google_generate` 的响应会按
 `GenerateContentResponse` 做 Schema 校验；Interactions 规范仅用于版本跟踪，
-运行时验证仍为语义验证。
+运行时验证仍为语义验证。discovery Schema 只声明类型与枚举，没有 `required`
+数组，因此字段是否缺失仍由语义验证器负责。
 每周一次的 `spec-update` workflow 会运行 `update-spec --all`，有变化时自动创建 PR。
 
 ## Web UI

@@ -14,6 +14,14 @@ from llm_comply.validators import (
     chat_message_is_json,
     chat_message_matches_json_schema,
     compact_object,
+    google_finish_reason,
+    google_function_call_has_id,
+    google_has_candidates,
+    google_has_content_parts,
+    google_has_function_call,
+    google_has_thought_parts,
+    google_streaming_has_finish,
+    google_streaming_has_text,
     has_usage,
     responses_output_is_json,
     responses_output_matches_json_schema,
@@ -355,6 +363,54 @@ def main() -> int:
 
     print("chat message validators: every payload field is accepted")
     print("open responses validators: usage, compaction, and JSON output OK")
+
+    # A malformed candidate container must produce findings, not an exception:
+    # the runner shares one try block across validators, so a raise would hide
+    # every later check.
+    bad = {"responseId": "r1", "candidates": "nope", "usageMetadata": {}}
+    google_validators = (
+        ("has_candidates", google_has_candidates),
+        ("content_parts", google_has_content_parts),
+        ("finish_reason", google_finish_reason("STOP")),
+        ("function_call", google_has_function_call),
+        ("thought_parts", google_has_thought_parts),
+        ("function_call_id", google_function_call_has_id),
+    )
+    for label, validator in google_validators:
+        errors = validator(bad, ctx)
+        assert isinstance(errors, list), label
+    assert google_has_candidates(bad, ctx) == [
+        "response.candidates is missing or empty"
+    ]
+    bad_candidate = {"candidates": [42]}
+    assert google_has_candidates(bad_candidate, ctx) == [
+        "response.candidates[0] is not an object"
+    ]
+    for label, validator in google_validators[1:]:
+        assert isinstance(validator(bad_candidate, ctx), list), label
+
+    stream_ctx = ValidatorContext(
+        streaming=True, sse_events=[{"data": {"candidates": "nope"}}]
+    )
+    assert google_streaming_has_text(None, stream_ctx) == [
+        "no streaming chunk contained a text part"
+    ]
+    assert google_streaming_has_finish(None, stream_ctx) == [
+        "no streaming chunk had a finishReason"
+    ]
+
+    good = {
+        "candidates": [
+            {
+                "content": {"parts": [{"text": "hi"}], "role": "model"},
+                "finishReason": "STOP",
+            }
+        ]
+    }
+    assert google_has_candidates(good, ctx) == []
+    assert google_has_content_parts(good, ctx) == []
+    assert google_finish_reason("STOP")(good, ctx) == []
+    print("google validators: malformed candidates fail without raising")
     return 0
 
 

@@ -75,14 +75,22 @@ def has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
     ):
         if field not in usage:
             errors.append(f"response.usage.{field} is missing")
-    details = usage.get("input_tokens_details")
-    if isinstance(details, dict) and "cached_tokens" not in details:
-        errors.append("response.usage.input_tokens_details.cached_tokens is missing")
-    details = usage.get("output_tokens_details")
-    if isinstance(details, dict) and "reasoning_tokens" not in details:
-        errors.append(
-            "response.usage.output_tokens_details.reasoning_tokens is missing"
-        )
+    if "input_tokens_details" in usage:
+        details = usage["input_tokens_details"]
+        if not isinstance(details, dict):
+            errors.append("response.usage.input_tokens_details is not an object")
+        elif "cached_tokens" not in details:
+            errors.append(
+                "response.usage.input_tokens_details.cached_tokens is missing"
+            )
+    if "output_tokens_details" in usage:
+        details = usage["output_tokens_details"]
+        if not isinstance(details, dict):
+            errors.append("response.usage.output_tokens_details is not an object")
+        elif "reasoning_tokens" not in details:
+            errors.append(
+                "response.usage.output_tokens_details.reasoning_tokens is missing"
+            )
     return errors
 
 

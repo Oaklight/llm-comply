@@ -81,6 +81,14 @@ def main() -> int:
             ctx,
         )
     )
+    assert any(
+        "not an object" in error
+        for error in has_usage({"usage": {**usage, "input_tokens_details": None}}, ctx)
+    )
+    assert any(
+        "cached_tokens" in error
+        for error in has_usage({"usage": {**usage, "input_tokens_details": {}}}, ctx)
+    )
 
     compact = {
         "object": "response.compaction",
@@ -93,6 +101,22 @@ def main() -> int:
     assert any(
         "response.compaction" in error
         for error in compact_object({"object": "compact"}, ctx)
+    )
+    assert any(
+        "response.output is missing" in error
+        for error in compact_object(
+            {
+                "object": "response.compaction",
+                "id": "cmp_1",
+                "created_at": 1,
+                "usage": usage,
+            },
+            ctx,
+        )
+    )
+    assert any(
+        "total_tokens" in error
+        for error in compact_object({**compact, "usage": {"input_tokens": 1}}, ctx)
     )
 
     json_response = {

@@ -64,6 +64,8 @@ def main() -> int:
         "chat-multi-turn",
         "chat-image-input",
         "chat-reasoning-summary",
+        "chat-developer-role",
+        "chat-structured-output",
     ):
         names = [getattr(v, "__name__", "") for v in shipped[test_id].validators]
         assert "chat_has_message" in names, test_id
@@ -88,15 +90,23 @@ def main() -> int:
         ],
     }
     assert chat_has_tool_calls(_response(tool_message), ctx) == []
-    broken_tool = {
-        "role": "assistant",
-        "content": None,
-        "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "f"}}],
+    call_ok = {
+        "id": "call_1",
+        "type": "function",
+        "function": {"name": "f", "arguments": "{}"},
     }
-    assert any(
-        "arguments" in error
-        for error in chat_has_tool_calls(_response(broken_tool), ctx)
-    )
+    for label, call in (
+        ("id", {**call_ok, "id": ""}),
+        ("type", {**call_ok, "type": "custom"}),
+        ("name", {**call_ok, "function": {"name": "", "arguments": "{}"}}),
+        ("function", {**call_ok, "function": None}),
+        ("object", "not-an-object"),
+    ):
+        errors = chat_has_tool_calls(
+            _response({"role": "assistant", "content": None, "tool_calls": [call]}),
+            ctx,
+        )
+        assert errors, label
 
     chat_schema = {
         "type": "object",
@@ -122,12 +132,22 @@ def main() -> int:
             _response({"role": "assistant", "content": "[1, 2]"}), ctx
         )
     )
+    assert any(
+        "not valid JSON" in error
+        for error in chat_schema_check(
+            _response({"role": "assistant", "content": "nope"}), ctx
+        )
+    )
     chat_tests = {tc.id: tc for tc in get_tests("chat_completions")}
     names = [
         getattr(v, "__qualname__", "")
         for v in chat_tests["chat-structured-output"].validators
     ]
     assert "chat_message_matches_json_schema" in names, "chat-structured-output"
+    names = [
+        getattr(v, "__name__", "") for v in chat_tests["chat-tool-calling"].validators
+    ]
+    assert "chat_has_tool_calls" in names, "chat-tool-calling"
 
     # Open Responses usage, compaction, and structured output checks.
     usage = {

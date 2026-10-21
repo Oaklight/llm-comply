@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- `chat-streaming-response` no longer rejects a correct tool-call-only or refusal-only stream: the delta validator accepts `delta.content`, `delta.tool_calls`, and `delta.refusal`. Empty or absent deltas still fail.
+- `chat-streaming-response` no longer rejects correct streams that carry only tool calls, refusals, or reasoning: the delta validator accepts `delta.content`, `delta.tool_calls`, `delta.refusal`, `delta.reasoning_content`, and `delta.reasoning`. Empty or absent deltas still fail, and the error message names every accepted field.
 - Streaming payloads that are not valid JSON, or parse to something other than an object, now fail with a clear diagnosis instead of being silently skipped or raising an attribute error. Bare and whitespace-only `data:` lines are treated as heartbeats and ignored. Clarifies the "every chunk is validated" guarantee.
 - Per-format transport defaults: `--format messages` now uses the `x-api-key` header and sends `anthropic-version: 2023-06-01` automatically, and the Google formats use `x-goog-api-key`, instead of requiring `--auth-header`, `--no-bearer`, and `-H` on every run. A new `--bearer` counteracts `--no-bearer`, so the pre-0.6 `Authorization: Bearer` arrangement for a Messages gateway is still expressible, and the web UI omits fields left at their format default so the server-side resolution applies. Explicit flags and `-H` values still override the defaults; `-H` can no longer replace the resolved credential header.
 - Schema validation no longer rejects valid `ReasoningEffort` values (`none`, `minimal`, `xhigh`, `max`) that the stale bundled spec omitted.

@@ -190,6 +190,25 @@ def main() -> int:
         result = runner.run_one(shipped["chat-streaming-response"])
         assert result.status == TestStatus.PASSED, result.errors
 
+        # Reasoning-only streams (vLLM-style) are progress too.
+        for field in ("reasoning_content", "reasoning"):
+            _SSEHandler.chunks = [
+                _chunk(None),
+                _delta_chunk({field: "thinking"}),
+                _finish_chunk("stop"),
+            ]
+            result = runner.run_one(shipped["chat-streaming-response"])
+            assert result.status == TestStatus.PASSED, (field, result.errors)
+
+        # Empty reasoning text is not progress.
+        _SSEHandler.chunks = [
+            _chunk(None),
+            _delta_chunk({"reasoning_content": ""}),
+            _finish_chunk("stop"),
+        ]
+        result = runner.run_one(shipped["chat-streaming-response"])
+        assert result.status == TestStatus.FAILED
+
         # The relaxation stays bounded: nothing, empty content, or an empty
         # tool_calls list must still fail.
         for chunks in (

@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "formats": {
+    "open_responses": {
+      "bundled_file": "openresponses.json",
+      "validation": "schema",
+      "spec_version": "2026-04-24",
+      "openapi_version": "3.1.0",
+      "schema_count": 108,
+      "path_count": 2,
+      "size_bytes": 138849,
+      "sha256": "693f26090d206230ed22b336681f547a2882cf5b131e86743966cf71bbdeedab",
+      "source_type": "upstream",
+      "source_url": "https://raw.githubusercontent.com/openresponses/openresponses/main/public/openapi/openapi.json",
+      "refreshed_at": "2026-08-01"
+    },
+    "chat_completions": {
+      "bundled_file": "openai_chat.json",
+      "validation": "schema",
+      "spec_version": "2.3.0",
+      "openapi_version": "3.1.0",
+      "schema_count": 2094,
+      "path_count": 230,
+      "size_bytes": 4862605,
+      "sha256": "509313d6d024f2fabf27e61e86460dcfef9ab5f5b6d1443bd0c4ae8962a9450e",
+      "source_type": "upstream",
+      "source_url": "https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.json",
+      "refreshed_at": "2026-10-21"
+    },
+    "messages": {
+      "bundled_file": "anthropic.json",
+      "validation": "schema",
+      "spec_version": "unknown",
+      "openapi_version": "3.1.0",
+      "schema_count": 928,
+      "path_count": 89,
+      "size_bytes": 1263388,
+      "sha256": "08649320eda23012b2ad5bdce6378d123d8770376b42f5f0bc8d1fc6f2667604",
+      "source_type": "manual",
+      "source_url": null,
+      "note": "Stainless-generated snapshot; Anthropic publishes no OpenAPI spec",
+      "refreshed_at": "2026-08-01"
+    },
+    "google_generate": {
+      "bundled_file": null,
+      "validation": "semantic",
+      "spec_version": null,
+      "openapi_version": null,
+      "schema_count": 0,
+      "path_count": 0,
+      "size_bytes": 0,
+      "sha256": null,
+      "source_type": "none",
+      "source_url": null,
+      "note": "Google publishes no OpenAPI spec; semantic validation only"
+    },
+    "google_interactions": {
+      "bundled_file": "google_interactions.json",
+      "validation": "semantic",
+      "spec_version": "v1beta",
+      "openapi_version": "3.0.3",
+      "schema_count": 186,
+      "path_count": 15,
+      "size_bytes": 383609,
+      "sha256": "474b7af8b7aab2c48546d4f9b5609cd19541c00e4a73b3ef76e75eff7dec687c",
+      "source_type": "manual",
+      "source_url": null,
+      "note": "No verified upstream source; bundled spec is reference-only",
+      "refreshed_at": "2026-08-29"
+    }
+  }
+}

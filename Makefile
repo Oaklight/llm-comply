@@ -31,9 +31,10 @@ lint-fix:
 
 test:
 	llm-comply --list
-	llm-comply --format openai-chat --list
-	llm-comply --format anthropic --list
-	llm-comply --format google-genai --list
+	llm-comply --format chat_completions --list
+	llm-comply --format messages --list
+	llm-comply --format google_generate --list
+	llm-comply specs --check
 
 # ── Package ───────────────────────────────────────────────────
 

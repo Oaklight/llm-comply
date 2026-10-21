@@ -204,6 +204,10 @@ a:hover { text-decoration: underline; }
   font-family: var(--mono);
 }
 .footer a { color: var(--text-dim); }
+.footer .spec-targets { margin-top: 6px; color: var(--text-muted); }
+
+/* Spec target line */
+.spec-targets { line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -228,11 +232,11 @@ a:hover { text-decoration: underline; }
       <div class="field">
         <label>API Format</label>
         <select id="fmt" onchange="onFormatChange()">
-          <option value="open-responses">Open Responses</option>
-          <option value="openai-chat">OpenAI Chat Completions</option>
-          <option value="anthropic">Anthropic Messages</option>
-          <option value="google-genai">Google GenAI (generateContent)</option>
-          <option value="google-interactions">Google GenAI (Interactions)</option>
+          <option value="open_responses">Open Responses</option>
+          <option value="chat_completions">OpenAI Chat Completions</option>
+          <option value="messages">Anthropic Messages</option>
+          <option value="google_generate">Google GenAI (generateContent)</option>
+          <option value="google_interactions">Google GenAI (Interactions)</option>
         </select>
       </div>
       <div class="field">
@@ -282,16 +286,17 @@ a:hover { text-decoration: underline; }
 
   <div class="footer">
     <a href="https://github.com/Oaklight/llm-comply" target="_blank">llm-comply</a> &middot; multi-format LLM API compliance testing &middot; by <a href="https://github.com/Oaklight" target="_blank">Oaklight</a>
+    <div class="spec-targets" id="spec-targets"></div>
   </div>
 </div>
 
 <script>
 const DEFAULTS = {
-  'open-responses': { url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', auth: 'Authorization', bearer: true },
-  'openai-chat': { url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', auth: 'Authorization', bearer: true },
-  'anthropic': { url: 'https://api.anthropic.com/v1', model: 'claude-haiku-4-5-20251001', auth: 'x-api-key', bearer: false },
-  'google-genai': { url: 'https://generativelanguage.googleapis.com', model: 'gemini-2.5-flash', auth: 'x-goog-api-key', bearer: false },
-  'google-interactions': { url: 'https://generativelanguage.googleapis.com', model: 'gemini-2.5-flash', auth: 'x-goog-api-key', bearer: false },
+  'open_responses': { url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', auth: 'Authorization', bearer: true },
+  'chat_completions': { url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', auth: 'Authorization', bearer: true },
+  'messages': { url: 'https://api.anthropic.com/v1', model: 'claude-haiku-4-5-20251001', auth: 'x-api-key', bearer: false },
+  'google_generate': { url: 'https://generativelanguage.googleapis.com', model: 'gemini-2.5-flash', auth: 'x-goog-api-key', bearer: false },
+  'google_interactions': { url: 'https://generativelanguage.googleapis.com', model: 'gemini-2.5-flash', auth: 'x-goog-api-key', bearer: false },
 };
 const defaultUrls = new Set(Object.values(DEFAULTS).map(d => d.url));
 const defaultModels = new Set(Object.values(DEFAULTS).map(d => d.model));
@@ -587,7 +592,22 @@ function updateSummary(passed, failed, skipped, warned, total, running, cancelle
   }
 }
 
+async function loadSpecTargets() {
+  try {
+    const resp = await fetch('/api/specs');
+    const manifest = await resp.json();
+    const parts = Object.entries(manifest.formats || {}).map(([fmt, entry]) => {
+      const detail = entry.spec_version || (entry.validation === 'semantic' ? 'semantic' : 'n/a');
+      return fmt + ' ' + detail;
+    });
+    $('spec-targets').textContent = 'spec targets: ' + parts.join(' · ');
+  } catch (e) {
+    $('spec-targets').textContent = '';
+  }
+}
+
 onFormatChange();
+loadSpecTargets();
 </script>
 </body>
 </html>

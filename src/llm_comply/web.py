@@ -17,6 +17,13 @@ from llm_comply._vendor.httpserver import (
     abort,
 )
 from llm_comply.config import ComplianceConfig
+from llm_comply.formats import (
+    DEFAULT_FORMAT,
+    EXTRA_HEADERS,
+    FORMATS,
+    VALIDATION_SPEC_FILES,
+    normalize_format,
+)
 from llm_comply.result import TestStatus
 from llm_comply.runner import TestRunner
 from llm_comply.schema import SpecLoader
@@ -25,18 +32,6 @@ from llm_comply.tests import get_tests
 logger = logging.getLogger(__name__)
 
 _HTML_PATH = pathlib.Path(__file__).parent / "web.html"
-
-FORMATS = {
-    "open-responses": "openresponses.json",
-    "openai-chat": "openai_chat.json",
-    "anthropic": "anthropic.json",
-    "google-genai": None,
-    "google-interactions": None,
-}
-
-EXTRA_HEADERS_MAP = {
-    "anthropic": {"anthropic-version": "2023-06-01"},
-}
 
 _spec_cache: dict[str, SpecLoader] = {}
 
@@ -54,7 +49,7 @@ def _add_cors(response: Response | JSONResponse) -> None:
 
 
 def _get_spec(fmt: str) -> SpecLoader:
-    spec_file = FORMATS.get(fmt)
+    spec_file = VALIDATION_SPEC_FILES.get(fmt)
     if spec_file:
         specs_dir = pathlib.Path(__file__).parent / "specs"
         return SpecLoader(str(specs_dir / spec_file))
@@ -86,7 +81,10 @@ def _result_to_dict(result, tc) -> dict[str, Any]:
 def _parse_run_body(request):
     """Parse and validate the /api/run request body."""
     body = request.json()
-    fmt = body.get("format", "open-responses")
+    try:
+        fmt = normalize_format(body.get("format", DEFAULT_FORMAT))
+    except ValueError as exc:
+        abort(400, str(exc))
     base_url = body.get("base_url", "").rstrip("/")
     api_key = body.get("api_key", "")
     model = body.get("model", "gpt-4o-mini")
@@ -97,7 +95,7 @@ def _parse_run_body(request):
     if not base_url or not api_key:
         abort(400, "base_url and api_key are required")
 
-    extra = EXTRA_HEADERS_MAP.get(fmt)
+    extra = EXTRA_HEADERS.get(fmt)
     ignore_list = (
         [s.strip() for s in ignore_str.split(",") if s.strip()] if ignore_str else None
     )
@@ -240,9 +238,13 @@ async def health(request):
 
 @app.get("/api/tests")
 async def list_tests(request):
-    fmt = (
-        request.query_params.get("format", ["open-responses"]) or ["open-responses"]
+    raw_fmt = (
+        request.query_params.get("format", [DEFAULT_FORMAT]) or [DEFAULT_FORMAT]
     )[0]
+    try:
+        fmt = normalize_format(raw_fmt)
+    except ValueError as exc:
+        abort(400, str(exc))
     tests = get_tests(fmt)
     return JSONResponse(
         [
@@ -255,6 +257,12 @@ async def list_tests(request):
             for tc in tests
         ]
     )
+
+
+@app.get("/api/specs")
+async def list_specs(request):
+    """Return the committed spec-target manifest."""
+    return JSONResponse(SpecLoader.load_manifest())
 
 
 @app.post("/api/run")

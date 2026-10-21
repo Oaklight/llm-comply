@@ -101,13 +101,20 @@ def main() -> int:
         ("name", {**call_ok, "function": {"name": "", "arguments": "{}"}}),
         ("arguments", {**call_ok, "function": {"name": "f", "arguments": 5}}),
         ("function", {**call_ok, "function": None}),
-        ("object", "not-an-object"),
     ):
         errors = chat_has_tool_calls(
             _response({"role": "assistant", "content": None, "tool_calls": [call]}),
             ctx,
         )
         assert errors, label
+
+    object_errors = chat_has_tool_calls(
+        _response(
+            {"role": "assistant", "content": None, "tool_calls": ["not-an-object"]}
+        ),
+        ctx,
+    )
+    assert any("is not an object" in error for error in object_errors), object_errors
 
     chat_schema = {
         "type": "object",

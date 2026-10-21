@@ -12,6 +12,7 @@ from llm_comply.validators import (
     compact_object,
     has_usage,
     responses_output_is_json,
+    responses_output_matches_json_schema,
 )
 
 
@@ -123,11 +124,40 @@ def main() -> int:
         "output": [
             {
                 "type": "message",
-                "content": [{"type": "output_text", "text": '{"city": "SF"}'}],
+                "content": [
+                    {
+                        "type": "output_text",
+                        "text": '{"city": "SF", "temperature_c": 18}',
+                    }
+                ],
             }
         ]
     }
     assert responses_output_is_json(json_response, ctx) == []
+    weather_schema = {
+        "type": "object",
+        "properties": {
+            "city": {"type": "string"},
+            "temperature_c": {"type": "number"},
+        },
+        "required": ["city", "temperature_c"],
+    }
+    schema_check = responses_output_matches_json_schema(weather_schema)
+    assert schema_check(json_response, ctx) == []
+    assert any(
+        "does not match the requested schema" in error
+        for error in schema_check(
+            {
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "[1, 2]"}],
+                    }
+                ]
+            },
+            ctx,
+        )
+    )
     assert any(
         "not valid JSON" in error
         for error in responses_output_is_json(

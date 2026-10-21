@@ -16,6 +16,7 @@ from ..validators import (
     has_usage,
     responses_has_reasoning_summary,
     responses_output_is_json,
+    responses_output_matches_json_schema,
     streaming_has_events,
     streaming_has_terminal,
     streaming_has_usage,
@@ -169,6 +170,17 @@ def _build_multi_turn_tool_request(cfg: ComplianceConfig) -> dict[str, Any]:
     }
 
 
+_WEATHER_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "city": {"type": "string"},
+        "temperature_c": {"type": "number"},
+    },
+    "required": ["city", "temperature_c"],
+    "additionalProperties": False,
+}
+
+
 def _build_structured_output_request(cfg: ComplianceConfig) -> dict[str, Any]:
     return {
         "model": cfg.model,
@@ -187,15 +199,7 @@ def _build_structured_output_request(cfg: ComplianceConfig) -> dict[str, Any]:
                 "type": "json_schema",
                 "name": "weather",
                 "strict": True,
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {"type": "string"},
-                        "temperature_c": {"type": "number"},
-                    },
-                    "required": ["city", "temperature_c"],
-                    "additionalProperties": False,
-                },
+                "schema": _WEATHER_SCHEMA,
             }
         },
     }
@@ -340,6 +344,7 @@ OPEN_RESPONSES_TESTS: list[TestCase] = [
             completed_status,
             has_output,
             responses_output_is_json,
+            responses_output_matches_json_schema(_WEATHER_SCHEMA),
         ],
     ),
     TestCase(

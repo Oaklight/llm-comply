@@ -66,6 +66,14 @@ def main() -> int:
         names = [getattr(v, "__name__", "") for v in shipped[test_id].validators]
         assert "chat_has_message" in names, test_id
 
+    # structured-output must keep using the schema-matching validator.
+    open_responses = {tc.id: tc for tc in get_tests("open_responses")}
+    names = [
+        getattr(v, "__qualname__", "")
+        for v in open_responses["structured-output"].validators
+    ]
+    assert "responses_output_matches_json_schema" in names, "structured-output"
+
     # Open Responses usage, compaction, and structured output checks.
     usage = {
         "input_tokens": 1,
@@ -144,6 +152,20 @@ def main() -> int:
     }
     schema_check = responses_output_matches_json_schema(weather_schema)
     assert schema_check(json_response, ctx) == []
+    assert any(
+        "not valid JSON" in error
+        for error in schema_check(
+            {
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "not json"}],
+                    }
+                ]
+            },
+            ctx,
+        )
+    )
     assert any(
         "does not match the requested schema" in error
         for error in schema_check(

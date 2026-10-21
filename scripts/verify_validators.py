@@ -531,6 +531,17 @@ def main() -> int:
         sse_events=[_delta_event("Count "), _delta_event("to five")],
     )
     assert responses_streaming_output_text(None, text_ctx) == []
+    # Providers often open with an empty delta; it is not a failure by itself.
+    assert (
+        responses_streaming_output_text(
+            None,
+            ValidatorContext(
+                streaming=True,
+                sse_events=[_delta_event(""), _delta_event("hi")],
+            ),
+        )
+        == []
+    )
     assert responses_streaming_output_text(
         None,
         ValidatorContext(

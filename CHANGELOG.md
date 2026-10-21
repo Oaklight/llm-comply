@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Open Responses: `has_usage` now checks all five required `Usage` fields and their nested details, and `compact_object` validates the full `CompactResource` shape (`object`, `id`, `output`, `created_at`, `usage`). Added `multi-turn-tool-use` and `structured-output` tests, taking the suite from 13 to 15.
 - `chat_completions` streaming tests now validate every SSE chunk against `CreateChatCompletionStreamResponse` instead of leaving stream validation disabled. A new `TestCase.stream_schema_name` field covers APIs whose events have no `type` field; chunks that do not match the spec now fail. Mid-stream `{"error": ...}` payloads are reported as `stream error: <message>` instead of a chunk-schema failure.
 - Canonical `--format` names now match llm-rosetta: `open_responses` (default), `chat_completions`, `messages`, `google_generate`, `google_interactions`. All v0.5.0 names (`open-responses`, `openai-chat`, `anthropic`, `google-genai`, `google-interactions`) remain accepted as aliases.
 - Refreshed the bundled OpenAI Chat Completions spec from upstream: 477 → 2094 schemas, 99 → 230 paths (OpenAPI 3.1.0). This adds `ChatCompletionModeration`, current `ReasoningEffort` values (`none`, `minimal`, `xhigh`, `max`), `Reasoning.mode`/`context`, and the streaming response schemas.

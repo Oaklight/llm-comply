@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from .test_case import Validator, ValidatorContext
@@ -14,6 +15,26 @@ def has_output(response: Any, ctx: ValidatorContext) -> list[str]:
     output = response.get("output")
     if not isinstance(output, list) or len(output) == 0:
         return ["response.output is missing or empty"]
+    return []
+
+
+def responses_output_is_json(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Concatenated output_text content must parse as JSON."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    texts: list[str] = []
+    for item in response.get("output", []):
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue
+        for part in item.get("content", []):
+            if isinstance(part, dict) and part.get("type") == "output_text":
+                texts.append(str(part.get("text", "")))
+    if not texts:
+        return ["no output_text content to parse as JSON"]
+    try:
+        json.loads("".join(texts))
+    except ValueError as exc:
+        return [f"output_text is not valid JSON: {exc}"]
     return []
 
 
@@ -45,9 +66,23 @@ def has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
     if not isinstance(usage, dict):
         return ["response.usage is missing"]
     errors: list[str] = []
-    for field in ("input_tokens", "output_tokens", "total_tokens"):
+    for field in (
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
+        "input_tokens_details",
+        "output_tokens_details",
+    ):
         if field not in usage:
             errors.append(f"response.usage.{field} is missing")
+    details = usage.get("input_tokens_details")
+    if isinstance(details, dict) and "cached_tokens" not in details:
+        errors.append("response.usage.input_tokens_details.cached_tokens is missing")
+    details = usage.get("output_tokens_details")
+    if isinstance(details, dict) and "reasoning_tokens" not in details:
+        errors.append(
+            "response.usage.output_tokens_details.reasoning_tokens is missing"
+        )
     return errors
 
 
@@ -177,13 +212,19 @@ def has_output_phase(expected_phase: str) -> Validator:
 
 
 def compact_object(response: Any, ctx: ValidatorContext) -> list[str]:
-    """Response object field must indicate compaction."""
+    """Compacted response must carry the CompactResource fields."""
     if not isinstance(response, dict):
         return ["response is not a JSON object"]
-    obj = response.get("object", "")
-    if "compact" not in obj:
-        return [f"expected object containing 'compact', got '{obj}'"]
-    return []
+    errors: list[str] = []
+    obj = response.get("object")
+    if obj != "response.compaction":
+        errors.append(f"expected object 'response.compaction', got '{obj}'")
+    for field in ("id", "output", "created_at", "usage"):
+        if field not in response:
+            errors.append(f"response.{field} is missing")
+    if "usage" in response:
+        errors.extend(has_usage(response, ctx))
+    return errors
 
 
 # -- Chat Completions validators --

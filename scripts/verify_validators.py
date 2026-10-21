@@ -10,6 +10,7 @@ from llm_comply.tests import get_tests
 from llm_comply.validators import (
     chat_has_message,
     chat_has_tool_calls,
+    chat_message_is_json,
     chat_message_matches_json_schema,
     compact_object,
     has_usage,
@@ -97,7 +98,8 @@ def main() -> int:
     }
     for label, call in (
         ("id", {**call_ok, "id": ""}),
-        ("type", {**call_ok, "type": "custom"}),
+        ("type", {**call_ok, "type": "function_call"}),
+        ("type-absent", {k: v for k, v in call_ok.items() if k != "type"}),
         ("name", {**call_ok, "function": {"name": "", "arguments": "{}"}}),
         ("arguments", {**call_ok, "function": {"name": "f", "arguments": 5}}),
         ("function", {**call_ok, "function": None}),
@@ -115,6 +117,31 @@ def main() -> int:
         ctx,
     )
     assert any("is not an object" in error for error in object_errors), object_errors
+
+    custom_ok = {
+        "id": "call_2",
+        "type": "custom",
+        "custom": {"name": "f", "input": "{}"},
+    }
+    assert (
+        chat_has_tool_calls(
+            _response(
+                {"role": "assistant", "content": None, "tool_calls": [custom_ok]}
+            ),
+            ctx,
+        )
+        == []
+    )
+    for label, call in (
+        ("custom-name", {**custom_ok, "custom": {"name": "", "input": "{}"}}),
+        ("custom-input", {**custom_ok, "custom": {"name": "f", "input": 5}}),
+        ("custom", {**custom_ok, "custom": None}),
+    ):
+        errors = chat_has_tool_calls(
+            _response({"role": "assistant", "content": None, "tool_calls": [call]}),
+            ctx,
+        )
+        assert errors, label
 
     chat_schema = {
         "type": "object",
@@ -152,6 +179,23 @@ def main() -> int:
         for v in chat_tests["chat-structured-output"].validators
     ]
     assert "chat_message_matches_json_schema" in names, "chat-structured-output"
+    names = [
+        getattr(v, "__name__", "")
+        for v in chat_tests["chat-structured-output"].validators
+    ]
+    assert "chat_message_is_json" in names, "chat-structured-output"
+    assert (
+        chat_message_is_json(
+            _response({"role": "assistant", "content": '{"a": 1}'}), ctx
+        )
+        == []
+    )
+    assert any(
+        "not valid JSON" in error
+        for error in chat_message_is_json(
+            _response({"role": "assistant", "content": "nope"}), ctx
+        )
+    )
     names = [
         getattr(v, "__name__", "") for v in chat_tests["chat-tool-calling"].validators
     ]

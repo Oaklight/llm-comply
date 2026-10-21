@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Web UI: run counters now reconcile — `runs_started` equals `runs_completed` + `runs_aborted` + `runs_failed`, and the run is counted before the response starts so an early disconnect is still attributed. A failed stream sends a final `event: error` frame.
+
+### Fixed
+
+- Web UI: `streaming_disconnects` is renamed to `client_disconnects` (it counts every aborted response, not only SSE), an empty `--tls-cert`/`--tls-key` is treated as a path rather than as "TLS disabled", and TLS flags are rejected without `--web`.
+- Web UI tests now cover an actual HTTPS handshake, `serve()` forwarding the TLS context, and the failure/abort terminal counters.
+
 ## [0.6.0] — 2026-10-21
 
 ### Added

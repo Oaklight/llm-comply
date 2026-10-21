@@ -132,10 +132,12 @@ reachable beyond localhost. `--tls-cert` and `--tls-key` must be provided
 together; TLS 1.2 is the minimum.
 
 `GET /health` returns the version and cumulative counters (`runs_started`,
-`runs_completed`, `runs_aborted`, `requests_completed`,
-`streaming_disconnects`). Closing the browser tab aborts the run before the
-next test starts; the test already in flight still finishes because its API
-call has been sent.
+`runs_completed`, `runs_aborted`, `runs_failed`, `requests_completed`,
+`client_disconnects`), so `runs_started` reconciles with the terminal counters.
+A stream that raises sends a final `event: error` frame and increments
+`runs_failed`. Closing the browser tab aborts the run before the next test
+starts; the test already in flight still finishes because its API call has been
+sent.
 
 ## Docker
 

@@ -61,9 +61,9 @@ class _Server:
         await self.task
 
 
-async def _start_server() -> _Server:
+async def _start_server(*, ssl_context=None) -> _Server:
     web.app.port = None
-    task = asyncio.create_task(web.app._serve("127.0.0.1", 0))
+    task = asyncio.create_task(web.app._serve("127.0.0.1", 0, ssl_context=ssl_context))
     for _ in range(500):
         if web.app.port:
             return _Server(task)
@@ -74,7 +74,14 @@ async def _start_server() -> _Server:
     raise RuntimeError("server did not start")
 
 
-async def _request(port: int, method: str, path: str, body: str | None = None):
+async def _request(
+    port: int,
+    method: str,
+    path: str,
+    body: str | None = None,
+    *,
+    client_ssl=None,
+):
     """Send one request and read the response until EOF."""
     payload = b"" if body is None else body.encode("utf-8")
     head = (
@@ -85,7 +92,7 @@ async def _request(port: int, method: str, path: str, body: str | None = None):
         "Connection: close\r\n"
         "\r\n"
     ).encode("latin-1")
-    reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    reader, writer = await asyncio.open_connection("127.0.0.1", port, ssl=client_ssl)
     try:
         writer.write(head + payload)
         await writer.drain()
@@ -139,6 +146,20 @@ class _FakeRunner:
         )
 
 
+class _FailingRunner:
+    """Stand-in that raises, exercising the stream's failure terminal state."""
+
+    last: _FailingRunner | None = None
+
+    def __init__(self, config, test_cases, spec_loader, **kwargs) -> None:
+        self.calls = 0
+        _FailingRunner.last = self
+
+    def run_one(self, tc) -> _TestResult:
+        self.calls += 1
+        raise RuntimeError("upstream exploded")
+
+
 _RUN_BODY = json.dumps(
     {
         "format": "open_responses",
@@ -155,7 +176,57 @@ def test_build_ssl_context_loads_certificate(tmp_path):
     cert, key = _make_self_signed_cert(tmp_path)
     context = web._build_ssl_context(str(cert), str(key))
     assert isinstance(context, ssl.SSLContext)
-    assert context.minimum_version == ssl.TLSVersion.TLSv1_2
+    assert context.protocol == ssl.PROTOCOL_TLS_SERVER
+
+
+def test_https_server_serves_health(tmp_path):
+    cert, key = _make_self_signed_cert(tmp_path)
+    server_context = web._build_ssl_context(str(cert), str(key))
+    client_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    client_context.check_hostname = False
+    client_context.verify_mode = ssl.CERT_NONE
+
+    async def run():
+        server = await _start_server(ssl_context=server_context)
+        try:
+            reader, writer = await asyncio.open_connection(
+                "127.0.0.1", server.port, ssl=client_context
+            )
+            try:
+                version = writer.get_extra_info("ssl_object").version()
+                writer.write(
+                    b"GET /health HTTP/1.1\r\n"
+                    b"Host: localhost\r\n"
+                    b"Connection: close\r\n\r\n"
+                )
+                await writer.drain()
+                data = await asyncio.wait_for(reader.read(), timeout=10)
+            finally:
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+        finally:
+            await server.close()
+        return version, data
+
+    version, data = asyncio.run(run())
+    assert version in {"TLSv1.2", "TLSv1.3"}
+    assert data.startswith(b"HTTP/1.1 200")
+    assert b'"status": "ok"' in data
+
+
+def test_serve_forwards_ssl_context(tmp_path, monkeypatch):
+    cert, key = _make_self_signed_cert(tmp_path)
+    captured = {}
+
+    def fake_run(host, port, *, ssl_context=None):
+        captured.update(host=host, port=port, ssl_context=ssl_context)
+
+    monkeypatch.setattr(web.app, "run", fake_run)
+    web.serve(host="127.0.0.1", port=1234, tls_cert=str(cert), tls_key=str(key))
+    assert isinstance(captured["ssl_context"], ssl.SSLContext)
 
 
 def test_build_ssl_context_rejects_missing_files(tmp_path):
@@ -168,9 +239,21 @@ def test_serve_rejects_incomplete_tls_pair():
         web.serve(tls_cert="cert.pem")
 
 
+def test_serve_rejects_empty_tls_paths():
+    with pytest.raises(OSError):
+        web.serve(tls_cert="", tls_key="")
+
+
 def test_cli_rejects_incomplete_tls_pair(capsys):
     assert cli.main(["--web", "--tls-cert", "cert.pem"]) == 2
     assert "together" in capsys.readouterr().err
+
+
+def test_cli_rejects_tls_without_web(capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["--tls-cert", "cert.pem", "--tls-key", "key.pem"])
+    assert excinfo.value.code == 2
+    assert "--web" in capsys.readouterr().err
 
 
 def test_cli_accepts_tls_pair():
@@ -188,6 +271,7 @@ def test_health_reports_metrics():
     async def run():
         server = await _start_server()
         try:
+            before = web._metrics.to_dict()
             _, body = await _request(server.port, "GET", "/health")
             payload = json.loads(body)
             assert payload["status"] == "ok"
@@ -195,9 +279,18 @@ def test_health_reports_metrics():
                 "runs_started",
                 "runs_completed",
                 "runs_aborted",
+                "runs_failed",
                 "requests_completed",
-                "streaming_disconnects",
+                "client_disconnects",
             }
+            # A health poll is a request, not a run.
+            for key in (
+                "runs_started",
+                "runs_completed",
+                "runs_aborted",
+                "runs_failed",
+            ):
+                assert payload["metrics"][key] == before[key]
         finally:
             await server.close()
 
@@ -213,10 +306,36 @@ def test_stream_run_reports_completion(monkeypatch):
         try:
             before_started = web._metrics.runs_started
             before_completed = web._metrics.runs_completed
+            before_failed = web._metrics.runs_failed
             _, body = await _request(server.port, "POST", "/api/run/stream", _RUN_BODY)
             assert b"event: suite_complete" in body
             assert web._metrics.runs_started == before_started + 1
             assert web._metrics.runs_completed == before_completed + 1
+            assert web._metrics.runs_failed == before_failed
+        finally:
+            await server.close()
+
+    asyncio.run(run())
+
+
+def test_stream_run_reports_failure(monkeypatch):
+    monkeypatch.setattr(web, "TestRunner", _FailingRunner)
+
+    async def run():
+        server = await _start_server()
+        try:
+            before_started = web._metrics.runs_started
+            before_completed = web._metrics.runs_completed
+            before_aborted = web._metrics.runs_aborted
+            before_failed = web._metrics.runs_failed
+            _, body = await _request(server.port, "POST", "/api/run/stream", _RUN_BODY)
+            assert b"event: error" in body
+            assert b"upstream exploded" in body
+            assert web._metrics.runs_started == before_started + 1
+            assert web._metrics.runs_failed == before_failed + 1
+            assert web._metrics.runs_completed == before_completed
+            assert web._metrics.runs_aborted == before_aborted
+            assert _FailingRunner.last.calls == 1
         finally:
             await server.close()
 
@@ -251,7 +370,11 @@ def test_stream_run_aborts_on_disconnect(monkeypatch):
     async def run():
         server = await _start_server()
         try:
-            before = web._metrics.runs_aborted
+            before_started = web._metrics.runs_started
+            before_completed = web._metrics.runs_completed
+            before_aborted = web._metrics.runs_aborted
+            before_failed = web._metrics.runs_failed
+            before_disconnects = web._metrics.client_disconnects
             reader, writer = await asyncio.open_connection("127.0.0.1", server.port)
             payload = _RUN_BODY.encode("utf-8")
             head = (
@@ -272,10 +395,14 @@ def test_stream_run_aborts_on_disconnect(monkeypatch):
                 pass
 
             for _ in range(200):
-                if web._metrics.runs_aborted == before + 1:
+                if web._metrics.runs_aborted == before_aborted + 1:
                     break
                 await asyncio.sleep(0.01)
-            assert web._metrics.runs_aborted == before + 1
+            assert web._metrics.runs_aborted == before_aborted + 1
+            assert web._metrics.runs_started == before_started + 1
+            assert web._metrics.runs_completed == before_completed
+            assert web._metrics.runs_failed == before_failed
+            assert web._metrics.client_disconnects == before_disconnects + 1
 
             calls = _FakeRunner.last.calls
             await asyncio.sleep(0.3)

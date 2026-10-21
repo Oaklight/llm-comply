@@ -14,7 +14,7 @@ from ..validators import (
     chat_has_message,
     chat_has_reasoning_tokens,
     chat_has_refusal_field,
-    chat_has_tool_calls,
+    chat_has_tool_call_of_type,
     chat_has_usage,
     chat_id_has_prefix,
     chat_message_is_json,
@@ -232,7 +232,7 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
         validators=[
             has_response_id,
             chat_has_choices,
-            chat_has_tool_calls,
+            chat_has_tool_call_of_type("function"),
             chat_finish_reason("tool_calls"),
             *_CHAT_RESPONSE_WARNINGS,
         ],

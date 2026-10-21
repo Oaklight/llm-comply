@@ -9,6 +9,7 @@ from llm_comply.test_case import ValidatorContext
 from llm_comply.tests import get_tests
 from llm_comply.validators import (
     chat_has_message,
+    chat_has_tool_call_of_type,
     chat_has_tool_calls,
     chat_message_is_json,
     chat_message_matches_json_schema,
@@ -142,6 +143,35 @@ def main() -> int:
             ctx,
         )
         assert errors, label
+    null_custom = chat_has_tool_calls(
+        _response(
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [{**custom_ok, "custom": None}],
+            }
+        ),
+        ctx,
+    )
+    assert any("custom is missing or not an object" in e for e in null_custom), (
+        null_custom
+    )
+
+    type_check = chat_has_tool_call_of_type("function")
+    assert (
+        type_check(
+            _response({"role": "assistant", "content": None, "tool_calls": [call_ok]}),
+            ctx,
+        )
+        == []
+    )
+    custom_type_errors = type_check(
+        _response({"role": "assistant", "content": None, "tool_calls": [custom_ok]}),
+        ctx,
+    )
+    assert any("no tool call of type 'function'" in e for e in custom_type_errors), (
+        custom_type_errors
+    )
 
     chat_schema = {
         "type": "object",
@@ -197,9 +227,10 @@ def main() -> int:
         )
     )
     names = [
-        getattr(v, "__name__", "") for v in chat_tests["chat-tool-calling"].validators
+        getattr(v, "__qualname__", "")
+        for v in chat_tests["chat-tool-calling"].validators
     ]
-    assert "chat_has_tool_calls" in names, "chat-tool-calling"
+    assert "chat_has_tool_call_of_type" in names, "chat-tool-calling"
 
     # Open Responses usage, compaction, and structured output checks.
     usage = {

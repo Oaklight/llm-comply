@@ -372,6 +372,27 @@ def chat_has_tool_calls(response: Any, ctx: ValidatorContext) -> list[str]:
     return errors
 
 
+def chat_has_tool_call_of_type(expected: str) -> Validator:
+    """Factory: tool calls must be well-formed and include *expected* type."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        errors = chat_has_tool_calls(response, ctx)
+        calls: list[Any] = []
+        if isinstance(response, dict):
+            choices = response.get("choices") or []
+            if choices and isinstance(choices[0], dict):
+                message = choices[0].get("message") or {}
+                calls = message.get("tool_calls") or []
+        if not any(
+            isinstance(call, dict) and call.get("type") == expected for call in calls
+        ):
+            errors.append(f"no tool call of type '{expected}'")
+        return errors
+
+    _check.__qualname__ = "chat_has_tool_call_of_type"
+    return _check
+
+
 def _chat_message_text(response: Any) -> str | None:
     if not isinstance(response, dict):
         return None

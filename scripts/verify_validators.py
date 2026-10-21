@@ -412,6 +412,12 @@ def main() -> int:
         "Google Modality enum value"
     ]
 
+    # The thought-parts guard needs the same content-level exercise.
+    assert google_has_thought_parts({"candidates": [{"content": "nope"}]}, ctx) == [
+        "[warning] candidates[0].content.parts is missing or not an array "
+        "(model may not emit thoughts at current thinking level)"
+    ]
+
     # The remaining usage-based warning must also tolerate a non-object.
     assert google_has_thoughts_token_count({"usageMetadata": "nope"}, ctx) == [
         "[warning] usageMetadata is missing or not an object "

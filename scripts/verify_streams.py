@@ -104,11 +104,11 @@ def _finish_chunk(reason: str) -> dict[str, Any]:
     }
 
 
-def _config(port: int) -> ComplianceConfig:
+def _config(port: int, fmt: str = "chat_completions") -> ComplianceConfig:
     args = _build_parser().parse_args(
         [
             "--format",
-            "chat_completions",
+            fmt,
             "-u",
             f"http://127.0.0.1:{port}",
             "-k",
@@ -133,6 +133,31 @@ def _test_case() -> TestCase:
             "messages": [{"role": "user", "content": "hi"}],
         },
     )
+
+
+def _google_test_case() -> TestCase:
+    return TestCase(
+        id="google-stream-schema",
+        name="Google Stream Schema",
+        description="Each SSE chunk validates against GenerateContentResponse",
+        category=TestCategory.STREAMING,
+        endpoint="/v1beta/models/test-model:streamGenerateContent?alt=sse",
+        schema_name=None,
+        streaming=True,
+        stream_schema_name="GenerateContentResponse",
+        build_request=lambda cfg: {
+            "contents": [{"role": "user", "parts": [{"text": "hi"}]}],
+        },
+    )
+
+
+def _google_chunk(text: str | None) -> dict[str, Any]:
+    parts = [] if text is None else [{"text": text}]
+    return {
+        "candidates": [{"content": {"parts": parts, "role": "model"}, "index": 0}],
+        "modelVersion": "gemini-2.5-flash",
+        "responseId": "resp_1",
+    }
 
 
 def main() -> int:
@@ -260,6 +285,30 @@ def main() -> int:
         result = runner.run_one(_test_case())
         assert result.status == TestStatus.FAILED
         assert any("not a JSON object" in e for e in result.errors), result.errors
+
+        # Google GenAI streams GenerateContentResponse chunks with no event
+        # type, so each chunk must validate against that named schema.
+        google_spec = SpecLoader(str(SPECS_DIR / "google_generate.json"))
+        google_streams = [tc for tc in get_tests("google_generate") if tc.streaming]
+        assert google_streams, "no streaming google_generate cases"
+        for tc in google_streams:
+            assert tc.validate_stream_events, tc.id
+            assert tc.stream_schema_name == "GenerateContentResponse", tc.id
+            assert tc.stream_schema_name in google_spec.schema_names, tc.id
+
+        google_case = _google_test_case()
+        google_runner = TestRunner(
+            _config(port, "google_generate"), [google_case], google_spec
+        )
+        _SSEHandler.chunks = [_google_chunk(None), _google_chunk("hello")]
+        result = google_runner.run_one(google_case)
+        assert result.status == TestStatus.PASSED, result.errors
+
+        # A schema-legal JSON object with an invalid field value must fail.
+        _SSEHandler.chunks = [{"candidates": [{"finishReason": "NOT_A_REASON"}]}]
+        result = google_runner.run_one(google_case)
+        assert result.status == TestStatus.FAILED, "invalid Google chunk was accepted"
+        assert any("finishReason" in error for error in result.errors), result.errors
     finally:
         server.shutdown()
         server.server_close()

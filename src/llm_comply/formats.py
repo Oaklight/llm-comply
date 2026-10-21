@@ -36,9 +36,9 @@ FORMAT_SPECS: dict[str, tuple[str | None, str]] = {
     "openai_responses": ("openai_responses.json", "schema"),
     "chat_completions": ("openai_chat.json", "schema"),
     "messages": ("anthropic.json", "schema"),
-    "google_generate": ("google_generate.json", "semantic"),
-    # Google specs are bundled for tracking, but runtime validation stays
-    # semantic until the validators are extended.
+    "google_generate": ("google_generate.json", "schema"),
+    # The Interactions spec is bundled for tracking, but runtime validation
+    # stays semantic until its validators are extended.
     "google_interactions": ("google_interactions.json", "semantic"),
 }
 

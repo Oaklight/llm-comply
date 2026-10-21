@@ -99,6 +99,11 @@ def _build_image_request(cfg: ComplianceConfig) -> dict[str, Any]:
 
 # Google endpoints include the model name, so we use a dynamic endpoint
 # via a wrapper that sets the endpoint at build time.
+
+# Both generateContent and streamGenerateContent return the same shape.
+_GOOGLE_RESPONSE_SCHEMA = "GenerateContentResponse"
+
+
 def _make_test(
     *,
     id: str,
@@ -109,11 +114,17 @@ def _make_test(
     validators: list,
     streaming: bool = False,
     expected_statuses: list[int] | None = None,
+    schema_name: str | None = None,
+    stream_schema_name: str | None = None,
 ) -> TestCase:
     if streaming:
         ep_fn = _ep_stream
+        if stream_schema_name is None:
+            stream_schema_name = _GOOGLE_RESPONSE_SCHEMA
     else:
         ep_fn = _ep
+        if schema_name is None and not expected_statuses:
+            schema_name = _GOOGLE_RESPONSE_SCHEMA
 
     original_build = build_request
 
@@ -134,8 +145,9 @@ def _make_test(
         validators=validators,
         streaming=streaming,
         endpoint="/placeholder",
-        schema_name=None,
-        validate_stream_events=False,
+        schema_name=schema_name,
+        stream_schema_name=stream_schema_name,
+        validate_stream_events=streaming and stream_schema_name is not None,
     )
     if expected_statuses:
         tc = dataclasses.replace(tc, expected_statuses=expected_statuses)

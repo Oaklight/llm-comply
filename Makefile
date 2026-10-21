@@ -1,4 +1,4 @@
-.PHONY: all lint lint-fix test build push clean build-docker push-docker deploy-dev build-binary build-binary-musl build-docker-alpine build-docker-glibc clean-binary clean-binary-all help
+.PHONY: all lint lint-fix verify test build push clean build-docker push-docker deploy-dev build-binary build-binary-musl build-docker-alpine build-docker-glibc clean-binary clean-binary-all help
 
 DOCKER_IMAGE ?= oaklight/llm-comply
 VERSION := $(shell python -c 'import re; print(re.search(r"__version__ = \"([^\"]+)\"", open("src/llm_comply/__init__.py").read()).group(1))')
@@ -17,7 +17,7 @@ ifneq ($(PYPI_MIRROR),)
 BUILD_ARGS += --build-arg PYPI_MIRROR=$(PYPI_MIRROR)
 endif
 
-all: lint test
+all: lint verify test
 
 # ── Development ───────────────────────────────────────────────
 
@@ -28,6 +28,9 @@ lint:
 lint-fix:
 	ruff check --fix src/
 	ruff format src/
+
+verify:
+	python scripts/verify_specs.py
 
 test:
 	llm-comply --list
@@ -219,6 +222,7 @@ help:
 	@echo "Development:"
 	@echo "  lint           - Run ruff linter and format check"
 	@echo "  lint-fix       - Auto-fix lint and formatting issues"
+	@echo "  verify         - Verify bundled specs and schema behavior"
 	@echo "  test           - Smoke test (list all formats)"
 	@echo ""
 	@echo "Package:"

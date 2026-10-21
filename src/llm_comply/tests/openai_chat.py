@@ -12,11 +12,13 @@ from ..validators import (
     chat_has_choices,
     chat_has_logprobs_field,
     chat_has_message,
-    chat_has_reasoning_summary,
+    chat_has_reasoning_tokens,
     chat_has_refusal_field,
     chat_has_tool_calls,
     chat_has_usage,
     chat_id_has_prefix,
+    chat_message_is_json,
+    chat_message_matches_json_schema,
     chat_streaming_all_have_finish_reason,
     chat_streaming_has_delta,
     chat_streaming_has_done,
@@ -37,6 +39,53 @@ _CHAT_STREAMING_WARNINGS = [
     chat_streaming_all_have_finish_reason,
     chat_id_has_prefix("chatcmpl-"),
 ]
+
+
+_WEATHER_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "city": {"type": "string"},
+        "temperature_c": {"type": "number"},
+    },
+    "required": ["city", "temperature_c"],
+    "additionalProperties": False,
+}
+
+
+def _build_developer_role_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "messages": [
+            {
+                "role": "developer",
+                "content": "You always answer with exactly one word.",
+            },
+            {"role": "user", "content": "Say hello."},
+        ],
+    }
+
+
+def _build_structured_output_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "messages": [
+            {
+                "role": "user",
+                "content": (
+                    "Return the current weather in San Francisco as JSON with "
+                    "keys city and temperature_c."
+                ),
+            }
+        ],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "weather",
+                "strict": True,
+                "schema": _WEATHER_SCHEMA,
+            },
+        },
+    }
 
 
 def _load_test_image_b64() -> str:
@@ -189,6 +238,39 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
         ],
     ),
     TestCase(
+        id="chat-developer-role",
+        name="Developer Role",
+        description="developer role message is accepted",
+        category=TestCategory.BASIC,
+        endpoint="/chat/completions",
+        schema_name="CreateChatCompletionResponse",
+        build_request=_build_developer_role_request,
+        validators=[
+            has_response_id,
+            chat_has_choices,
+            chat_has_message,
+            chat_finish_reason("stop"),
+            *_CHAT_RESPONSE_WARNINGS,
+        ],
+    ),
+    TestCase(
+        id="chat-structured-output",
+        name="Structured Output",
+        description="response_format json_schema is accepted and content matches it",
+        category=TestCategory.BASIC,
+        endpoint="/chat/completions",
+        schema_name="CreateChatCompletionResponse",
+        build_request=_build_structured_output_request,
+        validators=[
+            has_response_id,
+            chat_has_choices,
+            chat_has_message,
+            chat_message_is_json,
+            chat_message_matches_json_schema(_WEATHER_SCHEMA),
+            *_CHAT_RESPONSE_WARNINGS,
+        ],
+    ),
+    TestCase(
         id="chat-streaming-response",
         name="Streaming Response",
         description="SSE streaming chunks with delta content and [DONE] terminator",
@@ -272,7 +354,7 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
             chat_has_message,
             chat_finish_reason("stop"),
             chat_has_usage,
-            chat_has_reasoning_summary,
+            chat_has_reasoning_tokens,
         ],
         skip_reason=lambda cfg: (
             "reasoning requires o-series or gpt-5 models"

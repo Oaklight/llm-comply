@@ -9,6 +9,8 @@ from llm_comply.test_case import ValidatorContext
 from llm_comply.tests import get_tests
 from llm_comply.validators import (
     chat_has_message,
+    chat_has_tool_calls,
+    chat_message_matches_json_schema,
     compact_object,
     has_usage,
     responses_output_is_json,
@@ -73,6 +75,59 @@ def main() -> int:
         for v in open_responses["structured-output"].validators
     ]
     assert "responses_output_matches_json_schema" in names, "structured-output"
+
+    tool_message = {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {
+                "id": "call_1",
+                "type": "function",
+                "function": {"name": "f", "arguments": "{}"},
+            }
+        ],
+    }
+    assert chat_has_tool_calls(_response(tool_message), ctx) == []
+    broken_tool = {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "f"}}],
+    }
+    assert any(
+        "arguments" in error
+        for error in chat_has_tool_calls(_response(broken_tool), ctx)
+    )
+
+    chat_schema = {
+        "type": "object",
+        "properties": {
+            "city": {"type": "string"},
+            "temperature_c": {"type": "number"},
+        },
+        "required": ["city", "temperature_c"],
+    }
+    chat_schema_check = chat_message_matches_json_schema(chat_schema)
+    assert (
+        chat_schema_check(
+            _response(
+                {"role": "assistant", "content": '{"city": "SF", "temperature_c": 18}'}
+            ),
+            ctx,
+        )
+        == []
+    )
+    assert any(
+        "does not match the requested schema" in error
+        for error in chat_schema_check(
+            _response({"role": "assistant", "content": "[1, 2]"}), ctx
+        )
+    )
+    chat_tests = {tc.id: tc for tc in get_tests("chat_completions")}
+    names = [
+        getattr(v, "__qualname__", "")
+        for v in chat_tests["chat-structured-output"].validators
+    ]
+    assert "chat_message_matches_json_schema" in names, "chat-structured-output"
 
     # Open Responses usage, compaction, and structured output checks.
     usage = {

@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Streaming payloads that are not valid JSON, or parse to something other than an object, now fail with a clear diagnosis instead of being silently skipped or raising an attribute error. Clarifies the "every chunk is validated" guarantee.
 - Per-format transport defaults: `--format messages` now uses the `x-api-key` header and sends `anthropic-version: 2023-06-01` automatically, and the Google formats use `x-goog-api-key`, instead of requiring `--auth-header`, `--no-bearer`, and `-H` on every run. A new `--bearer` counteracts `--no-bearer`, so the pre-0.6 `Authorization: Bearer` arrangement for a Messages gateway is still expressible, and the web UI omits fields left at their format default so the server-side resolution applies. Explicit flags and `-H` values still override the defaults; `-H` can no longer replace the resolved credential header.
 - Schema validation no longer rejects valid `ReasoningEffort` values (`none`, `minimal`, `xhigh`, `max`) that the stale bundled spec omitted.
 - Manifest regeneration tolerates configured specs that are not bundled yet, and `update-spec --all` writes the manifest once after all fetches instead of after each one.

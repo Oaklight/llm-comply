@@ -22,7 +22,7 @@ SPECS_DIR = pathlib.Path(__file__).resolve().parent.parent / "src/llm_comply/spe
 
 
 class _SSEHandler(BaseHTTPRequestHandler):
-    chunks: list[dict[str, Any]] = []
+    chunks: list[Any] = []
 
     def do_POST(self) -> None:  # noqa: N802 (http.server API)
         length = int(self.headers.get("content-length", 0))
@@ -32,7 +32,8 @@ class _SSEHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         for chunk in self.chunks:
-            self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
+            payload = chunk if isinstance(chunk, str) else json.dumps(chunk)
+            self.wfile.write(f"data: {payload}\n\n".encode())
         self.wfile.write(b"data: [DONE]\n\n")
         self.wfile.flush()
 
@@ -122,11 +123,25 @@ def main() -> int:
             result.errors
         )
         assert not any("choices" in e for e in result.errors), result.errors
+
+        # Malformed payloads must fail with a diagnosis, not be skipped.
+        _SSEHandler.chunks = ["not-json"]
+        result = runner.run_one(_test_case())
+        assert result.status == TestStatus.FAILED
+        assert any("not valid JSON" in e for e in result.errors), result.errors
+
+        _SSEHandler.chunks = [42]
+        result = runner.run_one(_test_case())
+        assert result.status == TestStatus.FAILED
+        assert any("not a JSON object" in e for e in result.errors), result.errors
     finally:
         server.shutdown()
         server.server_close()
 
-    print("stream schema validation: valid chunks pass, invalid chunks fail")
+    print(
+        "stream validation: valid chunks pass; invalid, error, and malformed "
+        "payloads fail"
+    )
     return 0
 
 

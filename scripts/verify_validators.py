@@ -17,6 +17,8 @@ def main() -> int:
     """Check every payload shape accepted for a non-streaming message."""
     ctx = ValidatorContext()
 
+    # Empty content is valid (a present but empty answer); the other fields
+    # count only when they carry something.
     for field, value in (
         ("content", ""),
         ("tool_calls", [{"id": "call_1"}]),
@@ -32,6 +34,14 @@ def main() -> int:
 
     errors = chat_has_message(_response({"role": "assistant", "content": None}), ctx)
     assert any("has none of" in error for error in errors), errors
+
+    for message in (
+        {"role": "assistant", "content": None, "refusal": ""},
+        {"role": "assistant", "content": None, "tool_calls": []},
+        {"role": "assistant", "content": None, "reasoning_content": ""},
+    ):
+        errors = chat_has_message(_response(message), ctx)
+        assert any("has none of" in error for error in errors), (message, errors)
 
     errors = chat_has_message(_response({"role": "user", "content": "hi"}), ctx)
     assert any("expected 'assistant'" in error for error in errors), errors

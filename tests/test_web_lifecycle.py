@@ -12,6 +12,7 @@ import time
 import pytest
 
 from llm_comply import cli, web
+from llm_comply._vendor.httpserver import Request
 from llm_comply.result import TestResult as _TestResult
 from llm_comply.result import TestStatus as _TestStatus
 
@@ -253,7 +254,7 @@ def test_cli_rejects_tls_without_web(capsys):
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["--tls-cert", "cert.pem", "--tls-key", "key.pem"])
     assert excinfo.value.code == 2
-    assert "--web" in capsys.readouterr().err
+    assert "require --web" in capsys.readouterr().err
 
 
 def test_cli_accepts_tls_pair():
@@ -318,6 +319,25 @@ def test_stream_run_reports_completion(monkeypatch):
     asyncio.run(run())
 
 
+def test_run_tests_stream_counts_run_before_first_chunk(monkeypatch):
+    """The run is attributed even if the generator is never iterated."""
+    monkeypatch.setattr(web, "TestRunner", _FakeRunner)
+    request = Request(
+        "POST",
+        "/api/run/stream",
+        "",
+        {"content-type": "application/json"},
+        _RUN_BODY.encode("utf-8"),
+        ("127.0.0.1", 12345),
+        web.app,
+    )
+    before = web._metrics.runs_started
+    response = asyncio.run(web.run_tests_stream(request))
+    assert isinstance(response, web.StreamingResponse)
+    assert web._metrics.runs_started == before + 1
+    assert request.state.stream_run is True
+
+
 def test_stream_run_reports_failure(monkeypatch):
     monkeypatch.setattr(web, "TestRunner", _FailingRunner)
 
@@ -328,13 +348,16 @@ def test_stream_run_reports_failure(monkeypatch):
             before_completed = web._metrics.runs_completed
             before_aborted = web._metrics.runs_aborted
             before_failed = web._metrics.runs_failed
+            before_disconnects = web._metrics.client_disconnects
             _, body = await _request(server.port, "POST", "/api/run/stream", _RUN_BODY)
             assert b"event: error" in body
             assert b"upstream exploded" in body
+            assert b"event: suite_complete" not in body
             assert web._metrics.runs_started == before_started + 1
             assert web._metrics.runs_failed == before_failed + 1
             assert web._metrics.runs_completed == before_completed
             assert web._metrics.runs_aborted == before_aborted
+            assert web._metrics.client_disconnects == before_disconnects
             assert _FailingRunner.last.calls == 1
         finally:
             await server.close()

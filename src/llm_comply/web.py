@@ -227,7 +227,9 @@ async def record_response_start(request, response):
 @app.on_response_completed
 async def record_response_completed(request, response):
     _metrics.requests_completed += 1
-    if getattr(request.state, "stream_run", False):
+    if getattr(request.state, "stream_run", False) and not getattr(
+        request.state, "stream_failed", False
+    ):
         _metrics.runs_completed += 1
 
     start = getattr(request.state, "start_time", None)
@@ -248,7 +250,9 @@ async def record_response_completed(request, response):
 @app.on_client_disconnect
 async def record_client_disconnect(request):
     _metrics.client_disconnects += 1
-    if getattr(request.state, "stream_run", False):
+    if getattr(request.state, "stream_run", False) and not getattr(
+        request.state, "stream_failed", False
+    ):
         _metrics.runs_aborted += 1
 
     start = getattr(request.state, "start_time", None)
@@ -431,10 +435,13 @@ async def run_tests_stream(request):
             }
             yield f"event: suite_complete\ndata: {json.dumps(summary)}\n\n"
         except Exception as exc:
+            request.state.stream_failed = True
             _metrics.runs_failed += 1
+            logger.exception("Test suite stream failed")
             error = json.dumps({"error": str(exc)}, ensure_ascii=False)
+            # End the stream normally after the terminal frame: a reverse proxy
+            # then sees a complete response instead of a torn-down connection.
             yield f"event: error\ndata: {error}\n\n"
-            raise
 
     return StreamingResponse(
         generate(),

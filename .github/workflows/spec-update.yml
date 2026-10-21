@@ -1,0 +1,64 @@
+name: spec-update
+
+on:
+  schedule:
+    - cron: "23 4 * * 1" # Weekly Monday 4:23 UTC
+  workflow_dispatch:
+
+# NOTE: PRs created by the default GITHUB_TOKEN do not trigger
+# on:pull_request workflows. If you need CI checks on the auto-PR,
+# use a GitHub App token or PAT instead of github.token.
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  PYTHONIOENCODING: utf-8
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Refresh all upstream specs
+        id: refresh
+        run: |
+          llm-comply update-spec --all
+          if git diff --quiet -- src/llm_comply/specs; then
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate refreshed specs
+        if: steps.refresh.outputs.has_updates == 'true'
+        run: |
+          llm-comply specs --check
+          make test
+
+      - name: Create or update Pull Request
+        if: steps.refresh.outputs.has_updates == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: spec-update
+          delete-branch: true
+          title: "chore(spec): refresh bundled upstream specs"
+          body: |
+            Automated refresh of every bundled spec that has an upstream source.
+
+            Run `llm-comply specs` after checkout for the version table. The
+            manifest diff records each format's spec version, schema and path
+            counts, SHA-256 and refresh date.
+
+            Formats without a verified upstream (`google_generate`,
+            `google_interactions`) are unchanged.
+          labels: dependencies, area:specs
+          commit-message: "chore(spec): refresh bundled upstream specs"

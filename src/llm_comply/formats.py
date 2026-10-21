@@ -64,6 +64,14 @@ SPEC_SOURCES: dict[str, tuple[str, str]] = {
         "https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.json",
         "openai_chat.json",
     ),
+    # Anthropic publishes no stable spec permalink. The official SDKs ship the
+    # generated OpenAPI document as a gzip artifact used by their mock server;
+    # the Python and TypeScript copies are byte-identical. The older
+    # .stats.yml `openapi_spec_url` field is no longer present.
+    "messages": (
+        "https://raw.githubusercontent.com/anthropics/anthropic-sdk-python/main/scripts/mock-spec.json.gz",
+        "anthropic.json",
+    ),
 }
 
 # update-spec choices: refreshable formats plus legacy spellings mapping to them.

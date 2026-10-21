@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+import gzip
 import hashlib
 import importlib.util
 import json
@@ -28,7 +29,6 @@ _MANIFEST_PATH = _SPECS_DIR / "manifest.json"
 _MANIFEST_SCHEMA_VERSION = 1
 
 _MANUAL_SOURCES = {
-    "messages": "Stainless-generated snapshot; Anthropic publishes no OpenAPI spec",
     "google_generate": "Google publishes no OpenAPI spec; semantic validation only",
     "google_interactions": "No verified upstream source; bundled spec is reference-only",
 }
@@ -324,8 +324,13 @@ class SpecLoader:
         assert isinstance(raw, Response)
         raw.raise_for_status()
 
+        # Some publishers ship the spec gzip-compressed (e.g. Anthropic SDK).
+        payload = raw.content
+        if payload[:2] == b"\x1f\x8b":
+            payload = gzip.decompress(payload)
+
         # Parse before writing so a bad response never corrupts the bundled spec.
-        spec = json.loads(raw.content)
+        spec = json.loads(payload)
         schemas = spec.get("components", {}).get("schemas", {})
         if not spec.get("openapi") or not schemas:
             raise ValueError(
@@ -334,12 +339,12 @@ class SpecLoader:
 
         dest = pathlib.Path(output_path) if output_path else _SPECS_DIR / filename
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(raw.content)
+        dest.write_bytes(payload)
         if output_path is None:
             cls.write_manifest()
 
         version = spec.get("info", {}).get("version", "unknown")
         return (
             f"Saved {fmt} spec v{version} to {dest} "
-            f"({len(schemas)} schemas, {len(raw.content)} bytes)"
+            f"({len(schemas)} schemas, {len(payload)} bytes)"
         )

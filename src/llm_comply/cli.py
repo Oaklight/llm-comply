@@ -54,6 +54,12 @@ def _build_parser() -> argparse.ArgumentParser:
             f"{', '.join(REFRESHABLE_FORMATS)} (default: {DEFAULT_FORMAT})"
         ),
     )
+    update_parser.add_argument(
+        "--all",
+        action="store_true",
+        dest="specs_all",
+        help="Refresh every format that has an upstream source",
+    )
 
     # -- specs --
     specs_parser = sub.add_parser(
@@ -179,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_specs(args)
 
     if args.command == "update-spec":
-        return _cmd_update_spec(fmt)
+        return _cmd_update_spec(fmt, getattr(args, "specs_all", False))
 
     # Default: run tests
     return _cmd_run(args, parser)
@@ -206,16 +212,19 @@ def _cmd_list(fmt: str) -> int:
     return 0
 
 
-def _cmd_update_spec(fmt: str) -> int:
+def _cmd_update_spec(fmt: str, refresh_all: bool = False) -> int:
+    from .formats import REFRESHABLE_FORMATS
     from .schema import SpecLoader
 
-    try:
-        msg = SpecLoader.fetch_latest(fmt)
-        print(msg)
-        return 0
-    except Exception as exc:
-        print(f"Error fetching spec: {exc}", file=sys.stderr)
-        return 1
+    targets = REFRESHABLE_FORMATS if refresh_all else (fmt,)
+    failures = 0
+    for target in targets:
+        try:
+            print(SpecLoader.fetch_latest(target))
+        except Exception as exc:
+            failures += 1
+            print(f"Error fetching {target} spec: {exc}", file=sys.stderr)
+    return 1 if failures else 0
 
 
 def _cmd_specs(args: argparse.Namespace) -> int:

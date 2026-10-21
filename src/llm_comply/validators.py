@@ -713,6 +713,16 @@ def anth_streaming_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
 # -- Google GenAI validators --
 
 
+def _google_candidates(response: Any) -> list[dict[str, Any]]:
+    """Return the candidate objects from a response, ignoring malformed entries."""
+    if not isinstance(response, dict):
+        return []
+    cands = response.get("candidates")
+    if not isinstance(cands, list):
+        return []
+    return [cand for cand in cands if isinstance(cand, dict)]
+
+
 def google_has_candidates(response: Any, ctx: ValidatorContext) -> list[str]:
     """Response must have a non-empty candidates array."""
     if not isinstance(response, dict):
@@ -720,6 +730,8 @@ def google_has_candidates(response: Any, ctx: ValidatorContext) -> list[str]:
     cands = response.get("candidates")
     if not isinstance(cands, list) or len(cands) == 0:
         return ["response.candidates is missing or empty"]
+    if not isinstance(cands[0], dict):
+        return ["response.candidates[0] is not an object"]
     return []
 
 
@@ -727,12 +739,14 @@ def google_has_content_parts(response: Any, ctx: ValidatorContext) -> list[str]:
     """First candidate must have content with non-empty parts."""
     if not isinstance(response, dict):
         return ["response is not a JSON object"]
-    cands = response.get("candidates", [])
+    cands = _google_candidates(response)
     if not cands:
         return ["response.candidates is empty"]
-    content = cands[0].get("content", {})
-    parts = content.get("parts", [])
-    if not parts:
+    content = cands[0].get("content")
+    if not isinstance(content, dict):
+        return ["candidates[0].content is missing or not an object"]
+    parts = content.get("parts")
+    if not isinstance(parts, list) or not parts:
         return ["candidates[0].content.parts is missing or empty"]
     return []
 
@@ -743,7 +757,7 @@ def google_finish_reason(expected: str) -> Validator:
     def _check(response: Any, ctx: ValidatorContext) -> list[str]:
         if not isinstance(response, dict):
             return ["response is not a JSON object"]
-        cands = response.get("candidates", [])
+        cands = _google_candidates(response)
         if not cands:
             return ["response.candidates is empty"]
         reason = cands[0].get("finishReason")
@@ -759,10 +773,15 @@ def google_has_function_call(response: Any, ctx: ValidatorContext) -> list[str]:
     """First candidate must have a functionCall part."""
     if not isinstance(response, dict):
         return ["response is not a JSON object"]
-    cands = response.get("candidates", [])
+    cands = _google_candidates(response)
     if not cands:
         return ["response.candidates is empty"]
-    parts = cands[0].get("content", {}).get("parts", [])
+    content = cands[0].get("content")
+    if not isinstance(content, dict):
+        return ["candidates[0].content is missing or not an object"]
+    parts = content.get("parts")
+    if not isinstance(parts, list):
+        return ["candidates[0].content.parts is not an array"]
     for p in parts:
         if isinstance(p, dict) and ("functionCall" in p or "function_call" in p):
             return []
@@ -793,7 +812,15 @@ def google_streaming_has_text(response: Any, ctx: ValidatorContext) -> list[str]
         if not isinstance(data, dict):
             continue
         for cand in data.get("candidates", []):
-            for part in cand.get("content", {}).get("parts", []):
+            if not isinstance(cand, dict):
+                continue
+            content = cand.get("content")
+            if not isinstance(content, dict):
+                continue
+            parts = content.get("parts")
+            if not isinstance(parts, list):
+                continue
+            for part in parts:
                 if isinstance(part, dict) and part.get("text"):
                     return []
     return ["no streaming chunk contained a text part"]
@@ -808,7 +835,7 @@ def google_streaming_has_finish(response: Any, ctx: ValidatorContext) -> list[st
         if not isinstance(data, dict):
             continue
         for cand in data.get("candidates", []):
-            if cand.get("finishReason"):
+            if isinstance(cand, dict) and cand.get("finishReason"):
                 return []
     return ["no streaming chunk had a finishReason"]
 
@@ -913,6 +940,8 @@ def google_usage_valid_modalities(response: Any, ctx: ValidatorContext) -> list[
             continue
         field = camel
         for entry in details:
+            if not isinstance(entry, dict):
+                continue
             modality = entry.get("modality", "")
             if modality and modality not in _GOOGLE_VALID_MODALITIES:
                 errors.append(
@@ -926,11 +955,15 @@ def google_function_call_has_id(response: Any, ctx: ValidatorContext) -> list[st
     """Warn if functionCall parts lack an id field (Gemini 3.x provides it)."""
     if not isinstance(response, dict):
         return []
-    cands = response.get("candidates", [])
+    cands = _google_candidates(response)
     if not cands:
         return []
-    parts = cands[0].get("content", {}).get("parts", [])
-    for p in parts:
+    content = cands[0].get("content")
+    if not isinstance(content, dict) or not isinstance(content.get("parts"), list):
+        return []
+    for p in content["parts"]:
+        if not isinstance(p, dict):
+            continue
         fc = p.get("functionCall") or p.get("function_call")
         if fc and "id" not in fc:
             return ["[warning] functionCall part has no id field"]
@@ -997,12 +1030,17 @@ def google_has_thought_parts(response: Any, ctx: ValidatorContext) -> list[str]:
     """Google GenAI: response should contain thought parts when thinking is enabled."""
     if not isinstance(response, dict):
         return ["response is not a JSON object"]
-    cands = response.get("candidates", [])
+    cands = _google_candidates(response)
     if not cands:
         return ["response.candidates is empty"]
-    content = cands[0].get("content", {})
-    parts = content.get("parts", [])
-    has_thought = any(p.get("thought") is True for p in parts)
+    content = cands[0].get("content")
+    if not isinstance(content, dict) or not isinstance(content.get("parts"), list):
+        return [
+            "[warning] candidates[0].content.parts is missing or not an array "
+            "(model may not emit thoughts at current thinking level)"
+        ]
+    parts = content["parts"]
+    has_thought = any(isinstance(p, dict) and p.get("thought") is True for p in parts)
     if not has_thought:
         return [
             "[warning] no thought parts found in candidates[0].content.parts "

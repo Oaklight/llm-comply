@@ -113,7 +113,9 @@ Google specs come from the official OpenAPI discovery document
 (`google_generate`) and the Interactions API document (`google_interactions`).
 `google_generate` responses validate against `GenerateContentResponse`; the
 Interactions spec is bundled for version tracking while runtime validation
-stays semantic.
+stays semantic. The discovery schemas declare types and enums but no
+`required` arrays, so checking that fields are present remains the semantic
+validators' job.
 A weekly `spec-update` workflow runs `update-spec --all` and opens a PR when any
 upstream spec changes.
 

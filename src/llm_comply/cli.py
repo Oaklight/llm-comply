@@ -220,10 +220,12 @@ def _cmd_update_spec(fmt: str, refresh_all: bool = False) -> int:
     failures = 0
     for target in targets:
         try:
-            print(SpecLoader.fetch_latest(target))
+            print(SpecLoader.fetch_latest(target, update_manifest=not refresh_all))
         except Exception as exc:
             failures += 1
             print(f"Error fetching {target} spec: {exc}", file=sys.stderr)
+    if refresh_all:
+        SpecLoader.write_manifest()
     return 1 if failures else 0
 
 

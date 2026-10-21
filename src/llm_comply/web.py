@@ -262,7 +262,10 @@ async def list_tests(request):
 @app.get("/api/specs")
 async def list_specs(request):
     """Return the committed spec-target manifest."""
-    return JSONResponse(SpecLoader.load_manifest())
+    manifest = SpecLoader.load_manifest()
+    if not manifest.get("formats"):
+        manifest = SpecLoader.assemble_manifest()
+    return JSONResponse(manifest)
 
 
 @app.post("/api/run")

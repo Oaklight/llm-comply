@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import json
 import pathlib
+import re
 from typing import Any
 
 from .formats import (
@@ -280,6 +281,15 @@ class SpecLoader:
             extra = sorted(set(entry) - set(expected) - {"refreshed_at"})
             if extra:
                 problems.append(f"{fmt}: unexpected manifest fields {extra}")
+            refreshed_at = entry.get("refreshed_at")
+            if filename is not None and refreshed_at is None:
+                problems.append(f"{fmt}: missing refreshed_at")
+            elif refreshed_at is not None and not re.fullmatch(
+                r"\d{4}-\d{2}-\d{2}", str(refreshed_at)
+            ):
+                problems.append(
+                    f"{fmt}: refreshed_at is {refreshed_at!r}, expected YYYY-MM-DD"
+                )
         return problems
 
     @classmethod

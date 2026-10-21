@@ -329,7 +329,7 @@ def chat_finish_reason(expected: str) -> Validator:
 
 
 def chat_has_tool_calls(response: Any, ctx: ValidatorContext) -> list[str]:
-    """First choice message must have well-formed function tool calls."""
+    """First choice message must have well-formed function or custom tool calls."""
     if not isinstance(response, dict):
         return ["response is not a JSON object"]
     choices = response.get("choices", [])
@@ -346,18 +346,29 @@ def chat_has_tool_calls(response: Any, ctx: ValidatorContext) -> list[str]:
             continue
         if not isinstance(call.get("id"), str) or not call.get("id"):
             errors.append(f"{prefix}.id is missing or not a string")
-        if call.get("type") != "function":
+        call_type = call.get("type")
+        if call_type == "function":
+            function = call.get("function")
+            if not isinstance(function, dict):
+                errors.append(f"{prefix}.function is missing or not an object")
+                continue
+            if not isinstance(function.get("name"), str) or not function.get("name"):
+                errors.append(f"{prefix}.function.name is missing or not a string")
+            if not isinstance(function.get("arguments"), str):
+                errors.append(f"{prefix}.function.arguments is missing or not a string")
+        elif call_type == "custom":
+            custom = call.get("custom")
+            if not isinstance(custom, dict):
+                errors.append(f"{prefix}.custom is missing or not an object")
+                continue
+            if not isinstance(custom.get("name"), str) or not custom.get("name"):
+                errors.append(f"{prefix}.custom.name is missing or not a string")
+            if not isinstance(custom.get("input"), str):
+                errors.append(f"{prefix}.custom.input is missing or not a string")
+        else:
             errors.append(
-                f"{prefix}.type: expected 'function', got '{call.get('type')}'"
+                f"{prefix}.type: expected 'function' or 'custom', got '{call_type}'"
             )
-        function = call.get("function")
-        if not isinstance(function, dict):
-            errors.append(f"{prefix}.function is missing or not an object")
-            continue
-        if not isinstance(function.get("name"), str) or not function.get("name"):
-            errors.append(f"{prefix}.function.name is missing or not a string")
-        if not isinstance(function.get("arguments"), str):
-            errors.append(f"{prefix}.function.arguments is missing or not a string")
     return errors
 
 

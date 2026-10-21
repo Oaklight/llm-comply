@@ -14,6 +14,7 @@ from ..validators import (
     anth_has_usage,
     anth_role_assistant,
     anth_stop_reason,
+    anth_streaming_content_block_bracketing,
     anth_streaming_has_text_delta,
     anth_streaming_has_usage,
     anth_streaming_lifecycle,
@@ -185,6 +186,7 @@ ANTHROPIC_TESTS: list[TestCase] = [
         validators=[
             streaming_has_events,
             anth_streaming_lifecycle,
+            anth_streaming_content_block_bracketing,
             anth_streaming_has_text_delta,
         ],
     ),

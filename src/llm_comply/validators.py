@@ -681,6 +681,44 @@ def anth_streaming_lifecycle(response: Any, ctx: ValidatorContext) -> list[str]:
     return errors
 
 
+def anth_streaming_content_block_bracketing(
+    response: Any, ctx: ValidatorContext
+) -> list[str]:
+    """Every content_block_start must have a matching content_block_stop."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    open_blocks: dict[int, int] = {}
+    errors: list[str] = []
+    for position, event in enumerate(ctx.sse_events):
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        index = data.get("index")
+        if not isinstance(index, int):
+            continue
+        event_type = event.get("type")
+        if event_type == "content_block_start":
+            if index in open_blocks:
+                errors.append(
+                    f"event {position}: content_block_start for index {index} "
+                    "while that block is already open"
+                )
+            open_blocks[index] = position
+        elif event_type == "content_block_stop" and index not in open_blocks:
+            errors.append(
+                f"event {position}: content_block_stop for index {index} "
+                "without a preceding start"
+            )
+        elif event_type == "content_block_stop":
+            open_blocks.pop(index)
+    for index, position in open_blocks.items():
+        errors.append(
+            f"content block {index} opened at event {position} has no "
+            "content_block_stop"
+        )
+    return errors
+
+
 def anth_streaming_has_text_delta(response: Any, ctx: ValidatorContext) -> list[str]:
     """At least one content_block_delta with text must be present."""
     if not ctx.sse_events:

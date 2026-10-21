@@ -32,17 +32,21 @@ llm-comply --format chat_completions -u https://api.openai.com/v1 -k $OPENAI_API
 llm-comply --format openai_responses -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o-mini
 
 # Anthropic Messages
-llm-comply --format messages -u https://api.anthropic.com/v1 -k $KEY -m claude-haiku-4-5 \
-  --auth-header x-api-key --no-bearer -H anthropic-version:2023-06-01
+llm-comply --format messages -u https://api.anthropic.com/v1 -k $KEY -m claude-haiku-4-5
 
 # Google GenAI — generateContent
 llm-comply --format google_generate -u https://generativelanguage.googleapis.com -k $KEY \
-  -m gemini-2.5-flash --auth-header x-goog-api-key --no-bearer
+  -m gemini-2.5-flash
 
 # Google GenAI — Interactions
 llm-comply --format google_interactions -u https://generativelanguage.googleapis.com -k $KEY \
-  -m gemini-2.5-flash --auth-header x-goog-api-key --no-bearer
+  -m gemini-2.5-flash
 ```
+
+Auth headers and defaults are selected per format: `Authorization` + `Bearer` for the
+OpenAI-facing formats, `x-api-key` for Messages (with `anthropic-version`), and
+`x-goog-api-key` for Google. `--auth-header` and `--no-bearer` override them, and
+`-H name:value` overrides or adds headers.
 
 ## Options
 
@@ -59,8 +63,9 @@ llm-comply --format google_interactions -u https://generativelanguage.googleapis
 -f, --filter IDS       Comma-separated test IDs to run
 -i, --ignore PATTERNS  Ignore errors matching substrings (e.g. refusal,verbosity)
 -H, --header K:V       Extra headers (e.g. anthropic-version:2023-06-01)
---auth-header NAME     Auth header name (default: Authorization)
---no-bearer            Don't prepend "Bearer " to API key
+--auth-header NAME     Auth header name (default: per format: Authorization,
+                       x-api-key, or x-goog-api-key)
+--no-bearer            Don't prepend "Bearer " to API key (default: per format)
 -v, --verbose          Show request/response on failure
 --json                 JSON output for CI
 --list                 List available test IDs

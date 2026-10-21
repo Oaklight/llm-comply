@@ -22,15 +22,16 @@ all: lint verify test
 # ── Development ───────────────────────────────────────────────
 
 lint:
-	ruff check src/
-	ruff format --check src/
+	ruff check src/ scripts/
+	ruff format --check src/ scripts/
 
 lint-fix:
-	ruff check --fix src/
-	ruff format src/
+	ruff check --fix src/ scripts/
+	ruff format src/ scripts/
 
 verify:
 	python scripts/verify_specs.py
+	python scripts/verify_cli.py
 
 test:
 	llm-comply --list

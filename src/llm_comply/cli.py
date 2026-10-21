@@ -98,13 +98,15 @@ def _add_run_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--auth-header",
-        default="Authorization",
-        help="Auth header name (default: Authorization)",
+        default=None,
+        help="Auth header name (default: per format: Authorization, x-api-key, "
+        "or x-goog-api-key)",
     )
     parser.add_argument(
         "--no-bearer",
         action="store_true",
-        help="Don't prepend 'Bearer ' to API key",
+        default=None,
+        help="Don't prepend 'Bearer ' to API key (default: per format)",
     )
     parser.add_argument(
         "-f",

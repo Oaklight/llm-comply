@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Per-format transport defaults: `--format messages` now uses the `x-api-key` header and sends `anthropic-version: 2023-06-01` automatically, and the Google formats use `x-goog-api-key`, instead of requiring `--auth-header`, `--no-bearer`, and `-H` on every run. Explicit flags and `-H` values still override the defaults.
 - Schema validation no longer rejects valid `ReasoningEffort` values (`none`, `minimal`, `xhigh`, `max`) that the stale bundled spec omitted.
 - Manifest regeneration tolerates configured specs that are not bundled yet, and `update-spec --all` writes the manifest once after all fetches instead of after each one.
 - `update-spec` compares specs canonically (sorted keys, volatile metadata such as `info.x-google-revision` dropped) before writing. Google's discovery endpoint re-serializes every response with a different key order and revision marker, which previously produced a spurious diff on every refresh.

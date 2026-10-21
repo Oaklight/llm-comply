@@ -74,5 +74,15 @@ def extract_openai_responses(spec: dict[str, Any]) -> dict[str, Any]:
     for key in ("servers", "security"):
         if key in spec:
             subset[key] = spec[key]
+    if "security" in spec:
+        # Security requirements reference schemes by name, and those are not
+        # reachable through ``$ref``; copy them so the subset stays
+        # self-contained.
+        kept.setdefault("securitySchemes", {}).update(
+            components.get("securitySchemes", {})
+        )
+        subset["components"] = {
+            section: items for section, items in kept.items() if items
+        }
     subset["info"]["x-llm-comply-subset"] = "OpenAI Responses API"
     return subset

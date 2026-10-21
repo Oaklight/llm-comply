@@ -42,10 +42,12 @@ jobs:
       - name: Smoke test - list tests
         run: |
           llm-comply --list
+          llm-comply --format openai_responses --list
           llm-comply --format chat_completions --list
           llm-comply --format messages --list
           llm-comply --format google_generate --list
           llm-comply --format open-responses --list  # legacy alias
+          llm-comply --format openai-responses --list  # legacy alias
           llm-comply --format openai-chat --list  # legacy alias
           llm-comply --format anthropic --list  # legacy alias
           llm-comply --format google-genai --list  # legacy alias

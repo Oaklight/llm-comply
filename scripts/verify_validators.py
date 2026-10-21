@@ -6,6 +6,7 @@ from __future__ import annotations
 import sys
 
 from llm_comply.test_case import ValidatorContext
+from llm_comply.tests import get_tests
 from llm_comply.validators import chat_has_message
 
 
@@ -45,6 +46,19 @@ def main() -> int:
 
     errors = chat_has_message(_response({"role": "user", "content": "hi"}), ctx)
     assert any("expected 'assistant'" in error for error in errors), errors
+
+    # The shipped non-streaming cases must keep calling the validator.
+    # chat-tool-calling intentionally uses chat_has_tool_calls instead.
+    shipped = {tc.id: tc for tc in get_tests("chat_completions")}
+    for test_id in (
+        "chat-basic-response",
+        "chat-system-prompt",
+        "chat-multi-turn",
+        "chat-image-input",
+        "chat-reasoning-summary",
+    ):
+        names = [getattr(v, "__name__", "") for v in shipped[test_id].validators]
+        assert "chat_has_message" in names, test_id
 
     print("chat message validators: every payload field is accepted")
     return 0

@@ -190,6 +190,11 @@ def main() -> int:
         result = runner.run_one(shipped["chat-streaming-response"])
         assert result.status == TestStatus.PASSED, result.errors
 
+        # Plain text content is the baseline progress field.
+        _SSEHandler.chunks = [_chunk(None), _chunk("hello"), _finish_chunk("stop")]
+        result = runner.run_one(shipped["chat-streaming-response"])
+        assert result.status == TestStatus.PASSED, result.errors
+
         # Reasoning-only streams (vLLM-style) are progress too.
         for field in ("reasoning_content", "reasoning"):
             _SSEHandler.chunks = [

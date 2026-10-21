@@ -15,6 +15,7 @@ from ..validators import (
     has_response_id,
     has_usage,
     responses_has_reasoning_summary,
+    responses_output_is_json,
     streaming_has_events,
     streaming_has_terminal,
     streaming_has_usage,
@@ -132,6 +133,74 @@ def _build_tool_calling_request(cfg: ComplianceConfig) -> dict[str, Any]:
     }
 
 
+def _build_multi_turn_tool_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "input": [
+            {
+                "type": "message",
+                "role": "user",
+                "content": "What is the weather in San Francisco?",
+            },
+            {
+                "type": "function_call",
+                "call_id": "call_weather_1",
+                "name": "get_weather",
+                "arguments": '{"location": "San Francisco"}',
+            },
+            {
+                "type": "function_call_output",
+                "call_id": "call_weather_1",
+                "output": '{"temperature_c": 18, "conditions": "foggy"}',
+            },
+        ],
+        "tools": [
+            {
+                "type": "function",
+                "name": "get_weather",
+                "description": "Get current weather for a location.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"location": {"type": "string"}},
+                    "required": ["location"],
+                },
+            }
+        ],
+    }
+
+
+def _build_structured_output_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "input": [
+            {
+                "type": "message",
+                "role": "user",
+                "content": (
+                    "Return the current weather in San Francisco as JSON with "
+                    "keys city and temperature_c."
+                ),
+            }
+        ],
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": "weather",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "city": {"type": "string"},
+                        "temperature_c": {"type": "number"},
+                    },
+                    "required": ["city", "temperature_c"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+    }
+
+
 def _build_image_input_request(cfg: ComplianceConfig) -> dict[str, Any]:
     b64 = _load_test_image_b64()
     return {
@@ -245,6 +314,32 @@ OPEN_RESPONSES_TESTS: list[TestCase] = [
             has_response_id,
             has_output,
             has_output_type("function_call"),
+        ],
+    ),
+    TestCase(
+        id="multi-turn-tool-use",
+        name="Multi-turn Tool Use",
+        description="Function call output is accepted and answered in a second turn",
+        category=TestCategory.TOOLS,
+        build_request=_build_multi_turn_tool_request,
+        validators=[
+            has_response_id,
+            completed_status,
+            has_output,
+            has_output_type("message"),
+        ],
+    ),
+    TestCase(
+        id="structured-output",
+        name="Structured Output",
+        description="text.format json_schema is accepted and output parses as JSON",
+        category=TestCategory.BASIC,
+        build_request=_build_structured_output_request,
+        validators=[
+            has_response_id,
+            completed_status,
+            has_output,
+            responses_output_is_json,
         ],
     ),
     TestCase(

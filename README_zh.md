@@ -145,7 +145,7 @@ services:
 
 | 格式 | 测试数 | 验证内容 |
 |------|:------:|----------|
-| `open_responses` | 13 | Schema + 语义（生命周期、阶段、压缩、思维链） |
+| `open_responses` | 15 | Schema + 语义（生命周期、阶段、压缩、多轮工具、结构化输出、思维链） |
 | `openai_responses` | 11 | Schema + 语义（生命周期、流式事件、工具、推理） |
 | `chat_completions` | 9 | Schema + 语义（choices、finish_reason、delta、流式 chunk） |
 | `messages` | 9 | Schema + 语义（content blocks、stop_reason、思维链） |

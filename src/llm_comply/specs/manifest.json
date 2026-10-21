@@ -32,14 +32,13 @@
       "validation": "schema",
       "spec_version": "unknown",
       "openapi_version": "3.1.0",
-      "schema_count": 928,
-      "path_count": 89,
-      "size_bytes": 1263388,
-      "sha256": "08649320eda23012b2ad5bdce6378d123d8770376b42f5f0bc8d1fc6f2667604",
-      "source_type": "manual",
-      "source_url": null,
-      "note": "Stainless-generated snapshot; Anthropic publishes no OpenAPI spec",
-      "refreshed_at": "2026-08-01"
+      "schema_count": 2008,
+      "path_count": 224,
+      "size_bytes": 3643619,
+      "sha256": "94c83daca660f046edcaf5cef8d45f27558d69db9933c45edc80f5b2e4532c31",
+      "source_type": "upstream",
+      "source_url": "https://raw.githubusercontent.com/anthropics/anthropic-sdk-python/main/scripts/mock-spec.json.gz",
+      "refreshed_at": "2026-10-21"
     },
     "google_generate": {
       "bundled_file": null,

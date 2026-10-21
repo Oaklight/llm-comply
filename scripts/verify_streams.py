@@ -32,8 +32,12 @@ class _SSEHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         for chunk in self.chunks:
-            payload = chunk if isinstance(chunk, str) else json.dumps(chunk)
-            self.wfile.write(f"data: {payload}\n\n".encode())
+            if isinstance(chunk, str):
+                # Raw SSE lines (comments, heartbeats) pass through as-is.
+                line = chunk if chunk.startswith((":", "data:")) else f"data: {chunk}"
+                self.wfile.write(f"{line}\n\n".encode())
+            else:
+                self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
         self.wfile.write(b"data: [DONE]\n\n")
         self.wfile.flush()
 
@@ -108,8 +112,16 @@ def main() -> int:
         result = runner.run_one(_test_case())
         assert result.status == TestStatus.PASSED, result.errors
 
-        # Bare and whitespace-only data lines are heartbeats, not payloads.
-        _SSEHandler.chunks = [_chunk(None), "", "   ", _chunk("hello")]
+        # Bare data lines and SSE comments are heartbeats, not payloads.
+        _SSEHandler.chunks = [
+            ": keep-alive",
+            _chunk(None),
+            "",
+            ": ping",
+            "data:",
+            "   ",
+            _chunk("hello"),
+        ]
         result = runner.run_one(_test_case())
         assert result.status == TestStatus.PASSED, result.errors
 

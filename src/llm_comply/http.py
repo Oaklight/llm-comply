@@ -122,6 +122,10 @@ def _streaming_request(
                 events.append({"type": "[DONE]", "data": "[DONE]"})
                 break
 
+            # A bare `data:` line is a valid heartbeat, not a malformed payload.
+            if not sse.data.strip():
+                continue
+
             try:
                 parsed = json.loads(sse.data)
             except json.JSONDecodeError:

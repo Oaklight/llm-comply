@@ -26,27 +26,32 @@ FORMAT_ALIASES: dict[str, str] = {
     "google-interactions": "google_interactions",
 }
 
-# Bundled spec file per format. None means no spec is bundled.
-SPEC_FILES: dict[str, str | None] = {
-    "open_responses": "openresponses.json",
-    "chat_completions": "openai_chat.json",
-    "messages": "anthropic.json",
-    "google_generate": None,
-    "google_interactions": "google_interactions.json",
+# Per-format spec metadata: bundled file (None = no spec) and validation mode.
+# This is the single source of truth; derived views below must not be
+# maintained by hand.
+FORMAT_SPECS: dict[str, tuple[str | None, str]] = {
+    "open_responses": ("openresponses.json", "schema"),
+    "chat_completions": ("openai_chat.json", "schema"),
+    "messages": ("anthropic.json", "schema"),
+    "google_generate": (None, "semantic"),
+    # The bundled Interactions spec has no verified upstream and is
+    # reference-only, so runtime validation stays semantic.
+    "google_interactions": ("google_interactions.json", "semantic"),
 }
 
-# Spec files that drive runtime schema validation. Google Interactions ships a
-# reference-only snapshot, so its validation stays semantic.
+# Bundled spec file per format. None means no spec is bundled.
+SPEC_FILES: dict[str, str | None] = {
+    fmt: filename for fmt, (filename, _mode) in FORMAT_SPECS.items()
+}
+
+# Spec files that drive runtime schema validation.
 VALIDATION_SPEC_FILES: dict[str, str | None] = {
-    "open_responses": "openresponses.json",
-    "chat_completions": "openai_chat.json",
-    "messages": "anthropic.json",
-    "google_generate": None,
-    "google_interactions": None,
+    fmt: filename if mode == "schema" else None
+    for fmt, (filename, mode) in FORMAT_SPECS.items()
 }
 
 SCHEMA_VALIDATED_FORMATS = frozenset(
-    fmt for fmt, filename in VALIDATION_SPEC_FILES.items() if filename
+    fmt for fmt, (_filename, mode) in FORMAT_SPECS.items() if mode == "schema"
 )
 
 # Public upstream sources: format -> (url, bundled filename).

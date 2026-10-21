@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import datetime
+import hashlib
 import importlib.util
 import json
 import pathlib
 from typing import Any
+
+from .formats import (
+    DEFAULT_FORMAT,
+    SCHEMA_VALIDATED_FORMATS,
+    SPEC_FILES,
+    SPEC_SOURCES,
+)
 
 
 def _has_jsonschema() -> bool:
@@ -13,8 +22,15 @@ def _has_jsonschema() -> bool:
 
 
 _SPECS_DIR = pathlib.Path(__file__).parent / "specs"
-_BUNDLED_SPEC = _SPECS_DIR / "openresponses.json"
-_REMOTE_URL = "https://raw.githubusercontent.com/openresponses/openresponses/main/public/openapi/openapi.json"
+
+_MANIFEST_PATH = _SPECS_DIR / "manifest.json"
+_MANIFEST_SCHEMA_VERSION = 1
+
+_MANUAL_SOURCES = {
+    "messages": "Stainless-generated snapshot; Anthropic publishes no OpenAPI spec",
+    "google_generate": "Google publishes no OpenAPI spec; semantic validation only",
+    "google_interactions": "No verified upstream source; bundled spec is reference-only",
+}
 
 SSE_EVENT_TO_SCHEMA: dict[str, str] = {
     "response.created": "ResponseCreatedStreamingEvent",
@@ -144,17 +160,162 @@ class SpecLoader:
         self._validator_cache[name] = validator
         return validator
 
+    @staticmethod
+    def manifest_path() -> pathlib.Path:
+        """Return the path of the committed spec manifest."""
+        return _MANIFEST_PATH
+
     @classmethod
-    def fetch_latest(cls, output_path: str | None = None) -> str:
-        """Fetch latest spec from GitHub and save to disk."""
+    def _entry_from_file(cls, fmt: str, path: pathlib.Path) -> dict[str, Any]:
+        raw = path.read_bytes()
+        spec = json.loads(raw)
+        schemas = spec.get("components", {}).get("schemas", {})
+        source = SPEC_SOURCES.get(fmt)
+        entry: dict[str, Any] = {
+            "bundled_file": path.name,
+            "validation": "schema" if fmt in SCHEMA_VALIDATED_FORMATS else "semantic",
+            "spec_version": spec.get("info", {}).get("version", "unknown"),
+            "openapi_version": spec.get("openapi", "unknown"),
+            "schema_count": len(schemas),
+            "path_count": len(spec.get("paths", {})),
+            "size_bytes": len(raw),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "source_type": "upstream" if source else "manual",
+            "source_url": source[0] if source else None,
+        }
+        if fmt in _MANUAL_SOURCES:
+            entry["note"] = _MANUAL_SOURCES[fmt]
+        return entry
+
+    @classmethod
+    def load_manifest(cls) -> dict[str, Any]:
+        """Load the committed spec manifest, or an empty one if absent."""
+        if not _MANIFEST_PATH.exists():
+            return {"schema_version": _MANIFEST_SCHEMA_VERSION, "formats": {}}
+        with open(_MANIFEST_PATH) as f:
+            return json.load(f)
+
+    @classmethod
+    def assemble_manifest(cls) -> dict[str, Any]:
+        """Build the spec manifest from the bundled spec files.
+
+        ``refreshed_at`` carries over from the previous manifest when a file's
+        content hash is unchanged, so it records when the spec last changed.
+        """
+        previous = cls.load_manifest().get("formats", {})
+        today = datetime.date.today().isoformat()
+        formats: dict[str, Any] = {}
+        for fmt, filename in SPEC_FILES.items():
+            if filename is None:
+                formats[fmt] = {
+                    "bundled_file": None,
+                    "validation": "semantic",
+                    "spec_version": None,
+                    "openapi_version": None,
+                    "schema_count": 0,
+                    "path_count": 0,
+                    "size_bytes": 0,
+                    "sha256": None,
+                    "source_type": "none",
+                    "source_url": None,
+                    "note": _MANUAL_SOURCES[fmt],
+                }
+                continue
+            entry = cls._entry_from_file(fmt, _SPECS_DIR / filename)
+            prev = previous.get(fmt)
+            if prev and prev.get("sha256") == entry["sha256"]:
+                entry["refreshed_at"] = prev.get("refreshed_at", today)
+            else:
+                entry["refreshed_at"] = today
+            formats[fmt] = entry
+        return {"schema_version": _MANIFEST_SCHEMA_VERSION, "formats": formats}
+
+    @classmethod
+    def write_manifest(cls) -> pathlib.Path:
+        """Regenerate and write the committed spec manifest."""
+        manifest = cls.assemble_manifest()
+        _MANIFEST_PATH.write_text(json.dumps(manifest, indent=2) + "\n")
+        return _MANIFEST_PATH
+
+    @classmethod
+    def check_manifest(cls) -> list[str]:
+        """Return drift between the committed manifest and bundled specs."""
+        manifest = cls.load_manifest()
+        if manifest.get("schema_version") != _MANIFEST_SCHEMA_VERSION:
+            return [
+                f"manifest schema_version is {manifest.get('schema_version')!r}, "
+                f"expected {_MANIFEST_SCHEMA_VERSION}"
+            ]
+        recorded = manifest.get("formats", {})
+        problems: list[str] = []
+        for fmt, filename in SPEC_FILES.items():
+            entry = recorded.get(fmt)
+            if entry is None:
+                problems.append(f"{fmt}: missing from manifest")
+                continue
+            if filename is None:
+                continue
+            path = _SPECS_DIR / filename
+            if not path.exists():
+                problems.append(f"{fmt}: bundled file {filename} is missing")
+                continue
+            actual = cls._entry_from_file(fmt, path)
+            for key in ("sha256", "spec_version", "schema_count", "path_count"):
+                if entry.get(key) != actual.get(key):
+                    problems.append(
+                        f"{fmt}: {key} is {entry.get(key)!r}, "
+                        f"bundled spec has {actual.get(key)!r}"
+                    )
+        return problems
+
+    @classmethod
+    def fetch_latest(
+        cls, fmt: str = DEFAULT_FORMAT, output_path: str | None = None
+    ) -> str:
+        """Fetch the latest upstream spec for a format and save it to disk.
+
+        Args:
+            fmt: Format name; must be a key of :data:`SPEC_SOURCES`.
+            output_path: Destination path. Defaults to the bundled spec file
+                for *fmt*.
+
+        Raises:
+            ValueError: If *fmt* has no public upstream source, or the fetched
+                document is not an OpenAPI spec with schemas.
+
+        Returns:
+            A human-readable summary of the saved spec.
+        """
         from llm_comply._vendor.httpclient import Response, get
 
-        raw = get(_REMOTE_URL, timeout=30)
+        source = SPEC_SOURCES.get(fmt)
+        if source is None:
+            available = ", ".join(sorted(SPEC_SOURCES))
+            raise ValueError(
+                f"no upstream spec source for format '{fmt}' (available: {available})"
+            )
+        url, filename = source
+
+        raw = get(url, timeout=60)
         assert isinstance(raw, Response)
         raw.raise_for_status()
-        dest = pathlib.Path(output_path) if output_path else _BUNDLED_SPEC
+
+        # Parse before writing so a bad response never corrupts the bundled spec.
+        spec = json.loads(raw.content)
+        schemas = spec.get("components", {}).get("schemas", {})
+        if not spec.get("openapi") or not schemas:
+            raise ValueError(
+                f"fetched document for '{fmt}' is not an OpenAPI spec with schemas"
+            )
+
+        dest = pathlib.Path(output_path) if output_path else _SPECS_DIR / filename
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(raw.content)
-        spec = json.loads(raw.content)
+        if output_path is None:
+            cls.write_manifest()
+
         version = spec.get("info", {}).get("version", "unknown")
-        return f"Saved spec v{version} to {dest} ({len(raw.content)} bytes)"
+        return (
+            f"Saved {fmt} spec v{version} to {dest} "
+            f"({len(schemas)} schemas, {len(raw.content)} bytes)"
+        )

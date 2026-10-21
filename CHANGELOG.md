@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Spec-target manifest (`src/llm_comply/specs/manifest.json`) recording each bundled spec's version, schema count, SHA-256, upstream source, validation mode, and refresh date. It is committed, so every master commit and release tag records which upstream spec versions it targets.
+- `llm-comply specs` command with `--json` and `--check` (CI drift detection).
+- `GET /api/specs` endpoint; the web UI footer shows the active spec targets.
+
+### Changed
+
+- Canonical `--format` names now match llm-rosetta: `open_responses` (default), `chat_completions`, `messages`, `google_generate`, `google_interactions`. The pre-0.6 names (`open-responses`, `openai-chat`, `anthropic`, `google-genai`) remain accepted as aliases.
+- Refreshed the bundled OpenAI Chat Completions spec from upstream: 477 → 2094 schemas, 99 → 230 paths (OpenAPI 3.1.0). This adds `ChatCompletionModeration`, current `ReasoningEffort` values (`none`, `minimal`, `xhigh`, `max`), `Reasoning.mode`/`context`, and the streaming response schemas.
+- `llm-comply update-spec` now takes `--format` and supports `chat_completions` in addition to `open_responses`; it validates the fetched document before writing and updates the manifest automatically.
+- Format definitions are centralized in `llm_comply/formats.py`, removing duplicated mappings across the CLI, web UI, test registry, and spec loader.
+
+### Fixed
+
+- Schema validation no longer rejects valid `ReasoningEffort` values (`none`, `minimal`, `xhigh`, `max`) that the stale bundled spec omitted.
+
 ## [0.5.0] — 2026-09-12
 
 ### Added

@@ -26,18 +26,18 @@ pip install llm-comply[rich]
 llm-comply -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o-mini
 
 # OpenAI Chat Completions
-llm-comply --format openai-chat -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o-mini
+llm-comply --format chat_completions -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o-mini
 
 # Anthropic Messages
-llm-comply --format anthropic -u https://api.anthropic.com/v1 -k $KEY -m claude-haiku-4-5 \
+llm-comply --format messages -u https://api.anthropic.com/v1 -k $KEY -m claude-haiku-4-5 \
   --auth-header x-api-key --no-bearer -H anthropic-version:2023-06-01
 
 # Google GenAI — generateContent
-llm-comply --format google-genai -u https://generativelanguage.googleapis.com -k $KEY \
+llm-comply --format google_generate -u https://generativelanguage.googleapis.com -k $KEY \
   -m gemini-2.5-flash --auth-header x-goog-api-key --no-bearer
 
 # Google GenAI — Interactions
-llm-comply --format google-interactions -u https://generativelanguage.googleapis.com -k $KEY \
+llm-comply --format google_interactions -u https://generativelanguage.googleapis.com -k $KEY \
   -m gemini-2.5-flash --auth-header x-goog-api-key --no-bearer
 ```
 
@@ -47,8 +47,10 @@ llm-comply --format google-interactions -u https://generativelanguage.googleapis
 -u, --base-url URL     API 基础 URL（必填）
 -k, --api-key KEY      API 密钥（或设置 OPENRESPONSES_API_KEY 环境变量）
 -m, --model MODEL      模型名称（默认：gpt-4o-mini）
---format FORMAT        API 格式：open-responses、openai-chat、anthropic、
-                       google-genai、google-interactions
+--format FORMAT        API 格式：open_responses、chat_completions、messages、
+                       google_generate、google_interactions
+                       （兼容旧名称：open-responses、openai-chat、anthropic、
+                       google-genai）
 -f, --filter IDS       要运行的测试 ID，逗号分隔
 -i, --ignore PATTERNS  忽略匹配子串的错误（如 refusal,verbosity）
 -H, --header K:V       额外请求头（如 anthropic-version:2023-06-01）
@@ -58,6 +60,37 @@ llm-comply --format google-interactions -u https://generativelanguage.googleapis
 --json                 JSON 输出（适用于 CI）
 --list                 列出所有可用的测试 ID
 ```
+
+## 规范版本
+
+内置规范的版本记录在
+[`src/llm_comply/specs/manifest.json`](src/llm_comply/specs/manifest.json)，
+可通过 `llm-comply specs` 查看。该 manifest 随代码提交，因此每个 master
+提交和 release tag 都能明确对应到其所针对的上游规范版本。
+
+| 格式 | 内置规范 | 版本 | Schema 数 | 验证方式 | 刷新日期 |
+|------|----------|------|----------:|----------|----------|
+| `open_responses` | `openresponses.json` | 2026-04-24 | 108 | Schema | 2026-08-01 |
+| `chat_completions` | `openai_chat.json` | 2.3.0 | 2094 | Schema | 2026-10-21 |
+| `messages` | `anthropic.json` | unknown（无公开规范） | 928 | Schema | 2026-08-01 |
+| `google_generate` | — | — | 0 | 语义 | — |
+| `google_interactions` | `google_interactions.json` | v1beta | 186 | 语义 | 2026-08-29 |
+
+```bash
+llm-comply specs            # 人类可读表格
+llm-comply specs --json     # 机器可读 manifest
+llm-comply specs --check    # CI：manifest 与内置规范不一致时失败
+```
+
+从上游刷新内置规范（同时更新 manifest）：
+
+```bash
+llm-comply update-spec --format open_responses
+llm-comply update-spec --format chat_completions
+```
+
+没有可靠公开上游的格式（`messages`、`google_generate`、
+`google_interactions`）需手动更新。
 
 ## Docker
 
@@ -92,11 +125,11 @@ services:
 
 | 格式 | 测试数 | 验证内容 |
 |------|:------:|----------|
-| Open Responses | 13 | Schema + 语义（生命周期、阶段、压缩、思维链） |
-| OpenAI Chat | 8 | Schema + 语义（choices、finish_reason、delta） |
-| Anthropic Messages | 9 | Schema + 语义（content blocks、stop_reason、思维链） |
-| Google GenAI generateContent | 9 | 仅语义（candidates、parts、finishReason、思维链） |
-| Google GenAI Interactions | 9 | 仅语义（steps、model_output、思维链） |
+| `open_responses` | 13 | Schema + 语义（生命周期、阶段、压缩、思维链） |
+| `chat_completions` | 9 | Schema + 语义（choices、finish_reason、delta） |
+| `messages` | 9 | Schema + 语义（content blocks、stop_reason、思维链） |
+| `google_generate` | 9 | 仅语义（candidates、parts、finishReason、思维链） |
+| `google_interactions` | 9 | 仅语义（steps、model_output、思维链） |
 
 ## 许可证
 

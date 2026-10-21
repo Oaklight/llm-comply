@@ -42,9 +42,12 @@ jobs:
       - name: Smoke test - list tests
         run: |
           llm-comply --list
-          llm-comply --format openai-chat --list
-          llm-comply --format anthropic --list
-          llm-comply --format google-genai --list
+          llm-comply --format chat_completions --list
+          llm-comply --format messages --list
+          llm-comply --format google_generate --list
+          llm-comply --format openai-chat --list  # legacy alias
+      - name: Spec manifest check
+        run: llm-comply specs --check
       - name: Schema validation unit test
         run: |
           python -c "
@@ -56,8 +59,14 @@ jobs:
           assert len(errors) > 0, 'incomplete response should have errors'
           print(f'Open Responses: {len(spec.schema_names)} schemas, validation works')
           spec2 = SpecLoader(str(specs_dir / 'openai_chat.json'))
+          assert len(spec2.schema_names) > 2000, 'bundled OpenAI Chat spec is stale'
           assert 'CreateChatCompletionResponse' in spec2.schema_names
-          print(f'OpenAI Chat: {len(spec2.schema_names)} schemas')
+          assert 'CreateChatCompletionStreamResponse' in spec2.schema_names
+          assert spec2.validate('none', 'ReasoningEffort') == []
+          assert spec2.validate('xhigh', 'ReasoningEffort') == []
+          stream = {'id': 'chatcmpl-1', 'object': 'chat.completion.chunk', 'created': 1, 'model': 'm', 'choices': [{'index': 0, 'delta': {'content': 'hi'}, 'finish_reason': None, 'logprobs': None}]}
+          assert spec2.validate(stream, 'CreateChatCompletionStreamResponse') == []
+          print(f'OpenAI Chat: {len(spec2.schema_names)} schemas, current enums and stream schema work')
           spec3 = SpecLoader(str(specs_dir / 'anthropic.json'))
           assert 'Message' in spec3.schema_names
           print(f'Anthropic: {len(spec3.schema_names)} schemas')

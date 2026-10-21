@@ -6,24 +6,17 @@ import argparse
 import sys
 
 from llm_comply import __version__
+from llm_comply.formats import (
+    DEFAULT_FORMAT,
+    FORMAT_ALIASES,
+    FORMATS,
+    VALIDATION_SPEC_FILES,
+    normalize_format,
+)
 from llm_comply.tests import get_tests as _get_tests
 
 
-FORMATS = (
-    "open-responses",
-    "openai-chat",
-    "anthropic",
-    "google-genai",
-    "google-interactions",
-)
-# None = bundled spec is reference-only; validators do structural checks
-_SPEC_FILES = {
-    "open-responses": "openresponses.json",
-    "openai-chat": "openai_chat.json",
-    "anthropic": "anthropic.json",
-    "google-genai": None,
-    "google-interactions": None,
-}
+_FORMAT_CHOICES = FORMATS + tuple(FORMAT_ALIASES)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -45,7 +38,34 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("list", help="List available test IDs")
 
     # -- update-spec --
-    sub.add_parser("update-spec", help="Fetch latest OpenAPI spec from GitHub")
+    update_parser = sub.add_parser(
+        "update-spec", help="Fetch the latest upstream OpenAPI spec"
+    )
+    update_parser.add_argument(
+        "--format",
+        choices=_FORMAT_CHOICES,
+        default=DEFAULT_FORMAT,
+        dest="api_format",
+        metavar="FORMAT",
+        help=(f"API format whose bundled spec to refresh (default: {DEFAULT_FORMAT})"),
+    )
+
+    # -- specs --
+    specs_parser = sub.add_parser(
+        "specs", help="Show bundled spec versions and validation modes"
+    )
+    specs_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="specs_json",
+        help="Print the raw spec manifest as JSON",
+    )
+    specs_parser.add_argument(
+        "--check",
+        action="store_true",
+        dest="specs_check",
+        help="Exit non-zero if the manifest is stale",
+    )
 
     # Also allow run args on the top-level parser (default command)
     _add_run_args(parser)
@@ -99,10 +119,13 @@ def _add_run_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--spec", help="Path to custom OpenAPI spec JSON")
     parser.add_argument(
         "--format",
-        choices=FORMATS,
-        default="open-responses",
+        choices=_FORMAT_CHOICES,
+        default=DEFAULT_FORMAT,
         dest="api_format",
-        help="API format to test (default: open-responses)",
+        metavar="FORMAT",
+        help=(
+            f"API format to test (default: {DEFAULT_FORMAT}); legacy aliases accepted"
+        ),
     )
     parser.add_argument(
         "-i",
@@ -143,12 +166,15 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_web(args)
 
     # Route subcommands
-    fmt = getattr(args, "api_format", "open-responses")
+    fmt = normalize_format(getattr(args, "api_format", DEFAULT_FORMAT))
     if args.command == "list" or getattr(args, "list_tests", False):
         return _cmd_list(fmt)
 
+    if args.command == "specs":
+        return _cmd_specs(args)
+
     if args.command == "update-spec":
-        return _cmd_update_spec()
+        return _cmd_update_spec(fmt)
 
     # Default: run tests
     return _cmd_run(args, parser)
@@ -175,16 +201,86 @@ def _cmd_list(fmt: str) -> int:
     return 0
 
 
-def _cmd_update_spec() -> int:
+def _cmd_update_spec(fmt: str) -> int:
     from .schema import SpecLoader
 
     try:
-        msg = SpecLoader.fetch_latest()
+        msg = SpecLoader.fetch_latest(fmt)
         print(msg)
         return 0
     except Exception as exc:
         print(f"Error fetching spec: {exc}", file=sys.stderr)
         return 1
+
+
+def _cmd_specs(args: argparse.Namespace) -> int:
+    import json as json_module
+
+    from .schema import SpecLoader
+
+    if getattr(args, "specs_check", False):
+        problems = SpecLoader.check_manifest()
+        if problems:
+            print("Spec manifest is stale:", file=sys.stderr)
+            for problem in problems:
+                print(f"  - {problem}", file=sys.stderr)
+            print(
+                "Refresh with 'llm-comply update-spec --format <fmt>', "
+                "or regenerate the manifest with SpecLoader.write_manifest().",
+                file=sys.stderr,
+            )
+            return 1
+        print("Spec manifest matches the bundled specs.")
+        return 0
+
+    manifest = SpecLoader.load_manifest()
+    if not manifest.get("formats"):
+        manifest = SpecLoader.assemble_manifest()
+    if getattr(args, "specs_json", False):
+        print(json_module.dumps(manifest, indent=2))
+        return 0
+
+    headers = (
+        "Format",
+        "Spec version",
+        "Schemas",
+        "Validation",
+        "Source",
+        "Refreshed",
+    )
+    rows = [
+        (
+            fmt,
+            entry.get("spec_version") or "-",
+            str(entry.get("schema_count", 0)),
+            entry.get("validation", "semantic"),
+            entry.get("source_type", "-"),
+            entry.get("refreshed_at") or "-",
+        )
+        for fmt, entry in manifest["formats"].items()
+    ]
+    widths = [
+        max([len(header), *(len(row[i]) for row in rows)])
+        for i, header in enumerate(headers)
+    ]
+    print("  ".join(header.ljust(w) for header, w in zip(headers, widths)))
+    print("  ".join("-" * w for w in widths))
+    for row in rows:
+        print("  ".join(cell.ljust(w) for cell, w in zip(row, widths)))
+
+    notes = [
+        (fmt, entry["note"])
+        for fmt, entry in manifest["formats"].items()
+        if entry.get("note")
+    ]
+    if notes:
+        print()
+        for fmt, note in notes:
+            print(f"  {fmt}: {note}")
+
+    print()
+    print(f"Manifest: {SpecLoader.manifest_path()}")
+    return 0
 
 
 def _cmd_run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -205,13 +301,13 @@ def _cmd_run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     from .runner import TestRunner
     from .schema import SpecLoader
 
-    fmt = getattr(args, "api_format", "open-responses")
+    fmt = normalize_format(getattr(args, "api_format", DEFAULT_FORMAT))
     tests = _get_tests(fmt)
 
     # Resolve spec path: explicit > format-specific bundled > None (no schema)
     spec_path = getattr(args, "spec", None)
     if not spec_path:
-        spec_file = _SPEC_FILES.get(fmt)
+        spec_file = VALIDATION_SPEC_FILES.get(fmt)
         if spec_file:
             spec_dir = pathlib.Path(__file__).parent / "specs"
             spec_path = str(spec_dir / spec_file)

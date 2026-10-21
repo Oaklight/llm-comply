@@ -2,24 +2,33 @@
 
 from __future__ import annotations
 
+from llm_comply.formats import normalize_format
 from llm_comply.test_case import TestCase
 
 
 def get_tests(fmt: str) -> list[TestCase]:
-    """Load test cases for the given API format."""
-    if fmt == "openai-chat":
+    """Load test cases for the given API format.
+
+    Args:
+        fmt: Canonical format name or a legacy alias.
+
+    Returns:
+        The test cases for *fmt*.
+    """
+    fmt = normalize_format(fmt)
+    if fmt == "chat_completions":
         from .openai_chat import OPENAI_CHAT_TESTS
 
         return OPENAI_CHAT_TESTS
-    if fmt == "anthropic":
+    if fmt == "messages":
         from .anthropic import ANTHROPIC_TESTS
 
         return ANTHROPIC_TESTS
-    if fmt == "google-genai":
+    if fmt == "google_generate":
         from .google_genai import GOOGLE_GENAI_TESTS
 
         return GOOGLE_GENAI_TESTS
-    if fmt == "google-interactions":
+    if fmt == "google_interactions":
         from .google_interactions import GOOGLE_INTERACTIONS_TESTS
 
         return GOOGLE_INTERACTIONS_TESTS

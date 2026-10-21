@@ -147,7 +147,7 @@ services:
 |------|:------:|----------|
 | `open_responses` | 13 | Schema + 语义（生命周期、阶段、压缩、思维链） |
 | `openai_responses` | 11 | Schema + 语义（生命周期、流式事件、工具、推理） |
-| `chat_completions` | 9 | Schema + 语义（choices、finish_reason、delta） |
+| `chat_completions` | 9 | Schema + 语义（choices、finish_reason、delta、流式 chunk） |
 | `messages` | 9 | Schema + 语义（content blocks、stop_reason、思维链） |
 | `google_generate` | 9 | 仅语义（candidates、parts、finishReason、思维链） |
 | `google_interactions` | 9 | 仅语义（steps、model_output、思维链） |

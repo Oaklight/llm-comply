@@ -196,7 +196,8 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
         endpoint="/chat/completions",
         schema_name=None,
         streaming=True,
-        validate_stream_events=False,
+        validate_stream_events=True,
+        stream_schema_name="CreateChatCompletionStreamResponse",
         build_request=lambda cfg: {
             "model": cfg.model,
             "messages": [{"role": "user", "content": "Count from 1 to 5."}],
@@ -217,7 +218,8 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
         endpoint="/chat/completions",
         schema_name=None,
         streaming=True,
-        validate_stream_events=False,
+        validate_stream_events=True,
+        stream_schema_name="CreateChatCompletionStreamResponse",
         build_request=lambda cfg: {
             "model": cfg.model,
             "messages": [{"role": "user", "content": "Say one word."}],

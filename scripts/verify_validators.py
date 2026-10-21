@@ -8,6 +8,7 @@ import sys
 from llm_comply.test_case import ValidatorContext
 from llm_comply.tests import get_tests
 from llm_comply.validators import (
+    anth_streaming_content_block_bracketing,
     chat_has_message,
     chat_has_tool_call_of_type,
     chat_has_tool_calls,
@@ -446,6 +447,64 @@ def main() -> int:
     assert google_has_content_parts(good, ctx) == []
     assert google_finish_reason("STOP")(good, ctx) == []
     print("google validators: malformed candidates fail without raising")
+
+    def _event(event_type: str, index: int | None = None) -> dict:
+        data = {"type": event_type}
+        if index is not None:
+            data["index"] = index
+        return {"type": event_type, "data": data}
+
+    block_ctx = ValidatorContext(
+        streaming=True,
+        sse_events=[
+            _event("message_start"),
+            _event("content_block_start", 0),
+            _event("content_block_delta", 0),
+            _event("content_block_stop", 0),
+            _event("content_block_start", 1),
+            _event("content_block_stop", 1),
+            _event("message_delta"),
+            _event("message_stop"),
+        ],
+    )
+    assert anth_streaming_content_block_bracketing(None, block_ctx) == []
+
+    open_block = ValidatorContext(
+        streaming=True,
+        sse_events=[_event("content_block_start", 0)],
+    )
+    assert any(
+        "has no content_block_stop" in error
+        for error in anth_streaming_content_block_bracketing(None, open_block)
+    )
+
+    stray_stop = ValidatorContext(
+        streaming=True,
+        sse_events=[_event("content_block_stop", 2)],
+    )
+    assert any(
+        "without a preceding start" in error
+        for error in anth_streaming_content_block_bracketing(None, stray_stop)
+    )
+
+    double_start = ValidatorContext(
+        streaming=True,
+        sse_events=[
+            _event("content_block_start", 0),
+            _event("content_block_start", 0),
+        ],
+    )
+    assert any(
+        "already open" in error
+        for error in anth_streaming_content_block_bracketing(None, double_start)
+    )
+    anth_tests = {tc.id: tc for tc in get_tests("messages")}
+    names = [
+        getattr(v, "__name__", "")
+        for v in anth_tests["anth-streaming-response"].validators
+    ]
+    assert "anth_streaming_content_block_bracketing" in names, "anth-streaming-response"
+    print("anthropic streaming: content blocks are correctly bracketed")
     return 0
 
 

@@ -73,8 +73,8 @@ llm-comply --format google_interactions -u https://generativelanguage.googleapis
 | `open_responses` | `openresponses.json` | 2026-04-24 | 108 | Schema | 2026-10-21 |
 | `chat_completions` | `openai_chat.json` | 2.3.0 | 2094 | Schema | 2026-10-21 |
 | `messages` | `anthropic.json` | unknown（规范无版本号） | 2008 | Schema | 2026-10-21 |
-| `google_generate` | — | — | 0 | 语义 | — |
-| `google_interactions` | `google_interactions.json` | v1beta | 186 | 语义 | 2026-08-29 |
+| `google_generate` | `google_generate.json` | v1beta | 252 | 语义 | 2026-10-21 |
+| `google_interactions` | `google_interactions.json` | v1beta | 213 | 语义 | 2026-10-21 |
 
 ```bash
 llm-comply specs            # 人类可读表格
@@ -91,10 +91,10 @@ llm-comply update-spec --format messages         # Anthropic Messages
 ```
 
 `messages` 来自 Anthropic 官方 SDK 内置的 `scripts/mock-spec.json.gz`
-（Python 与 TypeScript SDK 中的副本字节完全一致）。每周一次的
-`spec-update` workflow 会运行 `update-spec --all`，有变化时自动创建 PR。
-
-没有可靠公开上游的格式（`google_generate`、`google_interactions`）需手动更新。
+（Python 与 TypeScript SDK 中的副本字节完全一致）。Google 规范来自官方
+OpenAPI discovery 文档（`google_generate`）和 Interactions API 文档
+（`google_interactions`）；两者仅用于版本跟踪，运行时验证仍为语义验证。
+每周一次的 `spec-update` workflow 会运行 `update-spec --all`，有变化时自动创建 PR。
 
 ## Docker
 

@@ -33,9 +33,9 @@ FORMAT_SPECS: dict[str, tuple[str | None, str]] = {
     "open_responses": ("openresponses.json", "schema"),
     "chat_completions": ("openai_chat.json", "schema"),
     "messages": ("anthropic.json", "schema"),
-    "google_generate": (None, "semantic"),
-    # The bundled Interactions spec has no verified upstream and is
-    # reference-only, so runtime validation stays semantic.
+    "google_generate": ("google_generate.json", "semantic"),
+    # Google specs are bundled for tracking, but runtime validation stays
+    # semantic until the validators are extended.
     "google_interactions": ("google_interactions.json", "semantic"),
 }
 
@@ -71,6 +71,14 @@ SPEC_SOURCES: dict[str, tuple[str, str]] = {
     "messages": (
         "https://raw.githubusercontent.com/anthropics/anthropic-sdk-python/main/scripts/mock-spec.json.gz",
         "anthropic.json",
+    ),
+    "google_generate": (
+        "https://generativelanguage.googleapis.com/$discovery/OPENAPI3_0?version=v1beta",
+        "google_generate.json",
+    ),
+    "google_interactions": (
+        "https://ai.google.dev/static/api/interactions.openapi.json",
+        "google_interactions.json",
     ),
 }
 

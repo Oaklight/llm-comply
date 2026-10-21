@@ -28,9 +28,9 @@ _SPECS_DIR = pathlib.Path(__file__).parent / "specs"
 _MANIFEST_PATH = _SPECS_DIR / "manifest.json"
 _MANIFEST_SCHEMA_VERSION = 1
 
-_MANUAL_SOURCES = {
-    "google_generate": "Google publishes no OpenAPI spec; semantic validation only",
-    "google_interactions": "No verified upstream source; bundled spec is reference-only",
+_FORMAT_NOTES = {
+    "google_generate": "Bundled from Google's OpenAPI discovery document; runtime validation is semantic",
+    "google_interactions": "Bundled from Google's Interactions OpenAPI spec; runtime validation is semantic",
 }
 
 SSE_EVENT_TO_SCHEMA: dict[str, str] = {
@@ -184,8 +184,8 @@ class SpecLoader:
             "source_type": "upstream" if source else "manual",
             "source_url": source[0] if source else None,
         }
-        if fmt in _MANUAL_SOURCES:
-            entry["note"] = _MANUAL_SOURCES[fmt]
+        if fmt in _FORMAT_NOTES:
+            entry["note"] = _FORMAT_NOTES[fmt]
         return entry
 
     @classmethod
@@ -203,7 +203,7 @@ class SpecLoader:
             "source_type": "none",
             "source_url": None,
         }
-        note = _MANUAL_SOURCES.get(fmt)
+        note = _FORMAT_NOTES.get(fmt)
         if note:
             entry["note"] = note
         return entry
@@ -230,7 +230,11 @@ class SpecLoader:
             if filename is None:
                 formats[fmt] = cls._semantic_entry(fmt)
                 continue
-            entry = cls._entry_from_file(fmt, _SPECS_DIR / filename)
+            path = _SPECS_DIR / filename
+            if not path.exists():
+                # A newly configured format may not be bundled yet.
+                continue
+            entry = cls._entry_from_file(fmt, path)
             prev = previous.get(fmt)
             if prev and prev.get("sha256") == entry["sha256"]:
                 entry["refreshed_at"] = prev.get("refreshed_at", today)
@@ -294,7 +298,10 @@ class SpecLoader:
 
     @classmethod
     def fetch_latest(
-        cls, fmt: str = DEFAULT_FORMAT, output_path: str | None = None
+        cls,
+        fmt: str = DEFAULT_FORMAT,
+        output_path: str | None = None,
+        update_manifest: bool = True,
     ) -> str:
         """Fetch the latest upstream spec for a format and save it to disk.
 
@@ -302,6 +309,8 @@ class SpecLoader:
             fmt: Format name; must be a key of :data:`SPEC_SOURCES`.
             output_path: Destination path. Defaults to the bundled spec file
                 for *fmt*.
+            update_manifest: Rewrite the manifest after saving to the bundled
+                path. Set false when refreshing several formats in one run.
 
         Raises:
             ValueError: If *fmt* has no public upstream source, or the fetched
@@ -340,7 +349,7 @@ class SpecLoader:
         dest = pathlib.Path(output_path) if output_path else _SPECS_DIR / filename
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(payload)
-        if output_path is None:
+        if output_path is None and update_manifest:
             cls.write_manifest()
 
         version = spec.get("info", {}).get("version", "unknown")

@@ -6,6 +6,7 @@ from __future__ import annotations
 import pathlib
 import sys
 
+from llm_comply.formats import VALIDATION_SPEC_FILES
 from llm_comply.schema import SpecLoader
 
 SPECS_DIR = pathlib.Path(__file__).resolve().parent.parent / "src/llm_comply/specs"
@@ -52,7 +53,13 @@ def main() -> int:
     print(f"messages: {len(messages.schema_names)} schemas")
 
     assert SpecLoader(None).schema_names == []
-    print("google formats: no-spec mode works")
+
+    for fmt in ("google_generate", "google_interactions"):
+        google = SpecLoader(str(SPECS_DIR / f"{fmt}.json"))
+        assert len(google.schema_names) > 200, f"bundled {fmt} spec is stale"
+        assert VALIDATION_SPEC_FILES[fmt] is None, f"{fmt} should stay semantic"
+        print(f"{fmt}: {len(google.schema_names)} schemas (semantic)")
+    print("google formats: semantic validation mode")
 
     problems = SpecLoader.check_manifest()
     assert not problems, f"spec manifest drift: {problems}"

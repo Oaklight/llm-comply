@@ -62,8 +62,8 @@ jobs:
             manifest diff records each format's spec version, schema and path
             counts, SHA-256 and refresh date.
 
-            Formats without a verified upstream (`google_generate`,
-            `google_interactions`) are unchanged.
+            All five formats have upstream sources; Google specs are tracked
+            even though their runtime validation remains semantic.
           labels: dependencies, area:specs
           commit-message: "chore(spec): refresh bundled upstream specs"
 

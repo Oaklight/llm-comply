@@ -73,8 +73,8 @@ commit and release tag records exactly which upstream spec version it targets.
 | `open_responses` | `openresponses.json` | 2026-04-24 | 108 | Schema | 2026-10-21 |
 | `chat_completions` | `openai_chat.json` | 2.3.0 | 2094 | Schema | 2026-10-21 |
 | `messages` | `anthropic.json` | unknown (no version in spec) | 2008 | Schema | 2026-10-21 |
-| `google_generate` | — | — | 0 | Semantic | — |
-| `google_interactions` | `google_interactions.json` | v1beta | 186 | Semantic | 2026-08-29 |
+| `google_generate` | `google_generate.json` | v1beta | 252 | Semantic | 2026-10-21 |
+| `google_interactions` | `google_interactions.json` | v1beta | 213 | Semantic | 2026-10-21 |
 
 ```bash
 llm-comply specs            # human-readable table
@@ -92,11 +92,11 @@ llm-comply update-spec --format messages         # Anthropic Messages
 
 `messages` is pulled from the official Anthropic SDK's bundled
 `scripts/mock-spec.json.gz` (the Python and TypeScript copies are byte-identical).
+Google specs come from the official OpenAPI discovery document
+(`google_generate`) and the Interactions API document (`google_interactions`);
+both are bundled for tracking while runtime validation stays semantic.
 A weekly `spec-update` workflow runs `update-spec --all` and opens a PR when any
 upstream spec changes.
-
-Formats without a verified public upstream (`google_generate`,
-`google_interactions`) are updated manually.
 
 ## Docker
 

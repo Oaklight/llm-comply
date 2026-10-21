@@ -108,6 +108,11 @@ def main() -> int:
         result = runner.run_one(_test_case())
         assert result.status == TestStatus.PASSED, result.errors
 
+        # Bare and whitespace-only data lines are heartbeats, not payloads.
+        _SSEHandler.chunks = [_chunk(None), "", "   ", _chunk("hello")]
+        result = runner.run_one(_test_case())
+        assert result.status == TestStatus.PASSED, result.errors
+
         _SSEHandler.chunks = [_chunk(None), {"id": "broken", "object": "chunk"}]
         result = runner.run_one(_test_case())
         assert result.status == TestStatus.FAILED, "invalid chunk was not rejected"

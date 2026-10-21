@@ -263,9 +263,16 @@ def chat_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
 
 
 def chat_streaming_has_delta(response: Any, ctx: ValidatorContext) -> list[str]:
-    """At least one streaming chunk must carry text, tool calls, or a refusal."""
+    """At least one streaming chunk must carry content, tools, or reasoning."""
     if not ctx.sse_events:
         return ["no SSE events to check"]
+    progress_fields = (
+        "content",
+        "tool_calls",
+        "refusal",
+        "reasoning_content",
+        "reasoning",
+    )
     for event in ctx.sse_events:
         data = event.get("data")
         if not isinstance(data, dict):
@@ -273,10 +280,11 @@ def chat_streaming_has_delta(response: Any, ctx: ValidatorContext) -> list[str]:
         choices = data.get("choices", [])
         for c in choices:
             delta = c.get("delta", {})
-            if delta.get("content") or delta.get("tool_calls") or delta.get("refusal"):
+            if any(delta.get(field) for field in progress_fields):
                 return []
     return [
-        "no streaming chunk contained delta.content, delta.tool_calls, or delta.refusal"
+        "no streaming chunk contained any of: "
+        + ", ".join(f"delta.{field}" for field in progress_fields)
     ]
 
 

@@ -80,6 +80,18 @@ def _tool_call_chunk() -> dict[str, Any]:
     }
 
 
+def _delta_chunk(delta: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": "chatcmpl-test",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "test-model",
+        "choices": [
+            {"index": 0, "delta": delta, "logprobs": None, "finish_reason": None}
+        ],
+    }
+
+
 def _finish_chunk(reason: str) -> dict[str, Any]:
     return {
         "id": "chatcmpl-test",
@@ -168,6 +180,26 @@ def main() -> int:
         ]
         result = runner.run_one(shipped["chat-streaming-response"])
         assert result.status == TestStatus.PASSED, result.errors
+
+        # Refusal-only streams are also valid progress.
+        _SSEHandler.chunks = [
+            _chunk(None),
+            _delta_chunk({"refusal": "I cannot help with that."}),
+            _finish_chunk("content_filter"),
+        ]
+        result = runner.run_one(shipped["chat-streaming-response"])
+        assert result.status == TestStatus.PASSED, result.errors
+
+        # The relaxation stays bounded: nothing, empty content, or an empty
+        # tool_calls list must still fail.
+        for chunks in (
+            [_chunk(None), _finish_chunk("stop")],
+            [_chunk(None), _chunk(""), _finish_chunk("stop")],
+            [_chunk(None), _delta_chunk({"tool_calls": []}), _finish_chunk("stop")],
+        ):
+            _SSEHandler.chunks = chunks
+            result = runner.run_one(shipped["chat-streaming-response"])
+            assert result.status == TestStatus.FAILED, chunks
 
         _SSEHandler.chunks = [_chunk(None), {"id": "broken", "object": "chunk"}]
         result = runner.run_one(_test_case())

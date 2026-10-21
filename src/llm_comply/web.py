@@ -474,15 +474,16 @@ def serve(
     if bool(tls_cert) != bool(tls_key):
         raise ValueError("tls_cert and tls_key must be provided together")
 
+    context = None
+    if tls_cert is not None and tls_key is not None:
+        context = _build_ssl_context(tls_cert, tls_key)
+
     from llm_comply import __version__
 
     print(f"llm-comply web UI v{__version__}")
     scheme = "https" if tls_cert else "http"
     print(f"Open {scheme}://{host}:{port} in your browser")
 
-    context = None
-    if tls_cert is not None and tls_key is not None:
-        context = _build_ssl_context(tls_cert, tls_key)
     app.run(host=host, port=port, ssl_context=context)
 
 

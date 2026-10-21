@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import jsonschema
+
 from .test_case import Validator, ValidatorContext
 
 
@@ -18,10 +20,10 @@ def has_output(response: Any, ctx: ValidatorContext) -> list[str]:
     return []
 
 
-def responses_output_is_json(response: Any, ctx: ValidatorContext) -> list[str]:
-    """Concatenated output_text content must parse as JSON."""
+def _output_text(response: Any) -> str | None:
+    """Concatenate ``output_text`` content, or return None when absent."""
     if not isinstance(response, dict):
-        return ["response is not a JSON object"]
+        return None
     texts: list[str] = []
     for item in response.get("output", []):
         if not isinstance(item, dict) or item.get("type") != "message":
@@ -29,13 +31,40 @@ def responses_output_is_json(response: Any, ctx: ValidatorContext) -> list[str]:
         for part in item.get("content", []):
             if isinstance(part, dict) and part.get("type") == "output_text":
                 texts.append(str(part.get("text", "")))
-    if not texts:
+    return "".join(texts) if texts else None
+
+
+def responses_output_is_json(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Concatenated output_text content must parse as JSON."""
+    text = _output_text(response)
+    if text is None:
         return ["no output_text content to parse as JSON"]
     try:
-        json.loads("".join(texts))
+        json.loads(text)
     except ValueError as exc:
         return [f"output_text is not valid JSON: {exc}"]
     return []
+
+
+def responses_output_matches_json_schema(schema: dict[str, Any]) -> Validator:
+    """Factory: parsed output_text must validate against *schema*."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        text = _output_text(response)
+        if text is None:
+            return ["no output_text content to parse as JSON"]
+        try:
+            parsed = json.loads(text)
+        except ValueError as exc:
+            return [f"output_text is not valid JSON: {exc}"]
+        try:
+            jsonschema.validate(parsed, schema)
+        except jsonschema.ValidationError as exc:
+            return [f"output_text does not match the requested schema: {exc.message}"]
+        return []
+
+    _check.__qualname__ = "responses_output_matches_json_schema"
+    return _check
 
 
 def completed_status(response: Any, ctx: ValidatorContext) -> list[str]:

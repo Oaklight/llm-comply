@@ -58,6 +58,40 @@ def _chunk(content: str | None) -> dict[str, Any]:
     }
 
 
+def _tool_call_chunk() -> dict[str, Any]:
+    delta = {
+        "tool_calls": [
+            {
+                "index": 0,
+                "id": "call_1",
+                "type": "function",
+                "function": {"name": "get_weather", "arguments": '{"city":"SF"}'},
+            }
+        ]
+    }
+    return {
+        "id": "chatcmpl-test",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "test-model",
+        "choices": [
+            {"index": 0, "delta": delta, "logprobs": None, "finish_reason": None}
+        ],
+    }
+
+
+def _finish_chunk(reason: str) -> dict[str, Any]:
+    return {
+        "id": "chatcmpl-test",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "test-model",
+        "choices": [
+            {"index": 0, "delta": {}, "logprobs": None, "finish_reason": reason}
+        ],
+    }
+
+
 def _config(port: int) -> ComplianceConfig:
     args = _build_parser().parse_args(
         [
@@ -123,6 +157,16 @@ def main() -> int:
             _chunk("hello"),
         ]
         result = runner.run_one(_test_case())
+        assert result.status == TestStatus.PASSED, result.errors
+
+        # Tool-call-only streams are valid: text deltas are not required.
+        shipped = {tc.id: tc for tc in get_tests("chat_completions")}
+        _SSEHandler.chunks = [
+            _chunk(None),
+            _tool_call_chunk(),
+            _finish_chunk("tool_calls"),
+        ]
+        result = runner.run_one(shipped["chat-streaming-response"])
         assert result.status == TestStatus.PASSED, result.errors
 
         _SSEHandler.chunks = [_chunk(None), {"id": "broken", "object": "chunk"}]

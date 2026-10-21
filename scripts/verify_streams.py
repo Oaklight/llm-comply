@@ -181,6 +181,15 @@ def main() -> int:
         result = runner.run_one(shipped["chat-streaming-response"])
         assert result.status == TestStatus.PASSED, result.errors
 
+        # Legacy function_call deltas are also progress.
+        _SSEHandler.chunks = [
+            _chunk(None),
+            _delta_chunk({"function_call": {"name": "get_weather", "arguments": "{}"}}),
+            _finish_chunk("function_call"),
+        ]
+        result = runner.run_one(shipped["chat-streaming-response"])
+        assert result.status == TestStatus.PASSED, result.errors
+
         # Refusal-only streams are also valid progress.
         _SSEHandler.chunks = [
             _chunk(None),

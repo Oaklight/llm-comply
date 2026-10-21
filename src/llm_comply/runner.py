@@ -87,6 +87,16 @@ class TestRunner:
                     edata = event.get("data")
                     if not isinstance(edata, dict):
                         continue
+                    # Untyped providers send {"error": {...}} when the stream
+                    # dies after headers; report the server's message rather
+                    # than blaming the chunk schema.
+                    if "error" in edata and len(edata) == 1:
+                        err = edata["error"]
+                        message = (
+                            err.get("message", err) if isinstance(err, dict) else err
+                        )
+                        errors.append(f"stream error: {message}")
+                        continue
                     if tc.stream_schema_name:
                         event_errors = self._spec.validate(edata, tc.stream_schema_name)
                     else:

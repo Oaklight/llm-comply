@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Changed
-
-- Web UI: run counters now reconcile — `runs_started` equals `runs_completed` + `runs_aborted` + `runs_failed`, and the run is counted before the response starts so an early disconnect is still attributed. A failed stream sends a final `event: error` frame.
-
-### Fixed
-
-- Web UI: `streaming_disconnects` is renamed to `client_disconnects` (it counts every aborted response, not only SSE), an empty `--tls-cert`/`--tls-key` is treated as a path rather than as "TLS disabled", and TLS flags are rejected without `--web`.
-- Web UI tests now cover an actual HTTPS handshake, `serve()` forwarding the TLS context, and the failure/abort terminal counters.
-
 ## [0.6.0] — 2026-10-21
 
 ### Added
@@ -31,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Chat Completions: `chat_has_tool_calls` now validates each call against the spec's two variants — `function` (`id`, `function.name`/`arguments`) and `custom` (`id`, `custom.name`/`input`) — instead of only checking that the array is non-empty; the tool-calling test additionally requires a `function` call so a provider ignoring the offered tool type still fails. `chat_has_reasoning_summary` is renamed to `chat_has_reasoning_tokens` to match what it checks. Added developer-role and structured-output tests (9 to 11), with the output validated against the requested JSON schema.
 - Open Responses: `has_usage` now checks all five required `Usage` fields and their nested details, and `compact_object` validates the full `CompactResource` shape (`object`, `id`, `output`, `created_at`, `usage`). The compact checks remain advisory, so their findings are reported as warnings. Added `multi-turn-tool-use` and `structured-output` tests (13 to 15); structured output is validated against the requested JSON schema, not just parseability.
 - Web UI: `--tls-cert` / `--tls-key` serve the UI over HTTPS (TLS 1.2 minimum), keeping the API key the browser submits off the wire in clear text.
-- Web UI: request logging now records time-to-first-byte and total transfer time via `on_response_started` / `on_response_completed`; SSE runs are no longer logged at ~0 ms. `GET /health` exposes cumulative run counters (`runs_started`, `runs_completed`, `runs_aborted`, `requests_completed`, `streaming_disconnects`).
+- Web UI: request logging now records time-to-first-byte and total transfer time via `on_response_started` / `on_response_completed`; SSE runs are no longer logged at ~0 ms. `GET /health` exposes cumulative counters (`runs_started`, `runs_completed`, `runs_aborted`, `runs_failed`, `requests_completed`, `client_disconnects`): `runs_started` reconciles with the terminal counters, and a stream that raises increments `runs_failed` and sends a final `event: error` frame. `streaming_disconnects` was renamed to `client_disconnects` because it counts every aborted response, not only SSE.
 - Web UI: `/api/run/stream` emits `: ping` heartbeats while a test runs and stops scheduling tests when the browser disconnects.
 - Vendored zerodep modules updated via PR #30: httpclient 0.5.0 → 0.5.1, httpserver 0.4.0 → 0.5.1, sse 0.3.3 → 0.3.4.
 - `chat_completions` streaming tests now validate every SSE chunk against `CreateChatCompletionStreamResponse` instead of leaving stream validation disabled. A new `TestCase.stream_schema_name` field covers APIs whose events have no `type` field; chunks that do not match the spec now fail. Mid-stream `{"error": ...}` payloads are reported as `stream error: <message>` instead of a chunk-schema failure.
@@ -53,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Schema validation no longer rejects valid `ReasoningEffort` values (`none`, `minimal`, `xhigh`, `max`) that the stale bundled spec omitted.
 - Manifest regeneration tolerates configured specs that are not bundled yet, and `update-spec --all` writes the manifest once after all fetches instead of after each one.
 - `update-spec` compares specs canonically (sorted keys, volatile metadata such as `info.x-google-revision` dropped) before writing. Google's discovery endpoint re-serializes every response with a different key order and revision marker, which previously produced a spurious diff on every refresh.
+- Web UI: `--tls-cert` / `--tls-key` with an empty value are treated as paths rather than as "TLS disabled", TLS flags are rejected without `--web`, and the success banner is no longer printed before the certificate is loaded.
+- Web UI: a failed stream ends normally after its terminal `event: error` frame, so a reverse proxy sees a complete response. Tests cover the HTTPS handshake, `serve()` forwarding the TLS context, the failure/abort terminal counters, and the counter placement before the first chunk.
 
 ## [0.5.0] — 2026-09-12
 

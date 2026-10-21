@@ -9,7 +9,7 @@ import sys
 
 from llm_comply.formats import VALIDATION_SPEC_FILES
 from llm_comply.schema import SpecLoader, canonical_spec
-from llm_comply.spec_extract import relax_production_required
+from llm_comply.spec_extract import extract_openai_responses
 from llm_comply.test_case import TestCategory
 from llm_comply.tests import get_tests
 from llm_comply.tests.google_genai import _make_test
@@ -79,16 +79,33 @@ def main() -> int:
         "production responses omit access_programs"
     )
     synthetic = {
+        "openapi": "3.1.0",
+        "info": {},
+        "paths": {
+            "/responses": {
+                "post": {
+                    "responses": {
+                        "200": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/Response"}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "components": {
             "schemas": {
                 "Response": {"allOf": [{"required": ["access_programs", "id"]}]}
             }
-        }
+        },
     }
-    relax_production_required(synthetic)
-    assert synthetic["components"]["schemas"]["Response"]["allOf"][0]["required"] == [
+    extracted = extract_openai_responses(synthetic)
+    assert extracted["components"]["schemas"]["Response"]["allOf"][0]["required"] == [
         "id"
-    ]
+    ], "extraction must apply the production relaxation"
     assert not openai_responses.validate_sse_event(
         "error",
         {

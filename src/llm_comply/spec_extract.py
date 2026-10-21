@@ -20,16 +20,21 @@ def _refs_in(node: Any) -> list[str]:
     return refs
 
 
-def _dicts_in(node: Any) -> list[dict[str, Any]]:
-    """Collect every dict in a JSON value, including nested ``allOf`` members."""
-    found: list[dict[str, Any]] = []
-    if isinstance(node, dict):
-        found.append(node)
-        for value in node.values():
-            found.extend(_dicts_in(value))
-    elif isinstance(node, list):
-        for item in node:
-            found.extend(_dicts_in(item))
+def _composition_nodes(node: dict[str, Any]) -> list[dict[str, Any]]:
+    """Collect a schema node and its ``allOf``/``anyOf``/``oneOf`` members.
+
+    Descending only through composition keywords keeps a ``required`` rewrite
+    scoped to the schema itself; walking nested ``properties`` would let an
+    entry naming a common field silently strip it from child objects.
+    """
+    found: list[dict[str, Any]] = [node]
+    for keyword in ("allOf", "anyOf", "oneOf"):
+        members = node.get(keyword)
+        if not isinstance(members, list):
+            continue
+        for member in members:
+            if isinstance(member, dict):
+                found.extend(_composition_nodes(member))
     return found
 
 
@@ -38,6 +43,9 @@ def _dicts_in(node: Any) -> list[dict[str, Any]]:
 # required would reject valid production responses after every refresh.
 PRODUCTION_OPTIONAL_FIELDS: dict[str, frozenset[str]] = {
     "Response": frozenset({"access_programs"}),
+    # Present upstream but not in the bundled subset today; keeping the entry
+    # means the same relaxation applies if beta schemas ever enter it.
+    "BetaResponse": frozenset({"access_programs"}),
 }
 
 
@@ -55,7 +63,7 @@ def relax_production_required(spec: dict[str, Any]) -> dict[str, Any]:
         schema = schemas.get(name)
         if not isinstance(schema, dict):
             continue
-        for node in _dicts_in(schema):
+        for node in _composition_nodes(schema):
             required = node.get("required")
             if not isinstance(required, list):
                 continue

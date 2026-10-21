@@ -60,12 +60,13 @@ def make_request(
         base = base.rstrip("/").removesuffix("/v1")
     url = f"{base}{endpoint}"
     headers = {
-        config.auth_header: config.auth_value,
         "Content-Type": "application/json",
         "Accept-Encoding": "identity",
     }
     if config.extra_headers:
         headers.update(config.extra_headers)
+    # The resolved credential wins over an accidental -H with the same name.
+    headers[config.auth_header] = config.auth_value
 
     if streaming:
         return _streaming_request(url, headers, body, config.timeout)

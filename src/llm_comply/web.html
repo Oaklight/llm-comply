@@ -423,15 +423,23 @@ async function runTests() {
   renderTests();
   showProgress();
 
+  const fmt = $('fmt').value;
+  const fmtDefaults = DEFAULTS[fmt] || {};
   const payload = {
-    format: $('fmt').value,
+    format: fmt,
     base_url: $('url').value,
     api_key: $('key').value,
     model: $('model').value,
-    auth_header: $('auth-header').value,
-    use_bearer: $('bearer').checked,
     ignore: $('ignore').value,
   };
+  // Omit fields still at the format default so the server resolves them.
+  if ($('auth-header').value &&
+      $('auth-header').value !== (fmtDefaults.auth || 'Authorization')) {
+    payload.auth_header = $('auth-header').value;
+  }
+  if ($('bearer').checked !== (fmtDefaults.bearer !== false)) {
+    payload.use_bearer = $('bearer').checked;
+  }
 
   let passed = 0, failed = 0, skipped = 0, warned = 0;
 

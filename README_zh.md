@@ -45,8 +45,9 @@ llm-comply --format google_interactions -u https://generativelanguage.googleapis
 
 认证请求头与默认值会按格式自动选择：OpenAI 系格式使用 `Authorization` + `Bearer`，
 Messages 使用 `x-api-key`（并自动带 `anthropic-version`），Google 使用
-`x-goog-api-key`。`--auth-header` 与 `--no-bearer` 可覆盖默认值，`-H name:value`
-可覆盖或追加请求头。
+`x-goog-api-key`。`--auth-header` 只选择请求头名称；是否加 `Bearer ` 前缀由
+`--bearer`/`--no-bearer` 决定，未指定时采用格式默认值。`-H name:value` 可覆盖或
+追加请求头，但不能替换已解析的认证头。
 
 ## 选项
 
@@ -65,7 +66,8 @@ Messages 使用 `x-api-key`（并自动带 `anthropic-version`），Google 使�
 -H, --header K:V       额外请求头（如 anthropic-version:2023-06-01）
 --auth-header NAME     认证请求头名称（默认：按格式选择 Authorization、x-api-key
                        或 x-goog-api-key）
---no-bearer            不在 API 密钥前添加 "Bearer " 前缀（默认：按格式决定）
+--bearer               在 API 密钥前添加 "Bearer " 前缀（覆盖格式默认值）
+--no-bearer            不在 API 密钥前添加 "Bearer " 前缀（覆盖格式默认值）
 -v, --verbose          失败时显示请求/响应详情
 --json                 JSON 输出（适用于 CI）
 --list                 列出所有可用的测试 ID

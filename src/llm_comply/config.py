@@ -62,8 +62,14 @@ class ComplianceConfig:
             fmt, DEFAULT_AUTH
         )
         auth_header = getattr(args, "auth_header", None) or default_auth_header
+        bearer = getattr(args, "bearer", None)
         no_bearer = getattr(args, "no_bearer", None)
-        use_bearer_prefix = default_bearer if no_bearer is None else not no_bearer
+        if bearer:
+            use_bearer_prefix = True
+        elif no_bearer:
+            use_bearer_prefix = False
+        else:
+            use_bearer_prefix = default_bearer
 
         base_url: str = args.base_url
         return cls(

@@ -102,7 +102,14 @@ def _add_run_args(parser: argparse.ArgumentParser) -> None:
         help="Auth header name (default: per format: Authorization, x-api-key, "
         "or x-goog-api-key)",
     )
-    parser.add_argument(
+    bearer_group = parser.add_mutually_exclusive_group()
+    bearer_group.add_argument(
+        "--bearer",
+        action="store_true",
+        default=None,
+        help="Prepend 'Bearer ' to the API key (default: per format)",
+    )
+    bearer_group.add_argument(
         "--no-bearer",
         action="store_true",
         default=None,

@@ -115,6 +115,24 @@ both are bundled for tracking while runtime validation stays semantic.
 A weekly `spec-update` workflow runs `update-spec --all` and opens a PR when any
 upstream spec changes.
 
+## Web UI
+
+```bash
+llm-comply --web                                      # http://127.0.0.1:8090
+llm-comply --web --host 0.0.0.0 \
+  --tls-cert /path/cert.pem --tls-key /path/key.pem   # https://0.0.0.0:8090
+```
+
+The UI accepts an API key in the browser, so serve it over TLS whenever it is
+reachable beyond localhost. `--tls-cert` and `--tls-key` must be provided
+together; TLS 1.2 is the minimum.
+
+`GET /health` returns the version and cumulative counters (`runs_started`,
+`runs_completed`, `runs_aborted`, `requests_completed`,
+`streaming_disconnects`). Closing the browser tab aborts the run before the
+next test starts; the test already in flight still finishes because its API
+call has been sent.
+
 ## Docker
 
 ```bash

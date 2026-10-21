@@ -690,13 +690,17 @@ def anth_streaming_content_block_bracketing(
     open_blocks: dict[int, int] = {}
     errors: list[str] = []
     for position, event in enumerate(ctx.sse_events):
+        event_type = event.get("type")
+        if event_type not in ("content_block_start", "content_block_stop"):
+            continue
         data = event.get("data")
         if not isinstance(data, dict):
+            errors.append(f"event {position}: {event_type} has no data object")
             continue
         index = data.get("index")
         if not isinstance(index, int):
+            errors.append(f"event {position}: {event_type} has no integer index")
             continue
-        event_type = event.get("type")
         if event_type == "content_block_start":
             if index in open_blocks:
                 errors.append(

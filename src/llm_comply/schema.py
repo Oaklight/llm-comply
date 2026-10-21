@@ -30,7 +30,7 @@ _MANIFEST_SCHEMA_VERSION = 1
 
 _FORMAT_NOTES = {
     "openai_responses": "Extracted from the full OpenAI OpenAPI document; Responses API subset",
-    "google_generate": "Bundled from Google's OpenAPI discovery document; runtime validation is semantic",
+    "google_generate": "Bundled from Google's OpenAPI discovery document; responses validate against GenerateContentResponse",
     "google_interactions": "Bundled from Google's Interactions OpenAPI spec; runtime validation is semantic",
 }
 

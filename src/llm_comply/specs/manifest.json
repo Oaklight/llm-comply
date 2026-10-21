@@ -56,7 +56,7 @@
     },
     "google_generate": {
       "bundled_file": "google_generate.json",
-      "validation": "semantic",
+      "validation": "schema",
       "spec_version": "v1beta",
       "openapi_version": "3.0.3",
       "schema_count": 252,
@@ -65,7 +65,7 @@
       "sha256": "c8ee71bf092737fc2495c0042a6163dacafa41c718a7fb641eecd65074574c99",
       "source_type": "upstream",
       "source_url": "https://generativelanguage.googleapis.com/$discovery/OPENAPI3_0?version=v1beta",
-      "note": "Bundled from Google's OpenAPI discovery document; runtime validation is semantic",
+      "note": "Bundled from Google's OpenAPI discovery document; responses validate against GenerateContentResponse",
       "refreshed_at": "2026-10-21"
     },
     "google_interactions": {

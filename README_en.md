@@ -110,8 +110,10 @@ llm-comply update-spec --format messages         # Anthropic Messages
 OpenAPI document; the Responses spec bundles only the `/responses` paths and
 their transitive `$ref` closure.
 Google specs come from the official OpenAPI discovery document
-(`google_generate`) and the Interactions API document (`google_interactions`);
-both are bundled for tracking while runtime validation stays semantic.
+(`google_generate`) and the Interactions API document (`google_interactions`).
+`google_generate` responses validate against `GenerateContentResponse`; the
+Interactions spec is bundled for version tracking while runtime validation
+stays semantic.
 A weekly `spec-update` workflow runs `update-spec --all` and opens a PR when any
 upstream spec changes.
 
@@ -170,7 +172,7 @@ services:
 | `openai_responses` | 11 | Schema + semantic (lifecycle, streaming events, tools, reasoning) |
 | `chat_completions` | 11 | Schema + semantic (choices, finish_reason, delta, stream chunks, developer role, structured output) |
 | `messages` | 9 | Schema + semantic (content blocks, stop_reason, thinking) |
-| `google_generate` | 9 | Semantic only (candidates, parts, finishReason, thinking) |
+| `google_generate` | 9 | Schema + semantic (candidates, parts, finishReason, safetyRatings, thinking) |
 | `google_interactions` | 9 | Semantic only (steps, model_output, thinking) |
 
 ## License

@@ -9,6 +9,7 @@ import sys
 
 from llm_comply.formats import VALIDATION_SPEC_FILES
 from llm_comply.schema import SpecLoader, canonical_spec
+from llm_comply.tests import get_tests
 
 SPECS_DIR = pathlib.Path(__file__).resolve().parent.parent / "src/llm_comply/specs"
 
@@ -82,12 +83,57 @@ def main() -> int:
 
     assert SpecLoader(None).schema_names == []
 
-    for fmt in ("google_generate", "google_interactions"):
-        google = SpecLoader(str(SPECS_DIR / f"{fmt}.json"))
-        assert len(google.schema_names) > 200, f"bundled {fmt} spec is stale"
-        assert VALIDATION_SPEC_FILES[fmt] is None, f"{fmt} should stay semantic"
-        print(f"{fmt}: {len(google.schema_names)} schemas (semantic)")
-    print("google formats: semantic validation mode")
+    google_generate = SpecLoader(str(SPECS_DIR / "google_generate.json"))
+    assert len(google_generate.schema_names) > 200, (
+        "bundled google_generate spec is stale"
+    )
+    assert VALIDATION_SPEC_FILES["google_generate"] == "google_generate.json"
+    google_response = {
+        "candidates": [
+            {
+                "content": {"parts": [{"text": "Hello"}], "role": "model"},
+                "finishReason": "STOP",
+                "index": 0,
+                "safetyRatings": [
+                    {
+                        "category": "HARM_CATEGORY_HARASSMENT",
+                        "probability": "NEGLIGIBLE",
+                    }
+                ],
+            }
+        ],
+        "usageMetadata": {
+            "promptTokenCount": 5,
+            "candidatesTokenCount": 2,
+            "totalTokenCount": 7,
+        },
+        "modelVersion": "gemini-2.5-flash",
+        "responseId": "resp_1",
+    }
+    assert google_generate.validate(google_response, "GenerateContentResponse") == []
+    assert google_generate.validate(
+        {"candidates": [{"finishReason": "NOT_A_REASON"}]}, "GenerateContentResponse"
+    ), "invalid finishReason should have errors"
+    print(f"google_generate: {len(google_generate.schema_names)} schemas (schema)")
+
+    # Every shipped success-path test must carry the response schema.
+    for tc in get_tests("google_generate"):
+        if tc.expected_statuses == [200] and not tc.streaming:
+            assert tc.schema_name == "GenerateContentResponse", tc.id
+        if tc.streaming:
+            assert tc.stream_schema_name == "GenerateContentResponse", tc.id
+            assert tc.validate_stream_events, tc.id
+
+    google_interactions = SpecLoader(str(SPECS_DIR / "google_interactions.json"))
+    assert len(google_interactions.schema_names) > 200, (
+        "bundled google_interactions spec is stale"
+    )
+    assert VALIDATION_SPEC_FILES["google_interactions"] is None, (
+        "google_interactions should stay semantic"
+    )
+    print(
+        f"google_interactions: {len(google_interactions.schema_names)} schemas (semantic)"
+    )
 
     assert canonical_spec({"b": 1, "a": 2}) == canonical_spec({"a": 2, "b": 1})
     assert canonical_spec({"info": {"x-google-revision": "1"}}) == canonical_spec(

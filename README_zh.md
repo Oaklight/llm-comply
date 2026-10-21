@@ -86,7 +86,7 @@ Messages 使用 `x-api-key`（并自动带 `anthropic-version`），Google 使�
 | `openai_responses` | `openai_responses.json` | 2.3.0 | 357 | Schema | 2026-10-21 |
 | `chat_completions` | `openai_chat.json` | 2.3.0 | 2094 | Schema | 2026-10-21 |
 | `messages` | `anthropic.json` | unknown（规范无版本号） | 2008 | Schema | 2026-10-21 |
-| `google_generate` | `google_generate.json` | v1beta | 252 | 语义 | 2026-10-21 |
+| `google_generate` | `google_generate.json` | v1beta | 252 | Schema | 2026-10-21 |
 | `google_interactions` | `google_interactions.json` | v1beta | 213 | 语义 | 2026-10-21 |
 
 ```bash
@@ -109,7 +109,9 @@ llm-comply update-spec --format messages         # Anthropic Messages
 `/responses` 路径及其传递依赖的 `$ref` 闭包。
 Google 规范来自官方
 OpenAPI discovery 文档（`google_generate`）和 Interactions API 文档
-（`google_interactions`）；两者仅用于版本跟踪，运行时验证仍为语义验证。
+（`google_interactions`）。`google_generate` 的响应会按
+`GenerateContentResponse` 做 Schema 校验；Interactions 规范仅用于版本跟踪，
+运行时验证仍为语义验证。
 每周一次的 `spec-update` workflow 会运行 `update-spec --all`，有变化时自动创建 PR。
 
 ## Web UI
@@ -165,7 +167,7 @@ services:
 | `openai_responses` | 11 | Schema + 语义（生命周期、流式事件、工具、推理） |
 | `chat_completions` | 11 | Schema + 语义（choices、finish_reason、delta、流式 chunk、developer 角色、结构化输出） |
 | `messages` | 9 | Schema + 语义（content blocks、stop_reason、思维链） |
-| `google_generate` | 9 | 仅语义（candidates、parts、finishReason、思维链） |
+| `google_generate` | 9 | Schema + 语义（candidates、parts、finishReason、safetyRatings、思维链） |
 | `google_interactions` | 9 | 仅语义（steps、model_output、思维链） |
 
 ## 许可证

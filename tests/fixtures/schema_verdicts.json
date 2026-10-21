@@ -259,7 +259,7 @@
     {
       "schema": "CreateChatCompletionStreamResponse",
       "valid": true,
-      "note": "Reasoning-content delta from vLLM-style providers.",
+      "note": "Undeclared reasoning_content extension tolerated by the open delta schema.",
       "instance": {
         "id": "chatcmpl-1",
         "object": "chat.completion.chunk",
@@ -278,7 +278,7 @@
     {
       "schema": "CreateChatCompletionStreamResponse",
       "valid": true,
-      "note": "Reasoning delta.",
+      "note": "Undeclared reasoning extension tolerated by the open delta schema.",
       "instance": {
         "id": "chatcmpl-1",
         "object": "chat.completion.chunk",
@@ -308,6 +308,50 @@
             "index": 0,
             "delta": {
               "function_call": {"name": "get_weather", "arguments": "{}"}
+            },
+            "finish_reason": null,
+            "logprobs": null
+          }
+        ]
+      }
+    },
+    {
+      "schema": "CreateChatCompletionStreamResponse",
+      "valid": true,
+      "note": "Role-first chunk.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "m",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {"role": "assistant"},
+            "finish_reason": null,
+            "logprobs": null
+          }
+        ]
+      }
+    },
+    {
+      "schema": "CreateChatCompletionStreamResponse",
+      "valid": true,
+      "note": "Audio delta with data and transcript.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "m",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "audio": {
+                "id": "audio_1",
+                "data": "AAAA",
+                "transcript": "hi"
+              }
             },
             "finish_reason": null,
             "logprobs": null

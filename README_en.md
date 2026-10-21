@@ -70,7 +70,7 @@ commit and release tag records exactly which upstream spec version it targets.
 
 | Format | Bundled spec | Version | Schemas | Validation | Refreshed |
 |--------|--------------|---------|--------:|------------|-----------|
-| `open_responses` | `openresponses.json` | 2026-04-24 | 108 | Schema | 2026-08-01 |
+| `open_responses` | `openresponses.json` | 2026-04-24 | 108 | Schema | 2026-10-21 |
 | `chat_completions` | `openai_chat.json` | 2.3.0 | 2094 | Schema | 2026-10-21 |
 | `messages` | `anthropic.json` | unknown (no public spec) | 928 | Schema | 2026-08-01 |
 | `google_generate` | — | — | 0 | Semantic | — |

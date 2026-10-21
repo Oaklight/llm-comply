@@ -150,7 +150,7 @@ services:
 |--------|:-----:|-----------------|
 | `open_responses` | 15 | Schema + semantic (lifecycle, phases, compaction, multi-turn tools, structured output, thinking) |
 | `openai_responses` | 11 | Schema + semantic (lifecycle, streaming events, tools, reasoning) |
-| `chat_completions` | 9 | Schema + semantic (choices, finish_reason, delta, stream chunks) |
+| `chat_completions` | 11 | Schema + semantic (choices, finish_reason, delta, stream chunks, developer role, structured output) |
 | `messages` | 9 | Schema + semantic (content blocks, stop_reason, thinking) |
 | `google_generate` | 9 | Semantic only (candidates, parts, finishReason, thinking) |
 | `google_interactions` | 9 | Semantic only (steps, model_output, thinking) |

@@ -329,7 +329,7 @@ def chat_finish_reason(expected: str) -> Validator:
 
 
 def chat_has_tool_calls(response: Any, ctx: ValidatorContext) -> list[str]:
-    """First choice message must have tool_calls array."""
+    """First choice message must have well-formed function tool calls."""
     if not isinstance(response, dict):
         return ["response is not a JSON object"]
     choices = response.get("choices", [])
@@ -338,7 +338,72 @@ def chat_has_tool_calls(response: Any, ctx: ValidatorContext) -> list[str]:
     tc = choices[0].get("message", {}).get("tool_calls")
     if not isinstance(tc, list) or len(tc) == 0:
         return ["choices[0].message.tool_calls is missing or empty"]
+    errors: list[str] = []
+    for index, call in enumerate(tc):
+        prefix = f"choices[0].message.tool_calls[{index}]"
+        if not isinstance(call, dict):
+            errors.append(f"{prefix} is not an object")
+            continue
+        if not isinstance(call.get("id"), str) or not call.get("id"):
+            errors.append(f"{prefix}.id is missing or not a string")
+        if call.get("type") != "function":
+            errors.append(
+                f"{prefix}.type: expected 'function', got '{call.get('type')}'"
+            )
+        function = call.get("function")
+        if not isinstance(function, dict):
+            errors.append(f"{prefix}.function is missing or not an object")
+            continue
+        if not isinstance(function.get("name"), str) or not function.get("name"):
+            errors.append(f"{prefix}.function.name is missing or not a string")
+        if not isinstance(function.get("arguments"), str):
+            errors.append(f"{prefix}.function.arguments is missing or not a string")
+    return errors
+
+
+def _chat_message_text(response: Any) -> str | None:
+    if not isinstance(response, dict):
+        return None
+    choices = response.get("choices", [])
+    if not choices or not isinstance(choices[0], dict):
+        return None
+    content = choices[0].get("message", {}).get("content")
+    return content if isinstance(content, str) else None
+
+
+def chat_message_is_json(response: Any, ctx: ValidatorContext) -> list[str]:
+    """First choice message content must parse as JSON."""
+    text = _chat_message_text(response)
+    if text is None:
+        return ["choices[0].message.content is missing or not a string"]
+    try:
+        json.loads(text)
+    except ValueError as exc:
+        return [f"message content is not valid JSON: {exc}"]
     return []
+
+
+def chat_message_matches_json_schema(schema: dict[str, Any]) -> Validator:
+    """Factory: parsed message content must validate against *schema*."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        text = _chat_message_text(response)
+        if text is None:
+            return ["choices[0].message.content is missing or not a string"]
+        try:
+            parsed = json.loads(text)
+        except ValueError as exc:
+            return [f"message content is not valid JSON: {exc}"]
+        try:
+            jsonschema.validate(parsed, schema)
+        except jsonschema.ValidationError as exc:
+            return [
+                f"message content does not match the requested schema: {exc.message}"
+            ]
+        return []
+
+    _check.__qualname__ = "chat_message_matches_json_schema"
+    return _check
 
 
 def chat_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
@@ -881,7 +946,7 @@ def responses_has_reasoning_summary(response: Any, ctx: ValidatorContext) -> lis
     return []
 
 
-def chat_has_reasoning_summary(response: Any, ctx: ValidatorContext) -> list[str]:
+def chat_has_reasoning_tokens(response: Any, ctx: ValidatorContext) -> list[str]:
     """Chat Completions: usage should report reasoning_tokens > 0 when reasoning is enabled."""
     if not isinstance(response, dict):
         return ["response is not a JSON object"]

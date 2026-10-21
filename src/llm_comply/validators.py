@@ -263,7 +263,7 @@ def chat_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
 
 
 def chat_streaming_has_delta(response: Any, ctx: ValidatorContext) -> list[str]:
-    """At least one streaming chunk must have a delta with content."""
+    """At least one streaming chunk must carry text or tool-call deltas."""
     if not ctx.sse_events:
         return ["no SSE events to check"]
     for event in ctx.sse_events:
@@ -273,9 +273,9 @@ def chat_streaming_has_delta(response: Any, ctx: ValidatorContext) -> list[str]:
         choices = data.get("choices", [])
         for c in choices:
             delta = c.get("delta", {})
-            if delta.get("content"):
+            if delta.get("content") or delta.get("tool_calls"):
                 return []
-    return ["no streaming chunk contained delta.content"]
+    return ["no streaming chunk contained delta.content or delta.tool_calls"]
 
 
 def chat_streaming_has_finish(response: Any, ctx: ValidatorContext) -> list[str]:

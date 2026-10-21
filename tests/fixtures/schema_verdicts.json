@@ -1,0 +1,351 @@
+{
+  "open_responses": [
+    {
+      "schema": "ResponseResource",
+      "valid": true,
+      "note": "A minimal completed response with every required field present.",
+      "instance": {
+        "id": "resp_1",
+        "object": "response",
+        "created_at": 1,
+        "completed_at": null,
+        "status": "completed",
+        "incomplete_details": null,
+        "model": "gpt-4",
+        "previous_response_id": null,
+        "instructions": null,
+        "output": [],
+        "error": null,
+        "tools": [],
+        "tool_choice": "auto",
+        "truncation": "disabled",
+        "parallel_tool_calls": true,
+        "text": {"format": {"type": "text"}},
+        "top_p": 1.0,
+        "presence_penalty": 0,
+        "frequency_penalty": 0,
+        "top_logprobs": 0,
+        "temperature": 1,
+        "reasoning": null,
+        "usage": null,
+        "max_output_tokens": null,
+        "max_tool_calls": null,
+        "store": true,
+        "background": false,
+        "service_tier": "default",
+        "metadata": {},
+        "safety_identifier": null,
+        "prompt_cache_key": null
+      }
+    },
+    {
+      "schema": "ResponseResource",
+      "valid": false,
+      "note": "Missing almost every required field.",
+      "instance": {"id": "resp_1", "object": "response"}
+    },
+    {
+      "schema": "CompactResource",
+      "valid": true,
+      "note": "Compaction resource with its usage block.",
+      "instance": {
+        "object": "response.compaction",
+        "id": "cmp_1",
+        "output": [],
+        "created_at": 1,
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 2,
+          "total_tokens": 3,
+          "input_tokens_details": {"cached_tokens": 0},
+          "output_tokens_details": {"reasoning_tokens": 0}
+        }
+      }
+    },
+    {
+      "schema": "OutputTextContent",
+      "valid": true,
+      "note": "Text content block with annotations.",
+      "instance": {"type": "output_text", "text": "hi", "annotations": []}
+    },
+    {
+      "schema": "FunctionCall",
+      "valid": true,
+      "note": "Completed function call item.",
+      "instance": {
+        "type": "function_call",
+        "id": "fc_1",
+        "call_id": "call_1",
+        "name": "f",
+        "arguments": "{}",
+        "status": "completed"
+      }
+    }
+  ],
+  "openai_responses": [
+    {
+      "schema": "Response",
+      "valid": true,
+      "note": "Minimal response satisfying the allOf required fields.",
+      "instance": {
+        "id": "resp_1",
+        "object": "response",
+        "created_at": 1,
+        "error": null,
+        "incomplete_details": null,
+        "instructions": null,
+        "metadata": {},
+        "model": "gpt-4",
+        "output": [],
+        "parallel_tool_calls": true,
+        "temperature": 1,
+        "tool_choice": "auto",
+        "tools": [],
+        "top_p": 1.0,
+        "access_programs": null
+      }
+    },
+    {
+      "schema": "Response",
+      "valid": false,
+      "note": "An id and object alone do not satisfy the allOf response shape.",
+      "instance": {"id": "resp_1", "object": "response"}
+    },
+    {
+      "schema": "ResponseStreamEvent",
+      "valid": false,
+      "note": "A bare event type is not a complete streaming event.",
+      "instance": {"type": "response.created"}
+    }
+  ],
+  "chat_completions": [
+    {
+      "schema": "CreateChatCompletionResponse",
+      "valid": true,
+      "note": "Minimal non-streaming response.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion",
+        "created": 1,
+        "model": "gpt-4",
+        "choices": []
+      }
+    },
+    {
+      "schema": "CreateChatCompletionResponse",
+      "valid": false,
+      "note": "choices must be an array.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion",
+        "created": 1,
+        "model": "gpt-4",
+        "choices": "nope"
+      }
+    },
+    {
+      "schema": "CreateChatCompletionStreamResponse",
+      "valid": true,
+      "note": "Content delta chunk.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "m",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {"content": "hi"},
+            "finish_reason": null,
+            "logprobs": null
+          }
+        ]
+      }
+    },
+    {
+      "schema": "CreateChatCompletionStreamResponse",
+      "valid": false,
+      "note": "Choice index must be an integer, not a string.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "m",
+        "choices": [
+          {
+            "index": "0",
+            "delta": {},
+            "finish_reason": null,
+            "logprobs": null
+          }
+        ]
+      }
+    }
+  ],
+  "messages": [
+    {
+      "schema": "Usage",
+      "valid": true,
+      "note": "Current usage shape, including nullable additions.",
+      "instance": {
+        "input_tokens": 1,
+        "output_tokens": 2,
+        "cache_creation": null,
+        "cache_creation_input_tokens": null,
+        "cache_read_input_tokens": null,
+        "inference_geo": null,
+        "output_tokens_details": null,
+        "server_tool_use": null,
+        "service_tier": null,
+        "speed": "standard"
+      }
+    },
+    {
+      "schema": "Usage",
+      "valid": false,
+      "note": "input_tokens must be an integer.",
+      "instance": {"input_tokens": "1", "output_tokens": 2}
+    },
+    {
+      "schema": "Message",
+      "valid": true,
+      "note": "Assistant message with the full nullable field set.",
+      "instance": {
+        "id": "msg_1",
+        "type": "message",
+        "role": "assistant",
+        "content": [],
+        "model": "claude",
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "stop_details": null,
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 2,
+          "cache_creation": null,
+          "cache_creation_input_tokens": null,
+          "cache_read_input_tokens": null,
+          "inference_geo": null,
+          "output_tokens_details": null,
+          "server_tool_use": null,
+          "service_tier": null,
+          "speed": "standard"
+        },
+        "diagnostics": null,
+        "container": null
+      }
+    },
+    {
+      "schema": "Message",
+      "valid": false,
+      "note": "A response message must use the assistant role.",
+      "instance": {
+        "id": "msg_1",
+        "type": "message",
+        "role": "system",
+        "content": [],
+        "model": "claude",
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "stop_details": null,
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 2,
+          "cache_creation": null,
+          "cache_creation_input_tokens": null,
+          "cache_read_input_tokens": null,
+          "inference_geo": null,
+          "output_tokens_details": null,
+          "server_tool_use": null,
+          "service_tier": null,
+          "speed": "standard"
+        },
+        "diagnostics": null,
+        "container": null
+      }
+    }
+  ],
+  "google_generate": [
+    {
+      "schema": "GenerateContentResponse",
+      "valid": true,
+      "note": "Text candidate with safety ratings and usage.",
+      "instance": {
+        "candidates": [
+          {
+            "content": {"parts": [{"text": "Hello"}], "role": "model"},
+            "finishReason": "STOP",
+            "index": 0,
+            "safetyRatings": [
+              {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "probability": "NEGLIGIBLE"
+              }
+            ]
+          }
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 5,
+          "candidatesTokenCount": 2,
+          "totalTokenCount": 7
+        },
+        "modelVersion": "gemini-2.5-flash",
+        "responseId": "resp_1"
+      }
+    },
+    {
+      "schema": "GenerateContentResponse",
+      "valid": false,
+      "note": "finishReason is a closed enum.",
+      "instance": {"candidates": [{"finishReason": "NOT_A_REASON"}]}
+    },
+    {
+      "schema": "Candidate",
+      "valid": true,
+      "note": "Streaming-style candidate without finishReason.",
+      "instance": {
+        "content": {"parts": [{"text": "Hel"}], "role": "model"},
+        "index": 0
+      }
+    }
+  ],
+  "google_interactions": [
+    {
+      "schema": "Interaction",
+      "valid": true,
+      "note": "Completed interaction with one model output step.",
+      "instance": {
+        "id": "int_1",
+        "object": "interaction",
+        "status": "completed",
+        "steps": [
+          {
+            "type": "model_output",
+            "content": [{"type": "text", "text": "hi"}]
+          }
+        ]
+      }
+    },
+    {
+      "schema": "Interaction",
+      "valid": false,
+      "note": "steps must be an array.",
+      "instance": {
+        "id": "int_1",
+        "object": "interaction",
+        "status": "completed",
+        "steps": {"type": "model_output"}
+      }
+    },
+    {
+      "schema": "Usage",
+      "valid": true,
+      "note": "Current usage shape.",
+      "instance": {
+        "total_input_tokens": 1,
+        "total_output_tokens": 2,
+        "total_tokens": 3
+      }
+    }
+  ]
+}

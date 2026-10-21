@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Checked-in schema verdict fixtures (`tests/fixtures/schema_verdicts.json`), run by `make verify`. Every bundled spec carries valid and invalid representative payloads, so a spec refresh that flips a validation verdict fails CI instead of relying on ad-hoc reviewer differentials.
 - Spec-target manifest (`src/llm_comply/specs/manifest.json`) recording each bundled spec's version, schema count, SHA-256, upstream source, validation mode, and refresh date. It is committed, so every master commit and release tag records which upstream spec versions it targets.
 - `llm-comply specs` command with `--json` and `--check` (CI drift detection).
 - `GET /api/specs` endpoint; the web UI footer shows the active spec targets.

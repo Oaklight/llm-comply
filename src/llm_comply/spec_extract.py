@@ -20,6 +20,53 @@ def _refs_in(node: Any) -> list[str]:
     return refs
 
 
+def _dicts_in(node: Any) -> list[dict[str, Any]]:
+    """Collect every dict in a JSON value, including nested ``allOf`` members."""
+    found: list[dict[str, Any]] = []
+    if isinstance(node, dict):
+        found.append(node)
+        for value in node.values():
+            found.extend(_dicts_in(value))
+    elif isinstance(node, list):
+        for item in node:
+            found.extend(_dicts_in(item))
+    return found
+
+
+# Fields the OpenAI OpenAPI document marks required but the production
+# Responses API omits unless the account has the feature enabled. Keeping them
+# required would reject valid production responses after every refresh.
+PRODUCTION_OPTIONAL_FIELDS: dict[str, frozenset[str]] = {
+    "Response": frozenset({"access_programs"}),
+}
+
+
+def relax_production_required(spec: dict[str, Any]) -> dict[str, Any]:
+    """Drop known production-omitted fields from ``required`` arrays.
+
+    Args:
+        spec: An OpenAPI document (modified in place).
+
+    Returns:
+        The same document, for call chaining.
+    """
+    schemas = spec.get("components", {}).get("schemas", {})
+    for name, fields in PRODUCTION_OPTIONAL_FIELDS.items():
+        schema = schemas.get(name)
+        if not isinstance(schema, dict):
+            continue
+        for node in _dicts_in(schema):
+            required = node.get("required")
+            if not isinstance(required, list):
+                continue
+            remaining = [item for item in required if item not in fields]
+            if remaining:
+                node["required"] = remaining
+            else:
+                node.pop("required")
+    return spec
+
+
 def extract_openai_responses(spec: dict[str, Any]) -> dict[str, Any]:
     """Return the OpenAI Responses API subset of the full OpenAI spec.
 
@@ -85,4 +132,4 @@ def extract_openai_responses(spec: dict[str, Any]) -> dict[str, Any]:
             section: items for section, items in kept.items() if items
         }
     subset["info"]["x-llm-comply-subset"] = "OpenAI Responses API"
-    return subset
+    return relax_production_required(subset)

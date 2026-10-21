@@ -18,8 +18,10 @@ from llm_comply._vendor.httpserver import (
 )
 from llm_comply.config import ComplianceConfig
 from llm_comply.formats import (
+    DEFAULT_AUTH,
     DEFAULT_FORMAT,
     EXTRA_HEADERS,
+    FORMAT_AUTH_DEFAULTS,
     FORMATS,
     VALIDATION_SPEC_FILES,
     normalize_format,
@@ -88,8 +90,11 @@ def _parse_run_body(request):
     base_url = body.get("base_url", "").rstrip("/")
     api_key = body.get("api_key", "")
     model = body.get("model", "gpt-4o-mini")
-    auth_header = body.get("auth_header", "Authorization")
-    use_bearer = body.get("use_bearer", True)
+    default_auth_header, default_bearer = FORMAT_AUTH_DEFAULTS.get(fmt, DEFAULT_AUTH)
+    auth_header = body.get("auth_header") or default_auth_header
+    use_bearer = body.get("use_bearer")
+    if use_bearer is None:
+        use_bearer = default_bearer
     ignore_str = body.get("ignore", "")
 
     if not base_url or not api_key:

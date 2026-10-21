@@ -97,6 +97,15 @@ REFRESHABLE_CHOICES = REFRESHABLE_FORMATS + tuple(
     alias for alias, canonical in FORMAT_ALIASES.items() if canonical in SPEC_SOURCES
 )
 
+# Auth defaults per format: (header name, prepend "Bearer " to the key).
+# Formats not listed use DEFAULT_AUTH.
+DEFAULT_AUTH: tuple[str, bool] = ("Authorization", True)
+FORMAT_AUTH_DEFAULTS: dict[str, tuple[str, bool]] = {
+    "messages": ("x-api-key", False),
+    "google_generate": ("x-goog-api-key", False),
+    "google_interactions": ("x-goog-api-key", False),
+}
+
 # Extra headers each format needs by default.
 EXTRA_HEADERS: dict[str, dict[str, str]] = {
     "messages": {"anthropic-version": "2023-06-01"},

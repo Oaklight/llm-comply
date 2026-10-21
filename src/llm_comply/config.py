@@ -6,6 +6,14 @@ import argparse
 import dataclasses
 import os
 
+from .formats import (
+    DEFAULT_AUTH,
+    DEFAULT_FORMAT,
+    EXTRA_HEADERS,
+    FORMAT_AUTH_DEFAULTS,
+    normalize_format,
+)
+
 
 @dataclasses.dataclass(frozen=True)
 class ComplianceConfig:
@@ -41,22 +49,29 @@ class ComplianceConfig:
         if raw_ignore:
             ignore_errors = [s.strip() for s in raw_ignore.split(",") if s.strip()]
 
-        extra_headers: dict[str, str] | None = None
+        fmt = normalize_format(getattr(args, "api_format", DEFAULT_FORMAT))
+        extra_headers = dict(EXTRA_HEADERS.get(fmt, {}))
         raw_headers: str | None = getattr(args, "header", None)
         if raw_headers:
-            extra_headers = {}
             for h in raw_headers.split(","):
                 if ":" in h:
                     k, v = h.split(":", 1)
                     extra_headers[k.strip()] = v.strip()
+
+        default_auth_header, default_bearer = FORMAT_AUTH_DEFAULTS.get(
+            fmt, DEFAULT_AUTH
+        )
+        auth_header = getattr(args, "auth_header", None) or default_auth_header
+        no_bearer = getattr(args, "no_bearer", None)
+        use_bearer_prefix = default_bearer if no_bearer is None else not no_bearer
 
         base_url: str = args.base_url
         return cls(
             base_url=base_url.rstrip("/"),
             api_key=api_key,
             model=getattr(args, "model", "gpt-4o-mini"),
-            auth_header=getattr(args, "auth_header", "Authorization"),
-            use_bearer_prefix=not getattr(args, "no_bearer", False),
+            auth_header=auth_header,
+            use_bearer_prefix=use_bearer_prefix,
             filter_ids=filter_ids,
             verbose=getattr(args, "verbose", False),
             json_output=getattr(args, "json", False),
@@ -64,7 +79,7 @@ class ComplianceConfig:
             delay=getattr(args, "delay", 0.0),
             spec_path=getattr(args, "spec", None),
             ignore_errors=ignore_errors,
-            extra_headers=extra_headers,
+            extra_headers=extra_headers or None,
         )
 
     @property

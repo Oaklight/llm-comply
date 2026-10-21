@@ -32,17 +32,21 @@ llm-comply --format chat_completions -u https://api.openai.com/v1 -k $OPENAI_API
 llm-comply --format openai_responses -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o-mini
 
 # Anthropic Messages
-llm-comply --format messages -u https://api.anthropic.com/v1 -k $KEY -m claude-haiku-4-5 \
-  --auth-header x-api-key --no-bearer -H anthropic-version:2023-06-01
+llm-comply --format messages -u https://api.anthropic.com/v1 -k $KEY -m claude-haiku-4-5
 
 # Google GenAI — generateContent
 llm-comply --format google_generate -u https://generativelanguage.googleapis.com -k $KEY \
-  -m gemini-2.5-flash --auth-header x-goog-api-key --no-bearer
+  -m gemini-2.5-flash
 
 # Google GenAI — Interactions
 llm-comply --format google_interactions -u https://generativelanguage.googleapis.com -k $KEY \
-  -m gemini-2.5-flash --auth-header x-goog-api-key --no-bearer
+  -m gemini-2.5-flash
 ```
+
+认证请求头与默认值会按格式自动选择：OpenAI 系格式使用 `Authorization` + `Bearer`，
+Messages 使用 `x-api-key`（并自动带 `anthropic-version`），Google 使用
+`x-goog-api-key`。`--auth-header` 与 `--no-bearer` 可覆盖默认值，`-H name:value`
+可覆盖或追加请求头。
 
 ## 选项
 
@@ -59,8 +63,9 @@ llm-comply --format google_interactions -u https://generativelanguage.googleapis
 -f, --filter IDS       要运行的测试 ID，逗号分隔
 -i, --ignore PATTERNS  忽略匹配子串的错误（如 refusal,verbosity）
 -H, --header K:V       额外请求头（如 anthropic-version:2023-06-01）
---auth-header NAME     认证请求头名称（默认：Authorization）
---no-bearer            不在 API 密钥前添加 "Bearer " 前缀
+--auth-header NAME     认证请求头名称（默认：按格式选择 Authorization、x-api-key
+                       或 x-goog-api-key）
+--no-bearer            不在 API 密钥前添加 "Bearer " 前缀（默认：按格式决定）
 -v, --verbose          失败时显示请求/响应详情
 --json                 JSON 输出（适用于 CI）
 --list                 列出所有可用的测试 ID

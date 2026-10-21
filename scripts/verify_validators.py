@@ -99,6 +99,7 @@ def main() -> int:
         ("id", {**call_ok, "id": ""}),
         ("type", {**call_ok, "type": "custom"}),
         ("name", {**call_ok, "function": {"name": "", "arguments": "{}"}}),
+        ("arguments", {**call_ok, "function": {"name": "f", "arguments": 5}}),
         ("function", {**call_ok, "function": None}),
         ("object", "not-an-object"),
     ):

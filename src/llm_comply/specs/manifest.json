@@ -8,11 +8,11 @@
       "openapi_version": "3.1.0",
       "schema_count": 108,
       "path_count": 2,
-      "size_bytes": 138849,
-      "sha256": "693f26090d206230ed22b336681f547a2882cf5b131e86743966cf71bbdeedab",
+      "size_bytes": 132236,
+      "sha256": "1f469fc044bc3c0ee9bb8210b76435ce2386ed792c16863f8dc9bd6070b87f6a",
       "source_type": "upstream",
       "source_url": "https://raw.githubusercontent.com/openresponses/openresponses/main/public/openapi/openapi.json",
-      "refreshed_at": "2026-08-01"
+      "refreshed_at": "2026-10-21"
     },
     "chat_completions": {
       "bundled_file": "openai_chat.json",

@@ -70,7 +70,7 @@ llm-comply --format google_interactions -u https://generativelanguage.googleapis
 
 | 格式 | 内置规范 | 版本 | Schema 数 | 验证方式 | 刷新日期 |
 |------|----------|------|----------:|----------|----------|
-| `open_responses` | `openresponses.json` | 2026-04-24 | 108 | Schema | 2026-08-01 |
+| `open_responses` | `openresponses.json` | 2026-04-24 | 108 | Schema | 2026-10-21 |
 | `chat_completions` | `openai_chat.json` | 2.3.0 | 2094 | Schema | 2026-10-21 |
 | `messages` | `anthropic.json` | unknown（无公开规范） | 928 | Schema | 2026-08-01 |
 | `google_generate` | — | — | 0 | 语义 | — |

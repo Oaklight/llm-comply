@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import sys
+from typing import Any
 
 from llm_comply.test_case import ValidatorContext
 from llm_comply.tests import get_tests
@@ -28,6 +29,7 @@ from llm_comply.validators import (
     has_usage,
     responses_output_is_json,
     responses_output_matches_json_schema,
+    responses_streaming_output_text,
 )
 
 
@@ -520,6 +522,42 @@ def main() -> int:
     ]
     assert "anth_streaming_content_block_bracketing" in names, "anth-streaming-response"
     print("anthropic streaming: content blocks are correctly bracketed")
+
+    def _delta_event(delta: Any) -> dict:
+        return {"type": "response.output_text.delta", "data": {"delta": delta}}
+
+    text_ctx = ValidatorContext(
+        streaming=True,
+        sse_events=[_delta_event("Count "), _delta_event("to five")],
+    )
+    assert responses_streaming_output_text(None, text_ctx) == []
+    assert responses_streaming_output_text(
+        None,
+        ValidatorContext(
+            streaming=True,
+            sse_events=[_delta_event("  "), _delta_event("")],
+        ),
+    ) == ["response.output_text.delta events carried no text"]
+    assert responses_streaming_output_text(
+        None, ValidatorContext(streaming=True, sse_events=[])
+    ) == ["no SSE events to check"]
+    assert responses_streaming_output_text(
+        None,
+        ValidatorContext(streaming=True, sse_events=[{"type": "response.created"}]),
+    ) == ["no response.output_text.delta events found"]
+    assert any(
+        "is not a string" in error
+        for error in responses_streaming_output_text(
+            None,
+            ValidatorContext(streaming=True, sse_events=[_delta_event(5)]),
+        )
+    )
+    open_tests = {tc.id: tc for tc in get_tests("open_responses")}
+    names = [
+        getattr(v, "__name__", "") for v in open_tests["streaming-response"].validators
+    ]
+    assert "responses_streaming_output_text" in names, "streaming-response"
+    print("open responses streaming: output text deltas are non-empty")
     return 0
 
 

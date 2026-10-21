@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Open Responses streaming now requires at least one `response.output_text.delta` event carrying non-empty text. Missing, non-string, or whitespace-only deltas fail with an explicit error instead of passing on lifecycle alone.
 - `openai_responses` no longer rejects production payloads for omitting `access_programs`. The field stays in the spec but is dropped from `Response.required` during extraction, so a refresh cannot reintroduce the false positive (#36).
 - Anthropic streaming now checks that every `content_block_start` has a matching `content_block_stop` with the same index, so truncated or mis-bracketed streams fail instead of passing the lifecycle check.
 - Google validators now report malformed `candidates` / `content.parts` containers and non-object `usageMetadata` instead of raising `AttributeError`. Because the runner shares one `try` across validators, the crash previously masked every later finding for the same response.

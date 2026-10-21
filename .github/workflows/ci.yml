@@ -45,7 +45,11 @@ jobs:
           llm-comply --format chat_completions --list
           llm-comply --format messages --list
           llm-comply --format google_generate --list
+          llm-comply --format open-responses --list  # legacy alias
           llm-comply --format openai-chat --list  # legacy alias
+          llm-comply --format anthropic --list  # legacy alias
+          llm-comply --format google-genai --list  # legacy alias
+          llm-comply --format google-interactions --list  # legacy alias
       - name: Spec manifest check
         run: llm-comply specs --check
       - name: Schema validation unit test

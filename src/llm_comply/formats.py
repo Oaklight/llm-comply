@@ -22,6 +22,8 @@ FORMAT_ALIASES: dict[str, str] = {
     "openai-chat": "chat_completions",
     "anthropic": "messages",
     "google-genai": "google_generate",
+    # v0.5.0 canonical spelling, retained for compatibility.
+    "google-interactions": "google_interactions",
 }
 
 # Bundled spec file per format. None means no spec is bundled.
@@ -58,6 +60,12 @@ SPEC_SOURCES: dict[str, tuple[str, str]] = {
         "openai_chat.json",
     ),
 }
+
+# update-spec choices: refreshable formats plus legacy spellings mapping to them.
+REFRESHABLE_FORMATS = tuple(SPEC_SOURCES)
+REFRESHABLE_CHOICES = REFRESHABLE_FORMATS + tuple(
+    alias for alias, canonical in FORMAT_ALIASES.items() if canonical in SPEC_SOURCES
+)
 
 # Extra headers each format needs by default.
 EXTRA_HEADERS: dict[str, dict[str, str]] = {

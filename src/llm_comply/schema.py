@@ -188,6 +188,26 @@ class SpecLoader:
         return entry
 
     @classmethod
+    def _semantic_entry(cls, fmt: str) -> dict[str, Any]:
+        """Build the manifest entry for a format with no bundled spec."""
+        entry: dict[str, Any] = {
+            "bundled_file": None,
+            "validation": "semantic",
+            "spec_version": None,
+            "openapi_version": None,
+            "schema_count": 0,
+            "path_count": 0,
+            "size_bytes": 0,
+            "sha256": None,
+            "source_type": "none",
+            "source_url": None,
+        }
+        note = _MANUAL_SOURCES.get(fmt)
+        if note:
+            entry["note"] = note
+        return entry
+
+    @classmethod
     def load_manifest(cls) -> dict[str, Any]:
         """Load the committed spec manifest, or an empty one if absent."""
         if not _MANIFEST_PATH.exists():
@@ -207,19 +227,7 @@ class SpecLoader:
         formats: dict[str, Any] = {}
         for fmt, filename in SPEC_FILES.items():
             if filename is None:
-                formats[fmt] = {
-                    "bundled_file": None,
-                    "validation": "semantic",
-                    "spec_version": None,
-                    "openapi_version": None,
-                    "schema_count": 0,
-                    "path_count": 0,
-                    "size_bytes": 0,
-                    "sha256": None,
-                    "source_type": "none",
-                    "source_url": None,
-                    "note": _MANUAL_SOURCES[fmt],
-                }
+                formats[fmt] = cls._semantic_entry(fmt)
                 continue
             entry = cls._entry_from_file(fmt, _SPECS_DIR / filename)
             prev = previous.get(fmt)
@@ -247,25 +255,31 @@ class SpecLoader:
                 f"expected {_MANIFEST_SCHEMA_VERSION}"
             ]
         recorded = manifest.get("formats", {})
-        problems: list[str] = []
+        problems: list[str] = [
+            f"{fmt}: not a known format" for fmt in recorded if fmt not in SPEC_FILES
+        ]
         for fmt, filename in SPEC_FILES.items():
             entry = recorded.get(fmt)
             if entry is None:
                 problems.append(f"{fmt}: missing from manifest")
                 continue
             if filename is None:
-                continue
-            path = _SPECS_DIR / filename
-            if not path.exists():
-                problems.append(f"{fmt}: bundled file {filename} is missing")
-                continue
-            actual = cls._entry_from_file(fmt, path)
-            for key in ("sha256", "spec_version", "schema_count", "path_count"):
-                if entry.get(key) != actual.get(key):
+                expected = cls._semantic_entry(fmt)
+            else:
+                path = _SPECS_DIR / filename
+                if not path.exists():
+                    problems.append(f"{fmt}: bundled file {filename} is missing")
+                    continue
+                expected = cls._entry_from_file(fmt, path)
+            for key in sorted(expected):
+                if entry.get(key) != expected[key]:
                     problems.append(
                         f"{fmt}: {key} is {entry.get(key)!r}, "
-                        f"bundled spec has {actual.get(key)!r}"
+                        f"expected {expected[key]!r}"
                     )
+            extra = sorted(set(entry) - set(expected) - {"refreshed_at"})
+            if extra:
+                problems.append(f"{fmt}: unexpected manifest fields {extra}")
         return problems
 
     @classmethod

@@ -10,6 +10,8 @@ from llm_comply.formats import (
     DEFAULT_FORMAT,
     FORMAT_ALIASES,
     FORMATS,
+    REFRESHABLE_CHOICES,
+    REFRESHABLE_FORMATS,
     VALIDATION_SPEC_FILES,
     normalize_format,
 )
@@ -43,11 +45,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     update_parser.add_argument(
         "--format",
-        choices=_FORMAT_CHOICES,
+        choices=REFRESHABLE_CHOICES,
         default=DEFAULT_FORMAT,
         dest="api_format",
         metavar="FORMAT",
-        help=(f"API format whose bundled spec to refresh (default: {DEFAULT_FORMAT})"),
+        help=(
+            "API format whose bundled spec to refresh: "
+            f"{', '.join(REFRESHABLE_FORMATS)} (default: {DEFAULT_FORMAT})"
+        ),
     )
 
     # -- specs --

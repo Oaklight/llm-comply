@@ -50,7 +50,7 @@ llm-comply --format google_interactions -u https://generativelanguage.googleapis
 --format FORMAT        API format: open_responses, chat_completions, messages,
                        google_generate, google_interactions
                        (legacy aliases: open-responses, openai-chat, anthropic,
-                       google-genai)
+                       google-genai, google-interactions)
 -f, --filter IDS       Comma-separated test IDs to run
 -i, --ignore PATTERNS  Ignore errors matching substrings (e.g. refusal,verbosity)
 -H, --header K:V       Extra headers (e.g. anthropic-version:2023-06-01)

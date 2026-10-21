@@ -50,7 +50,7 @@ llm-comply --format google_interactions -u https://generativelanguage.googleapis
 --format FORMAT        API 格式：open_responses、chat_completions、messages、
                        google_generate、google_interactions
                        （兼容旧名称：open-responses、openai-chat、anthropic、
-                       google-genai）
+                       google-genai、google-interactions）
 -f, --filter IDS       要运行的测试 ID，逗号分隔
 -i, --ignore PATTERNS  忽略匹配子串的错误（如 refusal,verbosity）
 -H, --header K:V       额外请求头（如 anthropic-version:2023-06-01）

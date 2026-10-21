@@ -118,7 +118,7 @@ def main() -> int:
 
     # Every shipped success-path test must carry the response schema.
     for tc in get_tests("google_generate"):
-        if tc.expected_statuses == [200] and not tc.streaming:
+        if 200 in tc.expected_statuses and not tc.streaming:
             assert tc.schema_name == "GenerateContentResponse", tc.id
         if tc.streaming:
             assert tc.stream_schema_name == "GenerateContentResponse", tc.id

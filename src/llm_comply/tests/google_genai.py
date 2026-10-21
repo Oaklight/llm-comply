@@ -123,7 +123,7 @@ def _make_test(
             stream_schema_name = _GOOGLE_RESPONSE_SCHEMA
     else:
         ep_fn = _ep
-        if schema_name is None and not expected_statuses:
+        if schema_name is None and (not expected_statuses or 200 in expected_statuses):
             schema_name = _GOOGLE_RESPONSE_SCHEMA
 
     original_build = build_request

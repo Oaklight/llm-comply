@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Spec-target manifest (`src/llm_comply/specs/manifest.json`) recording each bundled spec's version, schema count, SHA-256, upstream source, validation mode, and refresh date. It is committed, so every master commit and release tag records which upstream spec versions it targets.
 - `llm-comply specs` command with `--json` and `--check` (CI drift detection).
 - `GET /api/specs` endpoint; the web UI footer shows the active spec targets.
-- `llm-comply update-spec --all` and a weekly `spec-update` workflow that refreshes every upstream-backed format and opens a PR when bundled specs change.
+- `llm-comply update-spec --all` and a weekly `spec-update` workflow that refreshes every upstream-backed format and opens a PR when bundled specs change; the workflow shares CI's new `make verify` gate and proposes successful refreshes even if one upstream fails.
 
 ### Changed
 

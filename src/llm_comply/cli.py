@@ -176,6 +176,16 @@ def _add_run_args(parser: argparse.ArgumentParser) -> None:
         default="127.0.0.1",
         help="Host for web UI server (default: 127.0.0.1)",
     )
+    parser.add_argument(
+        "--tls-cert",
+        metavar="PATH",
+        help="PEM certificate chain for the web UI (enables HTTPS)",
+    )
+    parser.add_argument(
+        "--tls-key",
+        metavar="PATH",
+        help="PEM private key for the web UI (required with --tls-cert)",
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -201,11 +211,21 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _cmd_web(args: argparse.Namespace) -> int:
-    from .web import app
+    from .web import serve
 
-    print(f"llm-comply web UI v{__version__}")
-    print(f"Open http://{args.host}:{args.port} in your browser")
-    app.run(host=args.host, port=args.port)
+    try:
+        serve(
+            host=args.host,
+            port=args.port,
+            tls_cert=args.tls_cert,
+            tls_key=args.tls_key,
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except OSError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     return 0
 
 

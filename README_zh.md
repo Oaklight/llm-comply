@@ -112,6 +112,22 @@ OpenAPI discovery 文档（`google_generate`）和 Interactions API 文档
 （`google_interactions`）；两者仅用于版本跟踪，运行时验证仍为语义验证。
 每周一次的 `spec-update` workflow 会运行 `update-spec --all`，有变化时自动创建 PR。
 
+## Web UI
+
+```bash
+llm-comply --web                                      # http://127.0.0.1:8090
+llm-comply --web --host 0.0.0.0 \
+  --tls-cert /path/cert.pem --tls-key /path/key.pem   # https://0.0.0.0:8090
+```
+
+Web UI 会在浏览器中接收 API key；只要服务不止本机可访问，就应通过 TLS 提供。
+`--tls-cert` 与 `--tls-key` 必须同时提供，最低 TLS 版本为 1.2。
+
+`GET /health` 返回版本号与累计计数（`runs_started`、`runs_completed`、
+`runs_aborted`、`requests_completed`、`streaming_disconnects`）。关闭浏览器
+标签页后，当前测试结束后不会再启动下一项；已在途的请求仍会完成，因为它
+已经发出。
+
 ## Docker
 
 ```bash

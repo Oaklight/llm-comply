@@ -1,4 +1,4 @@
-.PHONY: all lint lint-fix verify test build push clean build-docker push-docker deploy-dev build-binary build-binary-musl build-docker-alpine build-docker-glibc clean-binary clean-binary-all help
+.PHONY: all lint lint-fix verify test test-unit build push clean build-docker push-docker deploy-dev build-binary build-binary-musl build-docker-alpine build-docker-glibc clean-binary clean-binary-all help
 
 DOCKER_IMAGE ?= oaklight/llm-comply
 VERSION := $(shell python -c 'import re; print(re.search(r"__version__ = \"([^\"]+)\"", open("src/llm_comply/__init__.py").read()).group(1))')
@@ -22,12 +22,12 @@ all: lint verify test
 # ── Development ───────────────────────────────────────────────
 
 lint:
-	ruff check src/ scripts/
-	ruff format --check src/ scripts/
+	ruff check src/ tests/ scripts/
+	ruff format --check src/ tests/ scripts/
 
 lint-fix:
-	ruff check --fix src/ scripts/
-	ruff format src/ scripts/
+	ruff check --fix src/ tests/ scripts/
+	ruff format src/ tests/ scripts/
 
 verify:
 	python scripts/verify_specs.py
@@ -42,6 +42,9 @@ test:
 	llm-comply --format messages --list
 	llm-comply --format google_generate --list
 	llm-comply specs --check
+
+test-unit:
+	python -m pytest -q tests
 
 # ── Package ───────────────────────────────────────────────────
 
@@ -228,6 +231,7 @@ help:
 	@echo "  lint-fix       - Auto-fix lint and formatting issues"
 	@echo "  verify         - Verify bundled specs and schema behavior"
 	@echo "  test           - Smoke test (list all formats)"
+	@echo "  test-unit      - Run the pytest suite"
 	@echo ""
 	@echo "Package:"
 	@echo "  build          - Build wheel and sdist"

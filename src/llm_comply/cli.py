@@ -192,6 +192,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
+    tls_values = (
+        getattr(args, "tls_cert", None),
+        getattr(args, "tls_key", None),
+    )
+    if not getattr(args, "web", False) and any(v is not None for v in tls_values):
+        parser.error("--tls-cert and --tls-key require --web")
+
     if getattr(args, "web", False):
         return _cmd_web(args)
 

@@ -464,6 +464,7 @@ async function runTests() {
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let streamError = null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -498,6 +499,11 @@ async function runTests() {
           }
           updateProgress(passed + failed + skipped, testData.length, failed > 0);
           updateSummary(passed, failed, skipped, warned, testData.length, true);
+        } else if (ev.type === 'error') {
+          const d = JSON.parse(ev.data);
+          streamError = d.error || 'stream failed';
+          $('summary').className = 'summary fail';
+          $('summary').textContent = 'Error: ' + streamError;
         }
       }
     }
@@ -510,7 +516,12 @@ async function runTests() {
 
   const wasCancelled = abortCtrl && abortCtrl.signal.aborted;
   abortCtrl = null;
-  updateSummary(passed, failed, skipped, warned, testData.length, false, wasCancelled);
+  if (streamError) {
+    $('summary').className = 'summary fail';
+    $('summary').textContent = 'Error: ' + streamError;
+  } else {
+    updateSummary(passed, failed, skipped, warned, testData.length, false, wasCancelled);
+  }
   btn.textContent = 'Run Tests';
   btn.classList.remove('stopping');
   if (!wasCancelled) { clearTimeout(hideTimer); hideTimer = setTimeout(hideProgress, 2000); }

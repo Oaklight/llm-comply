@@ -124,9 +124,10 @@ Web UI 会在浏览器中接收 API key；只要服务不止本机可访问，�
 `--tls-cert` 与 `--tls-key` 必须同时提供，最低 TLS 版本为 1.2。
 
 `GET /health` 返回版本号与累计计数（`runs_started`、`runs_completed`、
-`runs_aborted`、`requests_completed`、`streaming_disconnects`）。关闭浏览器
-标签页后，当前测试结束后不会再启动下一项；已在途的请求仍会完成，因为它
-已经发出。
+`runs_aborted`、`runs_failed`、`requests_completed`、`client_disconnects`），
+使 `runs_started` 与各终态计数保持一致。流中抛错时会发送最后一帧
+`event: error` 并递增 `runs_failed`。关闭浏览器标签页后，当前测试结束后不会
+再启动下一项；已在途的请求仍会完成，因为它已经发出。
 
 ## Docker
 

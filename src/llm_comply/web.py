@@ -59,8 +59,9 @@ class _RunMetrics:
     runs_started: int = 0
     runs_completed: int = 0
     runs_aborted: int = 0
+    runs_failed: int = 0
     requests_completed: int = 0
-    streaming_disconnects: int = 0
+    client_disconnects: int = 0
 
     def to_dict(self) -> dict[str, int]:
         return dataclasses.asdict(self)
@@ -246,7 +247,7 @@ async def record_response_completed(request, response):
 
 @app.on_client_disconnect
 async def record_client_disconnect(request):
-    _metrics.streaming_disconnects += 1
+    _metrics.client_disconnects += 1
     if getattr(request.state, "stream_run", False):
         _metrics.runs_aborted += 1
 
@@ -382,48 +383,58 @@ async def run_tests_stream(request):
     """Stream test results as SSE events."""
     _body, fmt, tests, runner = _parse_run_body(request)
 
+    # Count the run and mark it for disconnect attribution before the response
+    # starts, so runs_started reconciles with the terminal counters even if the
+    # client leaves before the generator produces its first chunk.
+    _metrics.runs_started += 1
+    request.state.stream_run = True
+
     async def generate():
-        _metrics.runs_started += 1
-        request.state.stream_run = True
         passed = failed = skipped = warned = 0
-        for i, tc in enumerate(tests):
-            start_data = json.dumps({"id": tc.id, "name": tc.name, "index": i})
-            yield f"event: test_start\ndata: {start_data}\n\n"
+        try:
+            for i, tc in enumerate(tests):
+                start_data = json.dumps({"id": tc.id, "name": tc.name, "index": i})
+                yield f"event: test_start\ndata: {start_data}\n\n"
 
-            task = asyncio.create_task(asyncio.to_thread(runner.run_one, tc))
-            try:
-                async for ping in _heartbeat_until_done(
-                    task, _STREAM_HEARTBEAT_SECONDS
-                ):
-                    yield ping
-                result = task.result()
-            finally:
-                if not task.done():
-                    # Cancelling the task cannot interrupt the worker thread,
-                    # but it lets the stream close without waiting for it.
-                    task.cancel()
+                task = asyncio.create_task(asyncio.to_thread(runner.run_one, tc))
+                try:
+                    async for ping in _heartbeat_until_done(
+                        task, _STREAM_HEARTBEAT_SECONDS
+                    ):
+                        yield ping
+                    result = task.result()
+                finally:
+                    if not task.done():
+                        # Cancelling the task cannot interrupt the worker
+                        # thread, but it lets the stream close without waiting.
+                        task.cancel()
 
-            result_dict = _result_to_dict(result, tc)
+                result_dict = _result_to_dict(result, tc)
 
-            if result.status == TestStatus.PASSED:
-                passed += 1
-                if result.warnings:
-                    warned += 1
-            elif result.status == TestStatus.SKIPPED:
-                skipped += 1
-            else:
-                failed += 1
+                if result.status == TestStatus.PASSED:
+                    passed += 1
+                    if result.warnings:
+                        warned += 1
+                elif result.status == TestStatus.SKIPPED:
+                    skipped += 1
+                else:
+                    failed += 1
 
-            yield f"event: test_result\ndata: {json.dumps(result_dict)}\n\n"
+                yield f"event: test_result\ndata: {json.dumps(result_dict)}\n\n"
 
-        summary = {
-            "total": len(tests),
-            "passed": passed,
-            "failed": failed,
-            "skipped": skipped,
-            "warned": warned,
-        }
-        yield f"event: suite_complete\ndata: {json.dumps(summary)}\n\n"
+            summary = {
+                "total": len(tests),
+                "passed": passed,
+                "failed": failed,
+                "skipped": skipped,
+                "warned": warned,
+            }
+            yield f"event: suite_complete\ndata: {json.dumps(summary)}\n\n"
+        except Exception as exc:
+            _metrics.runs_failed += 1
+            error = json.dumps({"error": str(exc)}, ensure_ascii=False)
+            yield f"event: error\ndata: {error}\n\n"
+            raise
 
     return StreamingResponse(
         generate(),
@@ -471,8 +482,8 @@ def serve(
         OSError: If the certificate or key cannot be loaded, or the address
             cannot be bound. ``ssl.SSLError`` is an ``OSError`` subclass.
     """
-    if bool(tls_cert) != bool(tls_key):
-        raise ValueError("tls_cert and tls_key must be provided together")
+    if (tls_cert is None) != (tls_key is None):
+        raise ValueError("--tls-cert and --tls-key must be provided together")
 
     context = None
     if tls_cert is not None and tls_key is not None:
@@ -481,7 +492,7 @@ def serve(
     from llm_comply import __version__
 
     print(f"llm-comply web UI v{__version__}")
-    scheme = "https" if tls_cert else "http"
+    scheme = "https" if tls_cert is not None else "http"
     print(f"Open {scheme}://{host}:{port} in your browser")
 
     app.run(host=host, port=port, ssl_context=context)

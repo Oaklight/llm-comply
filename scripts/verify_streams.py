@@ -111,6 +111,17 @@ def main() -> int:
         result = runner.run_one(_test_case())
         assert result.status == TestStatus.FAILED, "invalid chunk was not rejected"
         assert any("choices" in error for error in result.errors), result.errors
+
+        # A mid-stream error envelope is reported as such, not as a bad chunk.
+        _SSEHandler.chunks = [
+            {"error": {"message": "overloaded", "type": "server_error"}}
+        ]
+        result = runner.run_one(_test_case())
+        assert result.status == TestStatus.FAILED
+        assert any("stream error: overloaded" in e for e in result.errors), (
+            result.errors
+        )
+        assert not any("choices" in e for e in result.errors), result.errors
     finally:
         server.shutdown()
         server.server_close()

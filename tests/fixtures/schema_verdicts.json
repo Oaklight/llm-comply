@@ -14,7 +14,15 @@
         "model": "gpt-4",
         "previous_response_id": null,
         "instructions": null,
-        "output": [],
+        "output": [
+          {
+            "type": "message",
+            "id": "msg_1",
+            "status": "completed",
+            "role": "assistant",
+            "content": [{"type": "output_text", "text": "hi", "annotations": []}]
+          }
+        ],
         "error": null,
         "tools": [],
         "tool_choice": "auto",
@@ -96,7 +104,22 @@
         "instructions": null,
         "metadata": {},
         "model": "gpt-4",
-        "output": [],
+        "output": [
+          {
+            "type": "message",
+            "id": "msg_1",
+            "status": "completed",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "output_text",
+                "text": "hi",
+                "annotations": [],
+                "logprobs": []
+              }
+            ]
+          }
+        ],
         "parallel_tool_calls": true,
         "temperature": 1,
         "tool_choice": "auto",
@@ -122,13 +145,20 @@
     {
       "schema": "CreateChatCompletionResponse",
       "valid": true,
-      "note": "Minimal non-streaming response.",
+      "note": "Minimal non-streaming response with one populated choice.",
       "instance": {
         "id": "chatcmpl-1",
         "object": "chat.completion",
         "created": 1,
         "model": "gpt-4",
-        "choices": []
+        "choices": [
+          {
+            "index": 0,
+            "message": {"role": "assistant", "content": "hi", "refusal": null},
+            "finish_reason": "stop",
+            "logprobs": null
+          }
+        ]
       }
     },
     {
@@ -387,12 +417,12 @@
     {
       "schema": "Message",
       "valid": true,
-      "note": "Assistant message with the full nullable field set.",
+      "note": "Assistant message with one text block and the full nullable field set.",
       "instance": {
         "id": "msg_1",
         "type": "message",
         "role": "assistant",
-        "content": [],
+        "content": [{"type": "text", "text": "hi", "citations": []}],
         "model": "claude",
         "stop_reason": "end_turn",
         "stop_sequence": null,

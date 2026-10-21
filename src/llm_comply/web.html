@@ -233,6 +233,7 @@ a:hover { text-decoration: underline; }
         <label>API Format</label>
         <select id="fmt" onchange="onFormatChange()">
           <option value="open_responses">Open Responses</option>
+          <option value="openai_responses">OpenAI Responses API</option>
           <option value="chat_completions">OpenAI Chat Completions</option>
           <option value="messages">Anthropic Messages</option>
           <option value="google_generate">Google GenAI (generateContent)</option>
@@ -293,6 +294,7 @@ a:hover { text-decoration: underline; }
 <script>
 const DEFAULTS = {
   'open_responses': { url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', auth: 'Authorization', bearer: true },
+  'openai_responses': { url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', auth: 'Authorization', bearer: true },
   'chat_completions': { url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', auth: 'Authorization', bearer: true },
   'messages': { url: 'https://api.anthropic.com/v1', model: 'claude-haiku-4-5-20251001', auth: 'x-api-key', bearer: false },
   'google_generate': { url: 'https://generativelanguage.googleapis.com', model: 'gemini-2.5-flash', auth: 'x-goog-api-key', bearer: false },

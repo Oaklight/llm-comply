@@ -34,6 +34,7 @@ verify:
 
 test:
 	llm-comply --list
+	llm-comply --format openai_responses --list
 	llm-comply --format chat_completions --list
 	llm-comply --format messages --list
 	llm-comply --format google_generate --list

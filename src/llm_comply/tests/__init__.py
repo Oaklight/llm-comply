@@ -32,6 +32,10 @@ def get_tests(fmt: str) -> list[TestCase]:
         from .google_interactions import GOOGLE_INTERACTIONS_TESTS
 
         return GOOGLE_INTERACTIONS_TESTS
+    if fmt == "openai_responses":
+        from .openai_responses import OPENAI_RESPONSES_TESTS
+
+        return OPENAI_RESPONSES_TESTS
     from .open_responses import OPEN_RESPONSES_TESTS
 
     return OPEN_RESPONSES_TESTS

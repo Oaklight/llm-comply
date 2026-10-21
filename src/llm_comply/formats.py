@@ -10,6 +10,7 @@ DEFAULT_FORMAT = "open_responses"
 
 FORMATS = (
     "open_responses",
+    "openai_responses",
     "chat_completions",
     "messages",
     "google_generate",
@@ -24,6 +25,7 @@ FORMAT_ALIASES: dict[str, str] = {
     "google-genai": "google_generate",
     # v0.5.0 canonical spelling, retained for compatibility.
     "google-interactions": "google_interactions",
+    "openai-responses": "openai_responses",
 }
 
 # Per-format spec metadata: bundled file (None = no spec) and validation mode.
@@ -31,6 +33,7 @@ FORMAT_ALIASES: dict[str, str] = {
 # maintained by hand.
 FORMAT_SPECS: dict[str, tuple[str | None, str]] = {
     "open_responses": ("openresponses.json", "schema"),
+    "openai_responses": ("openai_responses.json", "schema"),
     "chat_completions": ("openai_chat.json", "schema"),
     "messages": ("anthropic.json", "schema"),
     "google_generate": ("google_generate.json", "semantic"),
@@ -59,6 +62,12 @@ SPEC_SOURCES: dict[str, tuple[str, str]] = {
     "open_responses": (
         "https://raw.githubusercontent.com/openresponses/openresponses/main/public/openapi/openapi.json",
         "openresponses.json",
+    ),
+    "openai_responses": (
+        # Same upstream document as chat_completions; fetch_latest extracts the
+        # /responses paths and their transitive schemas.
+        "https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.json",
+        "openai_responses.json",
     ),
     "chat_completions": (
         "https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.json",

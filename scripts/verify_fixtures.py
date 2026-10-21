@@ -4,6 +4,10 @@
 Spec refreshes previously relied on ad-hoc differentials that were not kept.
 Each entry here pins one ``(schema, instance)`` verdict, so a refresh that
 flips validation for a representative payload turns CI red.
+
+The pinned surface is the *named* schema. The runtime streaming path resolves
+chat chunks through ``validate_sse_event`` (a ``oneOf`` union), so a schema
+verdict here does not guarantee identical error text from the runner.
 """
 
 from __future__ import annotations

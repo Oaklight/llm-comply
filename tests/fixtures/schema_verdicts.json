@@ -180,6 +180,140 @@
           }
         ]
       }
+    },
+    {
+      "schema": "CreateChatCompletionStreamResponse",
+      "valid": true,
+      "note": "Function tool-call delta.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "m",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "tool_calls": [
+                {
+                  "index": 0,
+                  "id": "call_1",
+                  "type": "function",
+                  "function": {"name": "get_weather", "arguments": "{}"}
+                }
+              ]
+            },
+            "finish_reason": null,
+            "logprobs": null
+          }
+        ]
+      }
+    },
+    {
+      "schema": "CreateChatCompletionStreamResponse",
+      "valid": false,
+      "note": "The bundled streaming delta union only allows type 'function', not 'custom'.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "m",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "tool_calls": [
+                {
+                  "index": 0,
+                  "id": "call_2",
+                  "type": "custom",
+                  "custom": {"name": "f", "input": "{}"}
+                }
+              ]
+            },
+            "finish_reason": null,
+            "logprobs": null
+          }
+        ]
+      }
+    },
+    {
+      "schema": "CreateChatCompletionStreamResponse",
+      "valid": true,
+      "note": "Refusal delta.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "m",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {"refusal": "I cannot help with that."},
+            "finish_reason": null,
+            "logprobs": null
+          }
+        ]
+      }
+    },
+    {
+      "schema": "CreateChatCompletionStreamResponse",
+      "valid": true,
+      "note": "Reasoning-content delta from vLLM-style providers.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "m",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {"reasoning_content": "thinking"},
+            "finish_reason": null,
+            "logprobs": null
+          }
+        ]
+      }
+    },
+    {
+      "schema": "CreateChatCompletionStreamResponse",
+      "valid": true,
+      "note": "Reasoning delta.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "m",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {"reasoning": "thinking"},
+            "finish_reason": null,
+            "logprobs": null
+          }
+        ]
+      }
+    },
+    {
+      "schema": "CreateChatCompletionStreamResponse",
+      "valid": true,
+      "note": "Legacy function_call delta.",
+      "instance": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion.chunk",
+        "created": 1,
+        "model": "m",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "function_call": {"name": "get_weather", "arguments": "{}"}
+            },
+            "finish_reason": null,
+            "logprobs": null
+          }
+        ]
+      }
     }
   ],
   "messages": [

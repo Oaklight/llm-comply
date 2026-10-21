@@ -269,6 +269,7 @@ def chat_streaming_has_delta(response: Any, ctx: ValidatorContext) -> list[str]:
     progress_fields = (
         "content",
         "tool_calls",
+        "function_call",
         "refusal",
         "reasoning_content",
         "reasoning",

@@ -1056,7 +1056,12 @@ def google_has_thoughts_token_count(
     """Google GenAI: usageMetadata should include thoughtsTokenCount."""
     if not isinstance(response, dict):
         return ["response is not a JSON object"]
-    usage = response.get("usageMetadata") or response.get("usage_metadata") or {}
+    usage = response.get("usageMetadata") or response.get("usage_metadata")
+    if not isinstance(usage, dict):
+        return [
+            "[warning] usageMetadata is missing or not an object "
+            "(cannot check thoughtsTokenCount)"
+        ]
     count = usage.get("thoughtsTokenCount") or usage.get("thoughts_token_count")
     if count is None or count == 0:
         return [

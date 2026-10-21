@@ -20,8 +20,10 @@ from llm_comply.validators import (
     google_has_content_parts,
     google_has_function_call,
     google_has_thought_parts,
+    google_has_thoughts_token_count,
     google_streaming_has_finish,
     google_streaming_has_text,
+    google_usage_valid_modalities,
     has_usage,
     responses_output_is_json,
     responses_output_matches_json_schema,
@@ -388,6 +390,33 @@ def main() -> int:
     ]
     for label, validator in google_validators[1:]:
         assert isinstance(validator(bad_candidate, ctx), list), label
+
+    # Reach the content and parts guards that the empty-list helper hides.
+    bad_content = {"candidates": [{"content": "nope"}]}
+    assert google_has_function_call(bad_content, ctx) == [
+        "candidates[0].content is missing or not an object"
+    ]
+    bad_parts = {"candidates": [{"content": {"parts": "nope"}}]}
+    assert google_has_function_call(bad_parts, ctx) == [
+        "candidates[0].content.parts is not an array"
+    ]
+
+    # Malformed detail entries must be skipped, not crash the modality check.
+    bad_details = {
+        "usageMetadata": {
+            "promptTokensDetails": ["bad", 42, {"modality": "NOT_A_MODALITY"}]
+        }
+    }
+    assert google_usage_valid_modalities(bad_details, ctx) == [
+        "promptTokensDetails[].modality: 'NOT_A_MODALITY' is not a valid "
+        "Google Modality enum value"
+    ]
+
+    # The remaining usage-based warning must also tolerate a non-object.
+    assert google_has_thoughts_token_count({"usageMetadata": "nope"}, ctx) == [
+        "[warning] usageMetadata is missing or not an object "
+        "(cannot check thoughtsTokenCount)"
+    ]
 
     stream_ctx = ValidatorContext(
         streaming=True, sse_events=[{"data": {"candidates": "nope"}}]

@@ -498,6 +498,21 @@ def main() -> int:
         "already open" in error
         for error in anth_streaming_content_block_bracketing(None, double_start)
     )
+
+    malformed = ValidatorContext(
+        streaming=True,
+        sse_events=[
+            {"type": "content_block_start", "data": {"type": "content_block_start"}},
+            {"type": "content_block_stop", "data": None},
+        ],
+    )
+    malformed_errors = anth_streaming_content_block_bracketing(None, malformed)
+    assert any("has no integer index" in error for error in malformed_errors), (
+        malformed_errors
+    )
+    assert any("has no data object" in error for error in malformed_errors), (
+        malformed_errors
+    )
     anth_tests = {tc.id: tc for tc in get_tests("messages")}
     names = [
         getattr(v, "__name__", "")

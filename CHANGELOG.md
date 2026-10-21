@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.6.0] — 2026-10-21
 
 ### Added
 
@@ -166,6 +166,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Release workflow with Trusted Publisher (PyPI)
 - Pre-commit hooks (ruff check + ruff format)
 
+[0.6.0]: https://github.com/Oaklight/llm-comply/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Oaklight/llm-comply/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Oaklight/llm-comply/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Oaklight/llm-comply/compare/v0.3.0...v0.4.0

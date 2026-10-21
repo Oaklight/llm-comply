@@ -32,6 +32,7 @@ lint-fix:
 verify:
 	python scripts/verify_specs.py
 	python scripts/verify_cli.py
+	python scripts/verify_streams.py
 
 test:
 	llm-comply --list

@@ -44,4 +44,7 @@ class TestCase:
     expected_statuses: list[int] = dataclasses.field(default_factory=lambda: [200])
     schema_name: str | None = "ResponseResource"
     validate_stream_events: bool = True
+    # Validate each SSE payload against this schema instead of resolving the
+    # schema from the event type (for APIs whose events have no type field).
+    stream_schema_name: str | None = None
     skip_reason: Callable[[ComplianceConfig], str | None] | None = None

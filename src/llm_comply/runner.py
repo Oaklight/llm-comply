@@ -84,11 +84,16 @@ class TestRunner:
             # Per-event schema validation for streaming
             if tc.streaming and tc.validate_stream_events and sse_events:
                 for event in sse_events:
-                    etype = event.get("type", "")
                     edata = event.get("data")
-                    if etype == "[DONE]" or not isinstance(edata, dict):
+                    if not isinstance(edata, dict):
                         continue
-                    event_errors = self._spec.validate_sse_event(etype, edata)
+                    if tc.stream_schema_name:
+                        event_errors = self._spec.validate(edata, tc.stream_schema_name)
+                    else:
+                        etype = event.get("type", "")
+                        if etype == "[DONE]":
+                            continue
+                        event_errors = self._spec.validate_sse_event(etype, edata)
                     errors.extend(event_errors)
 
             # Semantic validators

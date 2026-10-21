@@ -94,7 +94,7 @@
     {
       "schema": "Response",
       "valid": true,
-      "note": "Minimal response satisfying the allOf required fields.",
+      "note": "Production-shaped response: access_programs is omitted, as OpenAI does.",
       "instance": {
         "id": "resp_1",
         "object": "response",
@@ -124,8 +124,7 @@
         "temperature": 1,
         "tool_choice": "auto",
         "tools": [],
-        "top_p": 1.0,
-        "access_programs": null
+        "top_p": 1.0
       }
     },
     {

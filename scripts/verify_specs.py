@@ -9,6 +9,7 @@ import sys
 
 from llm_comply.formats import VALIDATION_SPEC_FILES
 from llm_comply.schema import SpecLoader, canonical_spec
+from llm_comply.spec_extract import relax_production_required
 from llm_comply.test_case import TestCategory
 from llm_comply.tests import get_tests
 from llm_comply.tests.google_genai import _make_test
@@ -58,6 +59,36 @@ def main() -> int:
     assert openai_responses.validate(
         {"id": "resp_1", "object": "response"}, "Response"
     ), "incomplete response should have errors"
+    production_response = {
+        "id": "resp_1",
+        "object": "response",
+        "created_at": 1,
+        "error": None,
+        "incomplete_details": None,
+        "instructions": None,
+        "metadata": {},
+        "model": "gpt-4",
+        "output": [],
+        "parallel_tool_calls": True,
+        "temperature": 1,
+        "tool_choice": "auto",
+        "tools": [],
+        "top_p": 1.0,
+    }
+    assert openai_responses.validate(production_response, "Response") == [], (
+        "production responses omit access_programs"
+    )
+    synthetic = {
+        "components": {
+            "schemas": {
+                "Response": {"allOf": [{"required": ["access_programs", "id"]}]}
+            }
+        }
+    }
+    relax_production_required(synthetic)
+    assert synthetic["components"]["schemas"]["Response"]["allOf"][0]["required"] == [
+        "id"
+    ]
     assert not openai_responses.validate_sse_event(
         "error",
         {

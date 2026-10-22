@@ -489,6 +489,7 @@ def main() -> int:
     }
     for test_id, expected in expected_steps.items():
         assert test_id in interaction_tests, test_id
+        assert interaction_tests[test_id].optional, test_id
         qualnames = [
             getattr(v, "__qualname__", "")
             for v in interaction_tests[test_id].validators
@@ -497,6 +498,16 @@ def main() -> int:
             all(step_type in qualname for step_type in expected)
             for qualname in qualnames
         ), test_id
+        names = [
+            getattr(v, "__name__", "") for v in interaction_tests[test_id].validators
+        ]
+        assert "interactions_has_steps" in names, test_id
+        assert any("interactions_status('completed')" in q for q in qualnames), test_id
+        request = interaction_tests[test_id].build_request(
+            ComplianceConfig(base_url="http://x", api_key="k", model="test")
+        )
+        expected_tool = expected[0].removesuffix("_call")
+        assert request["tools"] == [{"type": expected_tool}], test_id
 
     # Completion-token details are advisory: absent is a warning, present
     # values must be integers.

@@ -34,6 +34,7 @@ verify:
 	python scripts/verify_fixtures.py
 	python scripts/verify_cli.py
 	python scripts/verify_validators.py
+	python scripts/verify_optional.py
 	python scripts/verify_streams.py
 
 test:

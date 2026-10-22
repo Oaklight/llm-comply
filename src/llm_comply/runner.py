@@ -13,6 +13,25 @@ from .result import SuiteResult, TestResult, TestStatus
 from .schema import SpecLoader
 from .test_case import TestCase, ValidatorContext
 
+_UNSUPPORTED_STATUSES = {400, 404, 405, 422, 501}
+
+
+def _error_detail(data: Any) -> str | None:
+    """Extract a human-readable message from an error response body."""
+    if not isinstance(data, dict):
+        return None
+    error = data.get("error")
+    if isinstance(error, dict):
+        message = error.get("message") or error.get("status")
+        if message:
+            return str(message)
+    elif isinstance(error, str):
+        return error
+    detail = data.get("detail")
+    if isinstance(detail, str):
+        return detail
+    return None
+
 
 class TestRunner:
     """Runs compliance tests sequentially."""
@@ -71,6 +90,26 @@ class TestRunner:
                 request_body,
                 streaming=tc.streaming,
             )
+
+            # Optional capabilities may be unsupported by the provider.
+            if (
+                tc.optional
+                and status_code not in tc.expected_statuses
+                and status_code in _UNSUPPORTED_STATUSES
+            ):
+                reason = f"optional capability unsupported: HTTP {status_code}"
+                detail = _error_detail(response_data)
+                if detail:
+                    reason += f" ({detail})"
+                return TestResult(
+                    id=tc.id,
+                    name=tc.name,
+                    status=TestStatus.SKIPPED,
+                    duration_ms=(time.monotonic() - start) * 1000.0,
+                    errors=[reason],
+                    request=request_body,
+                    response=response_data,
+                )
 
             # Check HTTP status
             if status_code not in tc.expected_statuses:

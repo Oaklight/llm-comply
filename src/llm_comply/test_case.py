@@ -47,4 +47,7 @@ class TestCase:
     # Validate each SSE payload against this schema instead of resolving the
     # schema from the event type (for APIs whose events have no type field).
     stream_schema_name: str | None = None
+    # Optional capabilities (e.g. provider-specific built-in tools) may be
+    # unsupported; an unsupported status reports SKIPPED instead of FAILED.
+    optional: bool = False
     skip_reason: Callable[[ComplianceConfig], str | None] | None = None

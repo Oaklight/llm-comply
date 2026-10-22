@@ -183,6 +183,10 @@ services:
 the name contains `audio` (case-insensitive), so deployments with role-named
 audio aliases should run the test with a name that includes it.
 
+The built-in Google Interactions tool tests are optional: a provider that does
+not support a tool and answers with 400, 404, 405, 422, or 501 reports the
+test as skipped instead of failed.
+
 ## License
 
 MIT

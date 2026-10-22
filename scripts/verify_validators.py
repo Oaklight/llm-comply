@@ -461,13 +461,24 @@ def main() -> int:
     assert chat_has_completion_token_details(
         {"usage": {"completion_tokens_details": "nope"}}, ctx
     ) == ["[warning] usage.completion_tokens_details is not an object"]
-    assert any(
-        "reasoning_tokens is not an integer" in error
-        for error in chat_has_completion_token_details(
-            {"usage": {"completion_tokens_details": {"reasoning_tokens": "3"}}},
-            ctx,
-        )
-    )
+    assert chat_has_completion_token_details(
+        {"usage": {"completion_tokens_details": None}}, ctx
+    ) == ["[warning] usage.completion_tokens_details is not an object"]
+    for field in (
+        "accepted_prediction_tokens",
+        "audio_tokens",
+        "reasoning_tokens",
+        "rejected_prediction_tokens",
+        "text_tokens",
+        "image_tokens",
+    ):
+        assert any(
+            f"{field} is not an integer" in error
+            for error in chat_has_completion_token_details(
+                {"usage": {"completion_tokens_details": {field: "3"}}},
+                ctx,
+            )
+        ), field
     chat_tests = {tc.id: tc for tc in get_tests("chat_completions")}
     names = [
         getattr(v, "__name__", "") for v in chat_tests["chat-basic-response"].validators

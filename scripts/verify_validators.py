@@ -1503,7 +1503,7 @@ def main() -> int:
             streaming=True,
             sse_events=[tool_stream_ctx.sse_events[0]],
         ),
-    ) == ["no input_json_delta events"]
+    ) == ["tool_use block at index 0 has no input_json_delta events"]
     assert anth_streaming_has_tool_input_delta(
         None,
         ValidatorContext(
@@ -1514,12 +1514,13 @@ def main() -> int:
                     "type": "content_block_delta",
                     "data": {
                         "type": "content_block_delta",
+                        "index": 0,
                         "delta": {"type": "input_json_delta", "partial_json": "  "},
                     },
                 },
             ],
         ),
-    ) == ["input_json_delta events carried no partial JSON"]
+    ) == ["input_json_delta events at index 0 carried no partial JSON"]
     assert anth_streaming_has_tool_input_delta(
         None,
         ValidatorContext(
@@ -1530,14 +1531,61 @@ def main() -> int:
                     "type": "content_block_delta",
                     "data": {
                         "type": "content_block_delta",
+                        "index": 0,
                         "delta": {"type": "input_json_delta", "partial_json": "{"},
                     },
                 },
             ],
         ),
     ) == [
-        "tool input deltas do not form valid JSON: "
+        "tool input deltas at index 0 do not form valid JSON: "
         "Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+    ]
+    two_tools_ctx = ValidatorContext(
+        streaming=True,
+        sse_events=[
+            {
+                "type": "content_block_start",
+                "data": {
+                    "type": "content_block_start",
+                    "index": 0,
+                    "content_block": {"type": "tool_use", "id": "toolu_1"},
+                },
+            },
+            {
+                "type": "content_block_delta",
+                "data": {
+                    "type": "content_block_delta",
+                    "index": 0,
+                    "delta": {"type": "input_json_delta", "partial_json": '{"a":1}'},
+                },
+            },
+            {
+                "type": "content_block_start",
+                "data": {
+                    "type": "content_block_start",
+                    "index": 1,
+                    "content_block": {"type": "tool_use", "id": "toolu_2"},
+                },
+            },
+            {
+                "type": "content_block_delta",
+                "data": {
+                    "type": "content_block_delta",
+                    "index": 1,
+                    "delta": {"type": "input_json_delta", "partial_json": '{"b":2}'},
+                },
+            },
+        ],
+    )
+    assert anth_streaming_has_tool_input_delta(None, two_tools_ctx) == []
+    missing_second = ValidatorContext(
+        streaming=True,
+        sse_events=[two_tools_ctx.sse_events[0], two_tools_ctx.sse_events[2]],
+    )
+    assert anth_streaming_has_tool_input_delta(None, missing_second) == [
+        "tool_use block at index 0 has no input_json_delta events",
+        "tool_use block at index 1 has no input_json_delta events",
     ]
     tool_stream = anth_tests["anth-streaming-tool-use"]
     assert tool_stream.streaming

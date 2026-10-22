@@ -1100,34 +1100,53 @@ def anth_streaming_has_tool_input_delta(
     """Streaming tool calls must emit input_json_delta events forming valid JSON."""
     if not ctx.sse_events:
         return ["no SSE events to check"]
-    saw_tool_block = False
-    partial: list[str] = []
+    tool_indexes: set[int] = set()
+    fragments: dict[int, list[str]] = {}
     for event in ctx.sse_events:
         data = event.get("data")
         if not isinstance(data, dict):
             continue
+        index = data.get("index")
         if data.get("type") == "content_block_start":
             block = data.get("content_block")
-            if isinstance(block, dict) and block.get("type") == "tool_use":
-                saw_tool_block = True
+            if (
+                isinstance(block, dict)
+                and block.get("type") == "tool_use"
+                and isinstance(index, int)
+            ):
+                tool_indexes.add(index)
         elif data.get("type") == "content_block_delta":
             delta = data.get("delta")
-            if isinstance(delta, dict) and delta.get("type") == "input_json_delta":
+            if (
+                isinstance(delta, dict)
+                and delta.get("type") == "input_json_delta"
+                and isinstance(index, int)
+            ):
                 fragment = delta.get("partial_json")
                 if isinstance(fragment, str):
-                    partial.append(fragment)
-    if not saw_tool_block:
+                    fragments.setdefault(index, []).append(fragment)
+    if not tool_indexes:
         return ["no tool_use content_block_start event"]
-    if not partial:
-        return ["no input_json_delta events"]
-    text = "".join(partial)
-    if not text.strip():
-        return ["input_json_delta events carried no partial JSON"]
-    try:
-        json.loads(text)
-    except ValueError as exc:
-        return [f"tool input deltas do not form valid JSON: {exc}"]
-    return []
+    errors: list[str] = []
+    for index in sorted(tool_indexes):
+        if index not in fragments:
+            errors.append(
+                f"tool_use block at index {index} has no input_json_delta events"
+            )
+            continue
+        text = "".join(fragments[index])
+        if not text.strip():
+            errors.append(
+                f"input_json_delta events at index {index} carried no partial JSON"
+            )
+            continue
+        try:
+            json.loads(text)
+        except ValueError as exc:
+            errors.append(
+                f"tool input deltas at index {index} do not form valid JSON: {exc}"
+            )
+    return errors
 
 
 def anth_streaming_has_text_delta(response: Any, ctx: ValidatorContext) -> list[str]:

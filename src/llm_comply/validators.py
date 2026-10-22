@@ -315,6 +315,7 @@ _CHAT_PAYLOAD_FIELDS = (
     "refusal",
     "reasoning_content",
     "reasoning",
+    "audio",
 )
 
 
@@ -480,6 +481,26 @@ def chat_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
     for field in ("prompt_tokens", "completion_tokens", "total_tokens"):
         if field not in usage:
             errors.append(f"response.usage.{field} is missing")
+    return errors
+
+
+def chat_has_audio(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Response message must carry an audio payload when audio is requested."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    choices = response.get("choices", [])
+    if not choices or not isinstance(choices[0], dict):
+        return ["response.choices is empty"]
+    message = choices[0].get("message", {})
+    audio = message.get("audio") if isinstance(message, dict) else None
+    if not isinstance(audio, dict):
+        return ["choices[0].message.audio is missing or not an object"]
+    errors: list[str] = []
+    for field in ("id", "data", "transcript"):
+        if not isinstance(audio.get(field), str) or not audio.get(field):
+            errors.append(f"choices[0].message.audio.{field} is missing or empty")
+    if not isinstance(audio.get("expires_at"), int):
+        errors.append("choices[0].message.audio.expires_at is not an integer")
     return errors
 
 

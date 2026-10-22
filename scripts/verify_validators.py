@@ -14,6 +14,7 @@ from llm_comply.tests.google_genai import (
     _WEATHER_RESPONSE_SCHEMA,
 )
 from llm_comply.validators import (
+    anth_has_content_block_of_type,
     anth_streaming_content_block_bracketing,
     chat_has_message,
     chat_has_audio,
@@ -953,6 +954,58 @@ def main() -> int:
         for v in anth_tests["anth-streaming-response"].validators
     ]
     assert "anth_streaming_content_block_bracketing" in names, "anth-streaming-response"
+
+    block_check = anth_has_content_block_of_type(
+        "server_tool_use", "web_search_tool_result"
+    )
+    assert (
+        block_check(
+            {
+                "content": [
+                    {"type": "text"},
+                    {"type": "server_tool_use"},
+                    {"type": "web_search_tool_result"},
+                ]
+            },
+            ctx,
+        )
+        == []
+    )
+    assert block_check({"content": [{"type": "server_tool_use"}]}, ctx) == [
+        "content is missing block types: web_search_tool_result"
+    ]
+    assert block_check({"content": "nope"}, ctx) == [
+        "response.content is missing or not an array"
+    ]
+    assert block_check("nope", ctx) == ["response is not a JSON object"]
+    assert anth_tests["anth-tool-result"].schema_name == "Message"
+    assert not anth_tests["anth-tool-result"].optional
+    result_quals = [
+        getattr(v, "__qualname__", "")
+        for v in anth_tests["anth-tool-result"].validators
+    ]
+    assert "anth_has_content_block_of_type(text)" in result_quals, result_quals
+    result_request = anth_tests["anth-tool-result"].build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert result_request["messages"][1]["content"][0]["type"] == "tool_use"
+    result_block = result_request["messages"][2]["content"][0]
+    assert result_block["type"] == "tool_result"
+    assert result_block["tool_use_id"] == "toolu_01"
+    web_search = anth_tests["anth-web-search"]
+    assert web_search.optional
+    assert web_search.schema_name == "Message"
+    web_quals = [getattr(v, "__qualname__", "") for v in web_search.validators]
+    assert any(
+        "server_tool_use" in qual and "web_search_tool_result" in qual
+        for qual in web_quals
+    ), web_quals
+    web_request = web_search.build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert web_request["tools"] == [
+        {"type": "web_search_20260318", "name": "web_search", "max_uses": 3}
+    ]
     print("anthropic streaming: content blocks are correctly bracketed")
 
     def _delta_event(delta: Any) -> dict:

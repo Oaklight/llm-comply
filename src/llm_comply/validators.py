@@ -745,6 +745,25 @@ def anth_has_tool_use(response: Any, ctx: ValidatorContext) -> list[str]:
     return ["no content block with type='tool_use'"]
 
 
+def anth_has_content_block_of_type(*expected: str) -> Validator:
+    """Factory: content must include a block of every expected type."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not isinstance(response, dict):
+            return ["response is not a JSON object"]
+        content = response.get("content")
+        if not isinstance(content, list):
+            return ["response.content is missing or not an array"]
+        types = {block.get("type") for block in content if isinstance(block, dict)}
+        missing = [block_type for block_type in expected if block_type not in types]
+        if missing:
+            return [f"content is missing block types: {', '.join(missing)}"]
+        return []
+
+    _check.__qualname__ = f"anth_has_content_block_of_type({', '.join(expected)})"
+    return _check
+
+
 def anth_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
     """Response must have usage with input_tokens/output_tokens."""
     if not isinstance(response, dict):

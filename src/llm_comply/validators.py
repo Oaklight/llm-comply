@@ -492,9 +492,9 @@ def chat_has_completion_token_details(
     usage = response.get("usage")
     if not isinstance(usage, dict):
         return []
-    details = usage.get("completion_tokens_details")
-    if details is None:
+    if "completion_tokens_details" not in usage:
         return ["[warning] usage.completion_tokens_details is missing"]
+    details = usage["completion_tokens_details"]
     if not isinstance(details, dict):
         return ["[warning] usage.completion_tokens_details is not an object"]
     errors: list[str] = []

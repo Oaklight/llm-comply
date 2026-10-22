@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Optional (intrinsic-tool) tests no longer fail a run. An unsupported status still reports skipped; any other shortfall — a 5xx, or a successful response that omits the tool's output — is reported as a warning. This covers the Google GenAI grounding and code-execution tests, the four Google Interactions built-in tools, Anthropic web search and code execution, and chat web search.
+
+### Fixed
+
+- Bundled-spec relaxations now treat fields that compatible providers legitimately omit as optional: Anthropic `Message.diagnostics`, `Usage.speed`, and `ResponseToolUseBlock.caller`; OpenAI Responses `ResponseUsage.input_tokens_details.cache_write_tokens`. Each relaxation is pinned in `verify_specs.py` and covered by a schema verdict fixture.
+
 ## [0.6.0] — 2026-10-21
 
 ### Added

@@ -12,15 +12,23 @@ from __future__ import annotations
 from typing import Any
 
 # Anthropic's SDK-generated spec marks these required, but the live Messages API
-# omits them: text blocks only carry ``citations`` when citations are enabled,
-# ``server_tool_use`` only carries ``caller`` in some releases, and usage omits
-# the details objects when the capability was not used.
+# and compatible gateways omit them: text blocks only carry ``citations`` when
+# citations are enabled, tool-use blocks only carry ``caller`` in some releases,
+# usage omits the details objects when the capability was not used, and
+# ``speed`` / ``diagnostics`` are deployment-specific.
 _ANTHROPIC_OPTIONAL_FIELDS: dict[str, tuple[str, ...]] = {
-    "Usage": ("output_tokens_details", "server_tool_use"),
+    "Usage": ("output_tokens_details", "server_tool_use", "speed"),
+    "Message": ("diagnostics",),
     "ResponseTextBlock": ("citations",),
     "ResponseServerToolUseBlock": ("caller",),
+    "ResponseToolUseBlock": ("caller",),
     "Container": ("skills",),
 }
+
+# OpenAI's Responses usage schema requires the cache-write breakdown, but
+# compatible gateways report it only when prompt caching is in play; the
+# cached-token count alone is the stable part.
+_OPENAI_RESPONSES_OPTIONAL_FIELDS = ("cache_write_tokens",)
 
 # OpenAI's chat response schema requires ``logprobs`` on each choice (the live
 # API omits it) and declares the deprecated ``system_fingerprint`` as a
@@ -70,6 +78,13 @@ def _relax_open_responses(schemas: dict[str, Any]) -> None:
         }
 
 
+def _relax_openai_responses(schemas: dict[str, Any]) -> None:
+    usage = schemas.get("ResponseUsage")
+    if isinstance(usage, dict):
+        details = usage.get("properties", {}).get("input_tokens_details")
+        _drop_required(details, _OPENAI_RESPONSES_OPTIONAL_FIELDS)
+
+
 def relax_bundled_spec(spec: dict[str, Any], filename: str) -> None:
     """Apply the documented relaxations for *filename* in place."""
     schemas = spec.get("components", {}).get("schemas", {})
@@ -77,5 +92,7 @@ def relax_bundled_spec(spec: dict[str, Any], filename: str) -> None:
         _relax_anthropic(schemas)
     elif filename == "openai_chat.json":
         _relax_chat(schemas)
+    elif filename == "openai_responses.json":
+        _relax_openai_responses(schemas)
     elif filename == "openresponses.json":
         _relax_open_responses(schemas)

@@ -159,6 +159,18 @@
       "valid": false,
       "note": "A bare event type is not a complete streaming event.",
       "instance": {"type": "response.created"}
+    },
+    {
+      "schema": "ResponseUsage",
+      "valid": true,
+      "note": "Gateways that do not track cache writes report only cached_tokens.",
+      "instance": {
+        "input_tokens": 10,
+        "input_tokens_details": {"cached_tokens": 0},
+        "output_tokens": 5,
+        "output_tokens_details": {"reasoning_tokens": 0},
+        "total_tokens": 15
+      }
     }
   ],
   "chat_completions": [
@@ -449,6 +461,20 @@
     },
     {
       "schema": "Usage",
+      "valid": true,
+      "note": "Deployments that do not report speed omit it.",
+      "instance": {
+        "input_tokens": 1,
+        "output_tokens": 2,
+        "cache_creation": null,
+        "cache_creation_input_tokens": null,
+        "cache_read_input_tokens": null,
+        "inference_geo": null,
+        "service_tier": null
+      }
+    },
+    {
+      "schema": "Usage",
       "valid": false,
       "note": "input_tokens must be an integer.",
       "instance": {"input_tokens": "1", "output_tokens": 2}
@@ -484,6 +510,31 @@
     },
     {
       "schema": "Message",
+      "valid": true,
+      "note": "Gateways omit diagnostics when there is nothing to report.",
+      "instance": {
+        "id": "msg_1",
+        "type": "message",
+        "role": "assistant",
+        "content": [{"type": "text", "text": "hi"}],
+        "model": "claude",
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "stop_details": null,
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 2,
+          "cache_creation": null,
+          "cache_creation_input_tokens": null,
+          "cache_read_input_tokens": null,
+          "inference_geo": null,
+          "service_tier": null
+        },
+        "container": null
+      }
+    },
+    {
+      "schema": "Message",
       "valid": false,
       "note": "A response message must use the assistant role.",
       "instance": {
@@ -509,6 +560,17 @@
         },
         "diagnostics": null,
         "container": null
+      }
+    },
+    {
+      "schema": "ResponseToolUseBlock",
+      "valid": true,
+      "note": "Gateways that do not report the caller still return a valid tool_use block.",
+      "instance": {
+        "type": "tool_use",
+        "id": "toolu_1",
+        "name": "get_weather",
+        "input": {"location": "San Francisco"}
       }
     },
     {

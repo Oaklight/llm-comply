@@ -922,13 +922,27 @@ def _google_output_text(response: Any) -> str | None:
     return None
 
 
+_GOOGLE_GROUNDING_FIELDS = (
+    "groundingChunks",
+    "grounding_chunks",
+    "webSearchQueries",
+    "web_search_queries",
+    "groundingSupports",
+    "grounding_supports",
+    "searchEntryPoint",
+    "search_entry_point",
+)
+
+
 def google_has_grounding_metadata(response: Any, ctx: ValidatorContext) -> list[str]:
-    """A candidate must carry a non-empty groundingMetadata object."""
+    """A candidate must carry groundingMetadata with at least one grounding field."""
     for cand in _google_candidates(response):
         grounding = cand.get("groundingMetadata") or cand.get("grounding_metadata")
-        if isinstance(grounding, dict) and grounding:
+        if isinstance(grounding, dict) and any(
+            grounding.get(field) for field in _GOOGLE_GROUNDING_FIELDS
+        ):
             return []
-    return ["no candidate carried groundingMetadata"]
+    return ["groundingMetadata is missing or has no grounding fields"]
 
 
 def google_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:

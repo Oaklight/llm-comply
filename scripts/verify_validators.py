@@ -551,9 +551,14 @@ def main() -> int:
 
     grounding = {"candidates": [{"groundingMetadata": {"webSearchQueries": ["x"]}}]}
     assert google_has_grounding_metadata(grounding, ctx) == []
-    assert google_has_grounding_metadata({"candidates": []}, ctx) == [
-        "no candidate carried groundingMetadata"
-    ]
+    for empty in (
+        {"candidates": []},
+        {"candidates": [{"groundingMetadata": {"webSearchQueries": []}}]},
+        {"candidates": [{"groundingMetadata": {"unrelated": 1}}]},
+    ):
+        assert google_has_grounding_metadata(empty, ctx) == [
+            "groundingMetadata is missing or has no grounding fields"
+        ]
     code_execution = {
         "candidates": [{"content": {"parts": [{"executableCode": {"code": "1"}}]}}]
     }
@@ -563,6 +568,12 @@ def main() -> int:
     ]
     assert google_tests["google-grounding"].optional
     assert google_tests["google-code-execution"].optional
+    for test_id, validator_name in (
+        ("google-grounding", "google_has_grounding_metadata"),
+        ("google-code-execution", "google_has_code_execution"),
+    ):
+        names = [getattr(v, "__name__", "") for v in google_tests[test_id].validators]
+        assert validator_name in names, test_id
     grounding_request = google_tests["google-grounding"].build_request(
         ComplianceConfig(base_url="http://x", api_key="k", model="test")
     )

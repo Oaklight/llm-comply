@@ -55,10 +55,11 @@ def main() -> int:
         if tc.streaming or 200 not in tc.expected_statuses:
             continue
         covered.append(tc.id)
-        assert (
-            responses.validate(tc.build_request(responses_config), "CreateResponseBody")
-            == []
-        ), tc.id
+        request = tc.build_request(responses_config)
+        # CreateResponseBody declares no required properties, so the schema
+        # alone would accept {} or a request missing model/input.
+        assert {"model", "input"} <= set(request), tc.id
+        assert responses.validate(request, "CreateResponseBody") == [], tc.id
     assert len(covered) == 12, covered
 
     chat = SpecLoader(str(SPECS_DIR / "openai_chat.json"))

@@ -1300,6 +1300,25 @@ def interactions_has_function_call(response: Any, ctx: ValidatorContext) -> list
     return ["no function_call step found in response.steps"]
 
 
+def interactions_has_step_of_type(*expected: str) -> Validator:
+    """Factory: steps must include every given step type."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not isinstance(response, dict):
+            return ["response is not a JSON object"]
+        steps = response.get("steps")
+        if not isinstance(steps, list):
+            return ["response.steps is missing or not an array"]
+        seen = [s.get("type") for s in steps if isinstance(s, dict)]
+        missing = [step_type for step_type in expected if step_type not in seen]
+        if missing:
+            return [f"missing step types {missing} (saw: {seen})"]
+        return []
+
+    _check.__qualname__ = f"interactions_has_step_of_type{expected!r}"
+    return _check
+
+
 def interactions_function_call_has_id(
     response: Any, ctx: ValidatorContext
 ) -> list[str]:

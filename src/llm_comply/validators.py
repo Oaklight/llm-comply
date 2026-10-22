@@ -862,15 +862,13 @@ def anth_output_matches_json_schema(schema: dict[str, Any]) -> Validator:
     return _check
 
 
-_CODE_EXECUTION_NAMES = (
-    "code_execution",
-    "bash_code_execution",
-    "text_editor_code_execution",
-)
-_CODE_EXECUTION_RESULT_BLOCKS = (
-    "code_execution_tool_result",
-    "bash_code_execution_tool_result",
-    "text_editor_code_execution_tool_result",
+_CODE_EXECUTION_FAMILIES = {
+    "code_execution": "code_execution_tool_result",
+    "bash_code_execution": "bash_code_execution_tool_result",
+    "text_editor_code_execution": "text_editor_code_execution_tool_result",
+}
+_CODE_EXECUTION_RESULT_BLOCKS = tuple(_CODE_EXECUTION_FAMILIES.values()) + tuple(
+    block_type + "_error" for block_type in _CODE_EXECUTION_FAMILIES.values()
 )
 
 
@@ -887,29 +885,41 @@ def anth_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
     content = response.get("content")
     if not isinstance(content, list):
         return ["response.content is missing or not an array"]
-    server_ids: set[str] = set()
+    server_by_id: dict[str, str] = {}
     results: list[dict[str, Any]] = []
     for block in content:
         if not isinstance(block, dict):
             continue
         if (
             block.get("type") == "server_tool_use"
-            and block.get("name") in _CODE_EXECUTION_NAMES
+            and block.get("name") in _CODE_EXECUTION_FAMILIES
             and isinstance(block.get("id"), str)
         ):
-            server_ids.add(block["id"])
+            server_by_id[block["id"]] = block["name"]
         elif block.get("type") in _CODE_EXECUTION_RESULT_BLOCKS:
             results.append(block)
-    if not server_ids:
+    if not server_by_id:
         return ["no server_tool_use block for code_execution"]
     if not results:
         return ["no code_execution_tool_result block"]
-    paired = [result for result in results if result.get("tool_use_id") in server_ids]
+    paired = [result for result in results if result.get("tool_use_id") in server_by_id]
     if not paired:
         return ["code_execution_tool_result does not match any server_tool_use id"]
     failures: list[str] = []
     for result in paired:
+        tool_id = result.get("tool_use_id")
+        expected = _CODE_EXECUTION_FAMILIES[server_by_id[tool_id]]
+        result_type = result.get("type")
+        if result_type not in (expected, expected + "_error"):
+            failures.append(
+                f"result type {result_type} does not match tool {server_by_id[tool_id]}"
+            )
+            continue
         inner = result.get("content")
+        if result_type.endswith("_error"):
+            code = inner.get("error_code") if isinstance(inner, dict) else None
+            failures.append(f"code execution failed: {code or result_type}")
+            continue
         if not isinstance(inner, dict):
             continue
         inner_type = inner.get("type")

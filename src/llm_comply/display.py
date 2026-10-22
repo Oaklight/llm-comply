@@ -49,7 +49,7 @@ class PlainDisplay(Display):
         duration = f" ({result.duration_ms:.0f}ms)" if result.duration_ms else ""
         self._out.write(f"  {icon} {result.name}{duration}\n")
 
-        if result.errors and result.status != TestStatus.SKIPPED:
+        if result.errors:
             for err in result.errors[:5]:
                 self._out.write(f"     └─ {err}\n")
             if len(result.errors) > 5:
@@ -115,9 +115,10 @@ class RichDisplay(Display):
         )
         self._console.print(f"  {icon} {result.name}{duration}")
 
-        if result.errors and result.status != TestStatus.SKIPPED:
+        if result.errors:
+            color = "yellow" if result.status == TestStatus.SKIPPED else "red"
             for err in result.errors[:5]:
-                self._console.print(f"     [dim]└─[/dim] [red]{err}[/red]")
+                self._console.print(f"     [dim]└─[/dim] [{color}]{err}[/{color}]")
             if len(result.errors) > 5:
                 self._console.print(
                     f"     [dim]└─ ... and {len(result.errors) - 5} more[/dim]"

@@ -22,10 +22,9 @@ _ANTHROPIC_OPTIONAL_FIELDS: dict[str, tuple[str, ...]] = {
     "Container": ("skills",),
 }
 
-# OpenAI's chat completion responses omit ``logprobs`` entirely (the field is
-# nullable in the docs) and return ``system_fingerprint: null`` for the
-# deprecated fingerprint. Both are present in the OpenAI OpenAPI document as
-# required/non-nullable, so relax at load time.
+# OpenAI's chat response schema requires ``logprobs`` on each choice (the live
+# API omits it) and declares the deprecated ``system_fingerprint`` as a
+# non-nullable string (the live API returns null). Both are relaxed at load.
 _CHAT_NULLABLE_STRINGS = ("system_fingerprint",)
 
 

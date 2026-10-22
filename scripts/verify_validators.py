@@ -1336,6 +1336,42 @@ def main() -> int:
 
     ce_ok = {"content": [ce_use, _ce_result("srvtoolu_1")]}
     assert anth_has_code_execution(ce_ok, ctx) == []
+    # A bash result must not satisfy a code_execution server tool.
+    assert anth_has_code_execution(
+        {
+            "content": [
+                ce_use,
+                {
+                    "type": "bash_code_execution_tool_result",
+                    "tool_use_id": "srvtoolu_1",
+                    "content": {
+                        "type": "bash_code_execution_result",
+                        "return_code": 0,
+                        "stdout": "",
+                        "stderr": "",
+                        "content": [],
+                    },
+                },
+            ]
+        },
+        ctx,
+    ) == [
+        "result type bash_code_execution_tool_result does not match tool code_execution"
+    ]
+    # An outer error block must surface the provider's error code.
+    assert anth_has_code_execution(
+        {
+            "content": [
+                ce_use,
+                {
+                    "type": "code_execution_tool_result_error",
+                    "tool_use_id": "srvtoolu_1",
+                    "content": {"error_code": "unavailable"},
+                },
+            ]
+        },
+        ctx,
+    ) == ["code execution failed: unavailable"]
     # code_execution_20260521 delegates to the bash and text-editor server
     # tools; the live response uses those names and result block types.
     bash_use = {

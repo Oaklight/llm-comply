@@ -161,6 +161,8 @@ def main() -> int:
         "anth-web-search",
         "anth-code-execution",
         "anth-structured-output",
+        "anth-max-tokens",
+        "anth-stop-sequence",
     ):
         test_case = next(tc for tc in get_tests("messages") if tc.id == test_id)
         request = test_case.build_request(anth_config)
@@ -168,12 +170,13 @@ def main() -> int:
     count_case = next(
         tc for tc in get_tests("messages") if tc.id == "anth-count-tokens"
     )
-    assert (
-        messages.validate(
-            count_case.build_request(anth_config), "CountMessageTokensParams"
-        )
-        == []
-    )
+    count_request = count_case.build_request(anth_config)
+    assert messages.validate(count_request, "CountMessageTokensParams") == []
+    # Pin the params schema's strictness on its own, so deleting the check
+    # above cannot silently drop this property.
+    assert messages.validate(
+        {**count_request, "surprise": 1}, "CountMessageTokensParams"
+    ), "CountMessageTokensParams should reject unknown fields"
 
     assert SpecLoader(None).schema_names == []
 

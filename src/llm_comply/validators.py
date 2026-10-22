@@ -914,8 +914,27 @@ def anth_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
     return failures or ["code execution did not report a result"]
 
 
+def anth_stop_sequence(expected: str) -> Validator:
+    """Factory: validate the response's matched stop_sequence."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not isinstance(response, dict):
+            return ["response is not a JSON object"]
+        value = response.get("stop_sequence")
+        if value != expected:
+            return [f"stop_sequence: expected {expected!r}, got {value!r}"]
+        return []
+
+    _check.__qualname__ = f"anth_stop_sequence({expected!r})"
+    return _check
+
+
 def anth_has_input_tokens(response: Any, ctx: ValidatorContext) -> list[str]:
-    """Token-count responses must report a positive input_tokens count."""
+    """Token-count responses must report a positive input_tokens count.
+
+    The spec sets no minimum, so rejecting zero is deliberate: the prompt is
+    non-empty, so a zero count is a provider bug worth reporting.
+    """
     if not isinstance(response, dict):
         return ["response is not a JSON object"]
     tokens = response.get("input_tokens")

@@ -21,6 +21,7 @@ from llm_comply.validators import (
     anth_has_input_tokens,
     anth_output_is_json,
     anth_output_matches_json_schema,
+    anth_stop_sequence,
     anth_streaming_content_block_bracketing,
     chat_has_message,
     chat_has_audio,
@@ -1108,6 +1109,33 @@ def main() -> int:
         "response.input_tokens is missing or not an integer"
     ]
     assert anth_has_input_tokens("nope", ctx) == ["response is not a JSON object"]
+    stop_sequence = anth_stop_sequence("END")
+    assert stop_sequence({"stop_sequence": "END"}, ctx) == []
+    assert stop_sequence({"stop_sequence": None}, ctx) == [
+        "stop_sequence: expected 'END', got None"
+    ]
+    assert stop_sequence({"stop_sequence": "STOP"}, ctx) == [
+        "stop_sequence: expected 'END', got 'STOP'"
+    ]
+    assert stop_sequence("nope", ctx) == ["response is not a JSON object"]
+    max_tokens = anth_tests["anth-max-tokens"]
+    assert max_tokens.schema_name == "Message"
+    assert "anth_stop_reason('max_tokens')" in [
+        getattr(v, "__qualname__", "") for v in max_tokens.validators
+    ]
+    max_request = max_tokens.build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert max_request["max_tokens"] == 1
+    stop_test = anth_tests["anth-stop-sequence"]
+    assert stop_test.schema_name == "Message"
+    stop_quals = [getattr(v, "__qualname__", "") for v in stop_test.validators]
+    assert "anth_stop_reason('stop_sequence')" in stop_quals, stop_quals
+    assert "anth_stop_sequence('END')" in stop_quals, stop_quals
+    stop_request = stop_test.build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert stop_request["stop_sequences"] == ["END"]
     result_quals = [
         getattr(v, "__qualname__", "")
         for v in anth_tests["anth-tool-result"].validators

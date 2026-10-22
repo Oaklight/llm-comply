@@ -914,6 +914,28 @@ def anth_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
     return failures or ["code execution did not report a result"]
 
 
+def anth_cache_used(response: Any, ctx: ValidatorContext) -> list[str]:
+    """A cached prompt must report cache creation or cache reads."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    usage = response.get("usage")
+    if not isinstance(usage, dict):
+        return ["response.usage is missing or not an object"]
+
+    def _positive(value: Any) -> bool:
+        return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+    created = usage.get("cache_creation_input_tokens")
+    read = usage.get("cache_read_input_tokens")
+    if _positive(created) or _positive(read):
+        return []
+    return [
+        "cache was not used: "
+        f"cache_creation_input_tokens={created}, "
+        f"cache_read_input_tokens={read}"
+    ]
+
+
 def anth_max_tokens_honoured(limit: int) -> Validator:
     """Factory: usage.output_tokens must not exceed the requested max_tokens."""
 

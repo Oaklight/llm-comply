@@ -524,6 +524,23 @@ def main() -> int:
     }
     assert chat_has_message(_response(audio_message), ctx) == []
     assert chat_has_audio(_response(audio_message), ctx) == []
+    for field in ("id", "data", "transcript"):
+        missing = dict(audio_message["audio"])
+        missing.pop(field)
+        assert any(
+            f"audio.{field} is missing or empty" in error
+            for error in chat_has_audio(
+                _response({**audio_message, "audio": missing}), ctx
+            )
+        ), field
+        empty = dict(audio_message["audio"])
+        empty[field] = ""
+        assert any(
+            f"audio.{field} is missing or empty" in error
+            for error in chat_has_audio(
+                _response({**audio_message, "audio": empty}), ctx
+            )
+        ), field
     assert any(
         "audio is missing" in error
         for error in chat_has_audio(
@@ -547,6 +564,7 @@ def main() -> int:
         getattr(v, "__name__", "") for v in chat_tests["chat-audio-output"].validators
     ]
     assert "chat_has_audio" in audio_names, "chat-audio-output"
+    assert chat_tests["chat-audio-output"].schema_name == "CreateChatCompletionResponse"
     audio_case = chat_tests["chat-audio-output"]
     assert audio_case.skip_reason is not None
     assert (

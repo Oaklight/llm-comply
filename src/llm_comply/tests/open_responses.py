@@ -14,6 +14,7 @@ from ..validators import (
     has_output_type,
     has_response_id,
     has_usage,
+    responses_error_body,
     responses_has_reasoning_summary,
     responses_output_is_json,
     responses_output_matches_json_schema,
@@ -554,6 +555,6 @@ OPEN_RESPONSES_TESTS: list[TestCase] = [
         },
         expected_statuses=[400, 422],
         schema_name=None,
-        validators=[],
+        validators=[responses_error_body],
     ),
 ]

@@ -45,6 +45,7 @@ from llm_comply.validators import (
     google_usage_valid_modalities,
     has_usage,
     interactions_has_step_of_type,
+    responses_error_body,
     responses_output_is_json,
     responses_output_matches_json_schema,
     responses_streaming_output_text,
@@ -110,6 +111,47 @@ def main() -> int:
         for v in open_responses["structured-output"].validators
     ]
     assert "responses_output_matches_json_schema" in names, "structured-output"
+
+    assert (
+        responses_error_body(
+            {
+                "type": "invalid_request_error",
+                "code": "missing_model",
+                "message": "model is required",
+                "param": "model",
+            },
+            ctx,
+        )
+        == []
+    )
+    assert (
+        responses_error_body(
+            {"type": "error", "code": None, "message": "bad request", "param": None},
+            ctx,
+        )
+        == []
+    )
+    assert responses_error_body({"error": {"message": "bad request"}}, ctx) == []
+    assert responses_error_body({}, ctx) == [
+        "error payload is missing fields: type, code, message, param"
+    ]
+    assert responses_error_body({"error": {}}, ctx) == [
+        "error.message is missing or empty"
+    ]
+    assert responses_error_body({"error": "nope"}, ctx) == ["error is not an object"]
+    assert responses_error_body("nope", ctx) == ["error response is not a JSON object"]
+    responses_error = {tc.id: tc for tc in get_tests("open_responses")}[
+        "error-handling"
+    ]
+    assert [getattr(v, "__qualname__", "") for v in responses_error.validators] == [
+        "responses_error_body"
+    ]
+    openai_error = {tc.id: tc for tc in get_tests("openai_responses")}[
+        "openai-error-handling"
+    ]
+    assert "responses_error_body" in [
+        getattr(v, "__qualname__", "") for v in openai_error.validators
+    ]
 
     tool_message = {
         "role": "assistant",

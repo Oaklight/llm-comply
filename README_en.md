@@ -179,6 +179,10 @@ services:
 | `google_generate` | 9 | Schema + semantic (candidates, parts, finishReason, safetyRatings, thinking) |
 | `google_interactions` | 9 | Semantic only (steps, model_output, thinking) |
 
+`chat-audio-output` treats the model name as a capability hint: it skips unless
+the name contains `audio` (case-insensitive), so deployments with role-named
+audio aliases should run the test with a name that includes it.
+
 ## License
 
 MIT

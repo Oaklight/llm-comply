@@ -6,6 +6,7 @@ from __future__ import annotations
 import sys
 from typing import Any
 
+from llm_comply.config import ComplianceConfig
 from llm_comply.test_case import ValidatorContext
 from llm_comply.tests import get_tests
 from llm_comply.validators import (
@@ -546,6 +547,22 @@ def main() -> int:
         getattr(v, "__name__", "") for v in chat_tests["chat-audio-output"].validators
     ]
     assert "chat_has_audio" in audio_names, "chat-audio-output"
+    audio_case = chat_tests["chat-audio-output"]
+    assert audio_case.skip_reason is not None
+    assert (
+        audio_case.skip_reason(
+            ComplianceConfig(
+                base_url="http://x", api_key="k", model="gpt-4o-audio-preview"
+            )
+        )
+        is None
+    )
+    assert (
+        audio_case.skip_reason(
+            ComplianceConfig(base_url="http://x", api_key="k", model="gpt-4o-mini")
+        )
+        is not None
+    )
     assert chat_tests["chat-error-handling"].schema_name == "ErrorResponse"
     assert "chat-web-search" in chat_tests
     assert chat_tests["chat-web-search"].schema_name == "CreateChatCompletionResponse"

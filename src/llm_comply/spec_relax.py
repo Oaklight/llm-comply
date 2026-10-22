@@ -19,6 +19,7 @@ _ANTHROPIC_OPTIONAL_FIELDS: dict[str, tuple[str, ...]] = {
     "Usage": ("output_tokens_details", "server_tool_use"),
     "ResponseTextBlock": ("citations",),
     "ResponseServerToolUseBlock": ("caller",),
+    "Container": ("skills",),
 }
 
 # OpenAI's chat completion responses omit ``logprobs`` entirely (the field is

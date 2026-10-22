@@ -1336,6 +1336,69 @@ def main() -> int:
 
     ce_ok = {"content": [ce_use, _ce_result("srvtoolu_1")]}
     assert anth_has_code_execution(ce_ok, ctx) == []
+    # code_execution_20260521 delegates to the bash and text-editor server
+    # tools; the live response uses those names and result block types.
+    bash_use = {
+        "type": "server_tool_use",
+        "name": "bash_code_execution",
+        "id": "srvtoolu_2",
+        "input": {"command": "python x.py"},
+    }
+    bash_result = {
+        "type": "bash_code_execution_tool_result",
+        "tool_use_id": "srvtoolu_2",
+        "content": {
+            "type": "bash_code_execution_result",
+            "return_code": 0,
+            "stdout": "55",
+            "stderr": "",
+            "content": [],
+        },
+    }
+    assert anth_has_code_execution({"content": [bash_use, bash_result]}, ctx) == []
+    assert anth_has_code_execution(
+        {
+            "content": [
+                bash_use,
+                {
+                    **bash_result,
+                    "content": {**bash_result["content"], "return_code": 1},
+                },
+            ]
+        },
+        ctx,
+    ) == ["code execution did not succeed: return_code=1"]
+    editor_use = {
+        "type": "server_tool_use",
+        "name": "text_editor_code_execution",
+        "id": "srvtoolu_3",
+        "input": {"command": "view", "path": "/tmp/x"},
+    }
+    editor_result = {
+        "type": "text_editor_code_execution_tool_result",
+        "tool_use_id": "srvtoolu_3",
+        "content": {
+            "type": "text_editor_code_execution_view_result",
+            "content": "55",
+            "file_type": "text",
+        },
+    }
+    assert anth_has_code_execution({"content": [editor_use, editor_result]}, ctx) == []
+    assert anth_has_code_execution(
+        {
+            "content": [
+                editor_use,
+                {
+                    **editor_result,
+                    "content": {
+                        "type": "text_editor_code_execution_tool_result_error",
+                        "error_code": "unavailable",
+                    },
+                },
+            ]
+        },
+        ctx,
+    ) == ["code execution failed: unavailable"]
     assert anth_has_code_execution(
         {"content": [ce_use, _ce_result("srvtoolu_1", return_code=1)]}, ctx
     ) == ["code execution did not succeed: return_code=1"]

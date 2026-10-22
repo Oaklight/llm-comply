@@ -862,6 +862,18 @@ def anth_output_matches_json_schema(schema: dict[str, Any]) -> Validator:
     return _check
 
 
+_CODE_EXECUTION_NAMES = (
+    "code_execution",
+    "bash_code_execution",
+    "text_editor_code_execution",
+)
+_CODE_EXECUTION_RESULT_BLOCKS = (
+    "code_execution_tool_result",
+    "bash_code_execution_tool_result",
+    "text_editor_code_execution_tool_result",
+)
+
+
 def anth_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
     """A server tool run must pair with a result that exited successfully.
 
@@ -882,11 +894,11 @@ def anth_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
             continue
         if (
             block.get("type") == "server_tool_use"
-            and block.get("name") == "code_execution"
+            and block.get("name") in _CODE_EXECUTION_NAMES
             and isinstance(block.get("id"), str)
         ):
             server_ids.add(block["id"])
-        elif block.get("type") == "code_execution_tool_result":
+        elif block.get("type") in _CODE_EXECUTION_RESULT_BLOCKS:
             results.append(block)
     if not server_ids:
         return ["no server_tool_use block for code_execution"]
@@ -900,9 +912,16 @@ def anth_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
         inner = result.get("content")
         if not isinstance(inner, dict):
             continue
+        inner_type = inner.get("type")
         if (
-            inner.get("type") == "code_execution_result"
+            inner_type in ("code_execution_result", "bash_code_execution_result")
             and inner.get("return_code") == 0
+        ):
+            return []
+        if (
+            isinstance(inner_type, str)
+            and inner_type.startswith("text_editor_code_execution_")
+            and not inner_type.endswith("_error")
         ):
             return []
         if "error_code" in inner:

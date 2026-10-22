@@ -899,7 +899,7 @@ def google_has_content_parts(response: Any, ctx: ValidatorContext) -> list[str]:
 
 
 def _google_output_text(response: Any) -> str | None:
-    """Concatenate text parts from the first candidate, or None when absent."""
+    """Concatenate text parts from the first candidate that has any, or None."""
     if not isinstance(response, dict):
         return None
     texts: list[str] = []

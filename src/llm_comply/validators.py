@@ -815,6 +815,58 @@ def anth_output_matches_json_schema(schema: dict[str, Any]) -> Validator:
     return _check
 
 
+def anth_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
+    """A server tool run must pair with a result that exited successfully.
+
+    ``server_tool_use`` ids must match the ``tool_use_id`` they answer, and
+    the sandbox run counts as proof only when ``return_code`` is 0. Multiple
+    runs pass when any one succeeded, matching the Google code-execution
+    validator's retry semantics.
+    """
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    content = response.get("content")
+    if not isinstance(content, list):
+        return ["response.content is missing or not an array"]
+    server_ids: set[str] = set()
+    results: list[dict[str, Any]] = []
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        if (
+            block.get("type") == "server_tool_use"
+            and block.get("name") == "code_execution"
+            and isinstance(block.get("id"), str)
+        ):
+            server_ids.add(block["id"])
+        elif block.get("type") == "code_execution_tool_result":
+            results.append(block)
+    if not server_ids:
+        return ["no server_tool_use block for code_execution"]
+    if not results:
+        return ["no code_execution_tool_result block"]
+    paired = [result for result in results if result.get("tool_use_id") in server_ids]
+    if not paired:
+        return ["code_execution_tool_result does not match any server_tool_use id"]
+    failures: list[str] = []
+    for result in paired:
+        inner = result.get("content")
+        if not isinstance(inner, dict):
+            continue
+        if (
+            inner.get("type") == "code_execution_result"
+            and inner.get("return_code") == 0
+        ):
+            return []
+        if "error_code" in inner:
+            failures.append(f"code execution failed: {inner['error_code']}")
+        elif "return_code" in inner:
+            failures.append(
+                f"code execution did not succeed: return_code={inner['return_code']}"
+            )
+    return failures or ["code execution did not report a result"]
+
+
 def anth_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
     """Response must have usage with input_tokens/output_tokens."""
     if not isinstance(response, dict):

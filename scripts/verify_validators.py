@@ -16,6 +16,7 @@ from llm_comply.tests.google_genai import (
 )
 from llm_comply.validators import (
     anth_has_content_block_of_type,
+    anth_has_code_execution,
     anth_output_is_json,
     anth_output_matches_json_schema,
     anth_streaming_content_block_bracketing,
@@ -1020,10 +1021,75 @@ def main() -> int:
     assert code_execution.optional
     assert code_execution.schema_name == "Message"
     ce_quals = [getattr(v, "__qualname__", "") for v in code_execution.validators]
-    assert any(
-        "server_tool_use" in qual and "code_execution_tool_result" in qual
-        for qual in ce_quals
-    ), ce_quals
+    assert "anth_has_code_execution" in ce_quals, ce_quals
+    ce_use = {
+        "type": "server_tool_use",
+        "name": "code_execution",
+        "id": "srvtoolu_1",
+        "input": {"code": "print(1)"},
+    }
+
+    def _ce_result(tool_use_id: str, **inner: Any) -> dict:
+        return {
+            "type": "code_execution_tool_result",
+            "tool_use_id": tool_use_id,
+            "content": {
+                "type": "code_execution_result",
+                "return_code": 0,
+                "stdout": "55",
+                "stderr": "",
+                "content": [],
+                **inner,
+            },
+        }
+
+    ce_ok = {"content": [ce_use, _ce_result("srvtoolu_1")]}
+    assert anth_has_code_execution(ce_ok, ctx) == []
+    assert anth_has_code_execution(
+        {"content": [ce_use, _ce_result("srvtoolu_1", return_code=1)]}, ctx
+    ) == ["code execution did not succeed: return_code=1"]
+    assert (
+        anth_has_code_execution(
+            {
+                "content": [
+                    ce_use,
+                    _ce_result("srvtoolu_1", return_code=1),
+                    {**ce_use, "id": "srvtoolu_2"},
+                    _ce_result("srvtoolu_2"),
+                ]
+            },
+            ctx,
+        )
+        == []
+    )
+    assert anth_has_code_execution(
+        {"content": [ce_use, _ce_result("srvtoolu_other")]}, ctx
+    ) == ["code_execution_tool_result does not match any server_tool_use id"]
+    assert anth_has_code_execution({"content": [ce_use]}, ctx) == [
+        "no code_execution_tool_result block"
+    ]
+    assert anth_has_code_execution({"content": [_ce_result("srvtoolu_1")]}, ctx) == [
+        "no server_tool_use block for code_execution"
+    ]
+    assert anth_has_code_execution(
+        {
+            "content": [
+                ce_use,
+                {
+                    "type": "code_execution_tool_result",
+                    "tool_use_id": "srvtoolu_1",
+                    "content": {
+                        "type": "code_execution_tool_result_error",
+                        "error_code": "unavailable",
+                    },
+                },
+            ]
+        },
+        ctx,
+    ) == ["code execution failed: unavailable"]
+    assert anth_has_code_execution({"content": "nope"}, ctx) == [
+        "response.content is missing or not an array"
+    ]
     ce_request = code_execution.build_request(
         ComplianceConfig(base_url="http://x", api_key="k", model="test")
     )

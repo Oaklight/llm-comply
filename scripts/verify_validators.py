@@ -1665,16 +1665,49 @@ def main() -> int:
     assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
         None, bad_start_index
     ) == ["tool_use content_block_start has no integer index"]
+    bool_delta_index = ValidatorContext(
+        streaming=True,
+        sse_events=[
+            tool_stream_ctx.sse_events[0],
+            {
+                "type": "content_block_delta",
+                "data": {
+                    "type": "content_block_delta",
+                    "index": True,
+                    "delta": {
+                        "type": "input_json_delta",
+                        "partial_json": '{"location":"SF"}',
+                    },
+                },
+            },
+        ],
+    )
+    assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
+        None, bool_delta_index
+    ) == [
+        "input_json_delta event has no integer index",
+        "tool_use block at index 0 has no input_json_delta events",
+    ]
     tool_stream = anth_tests["anth-streaming-tool-use"]
     assert tool_stream.streaming
     assert tool_stream.schema_name is None
-    assert "anth_streaming_has_tool_input_delta" in [
-        getattr(v, "__qualname__", "") for v in tool_stream.validators
+    shipped_check = next(
+        v
+        for v in tool_stream.validators
+        if getattr(v, "__qualname__", "") == "anth_streaming_has_tool_input_delta"
+    )
+    # Assert against the instance the test actually carries, so dropping the
+    # schema argument from the test's wiring fails here.
+    assert shipped_check.__schema__ == _ANTH_TOOL_SCHEMA
+    assert shipped_check(None, schema_mismatch) == [
+        "tool input at index 0 does not match the tool schema: "
+        "'location' is a required property"
     ]
     tool_stream_request = tool_stream.build_request(
         ComplianceConfig(base_url="http://x", api_key="k", model="test")
     )
     assert tool_stream_request["tools"][0]["name"] == "get_weather"
+    assert tool_stream_request["tools"][0]["input_schema"] is _ANTH_TOOL_SCHEMA
     print("anthropic streaming: content blocks are correctly bracketed")
 
     def _delta_event(delta: Any) -> dict:

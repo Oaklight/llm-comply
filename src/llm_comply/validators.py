@@ -1117,7 +1117,7 @@ def anth_streaming_has_tool_input_delta(
             if data.get("type") == "content_block_start":
                 block = data.get("content_block")
                 if isinstance(block, dict) and block.get("type") == "tool_use":
-                    if isinstance(index, int):
+                    if isinstance(index, int) and not isinstance(index, bool):
                         tool_indexes.add(index)
                     else:
                         errors.append(
@@ -1126,7 +1126,7 @@ def anth_streaming_has_tool_input_delta(
             elif data.get("type") == "content_block_delta":
                 delta = data.get("delta")
                 if isinstance(delta, dict) and delta.get("type") == "input_json_delta":
-                    if not isinstance(index, int):
+                    if not isinstance(index, int) or isinstance(index, bool):
                         errors.append("input_json_delta event has no integer index")
                         continue
                     fragment = delta.get("partial_json")
@@ -1164,6 +1164,7 @@ def anth_streaming_has_tool_input_delta(
         return errors
 
     _check.__qualname__ = "anth_streaming_has_tool_input_delta"
+    _check.__schema__ = input_schema
     return _check
 
 

@@ -196,6 +196,13 @@ def main() -> int:
     }
     assert messages.validate(live_usage, "Usage") == []
     assert messages.validate({"type": "text", "text": "hi"}, "ResponseTextBlock") == []
+    assert "skills" not in messages.get_schema("Container")["required"]
+    assert (
+        messages.validate(
+            {"id": "container_1", "expires_at": "2026-10-22T07:10:04Z"}, "Container"
+        )
+        == []
+    )
     print(f"messages: {len(messages.schema_names)} schemas")
 
     # The tool tests must build requests the API accepts: a 400 caused by a

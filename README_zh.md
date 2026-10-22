@@ -172,6 +172,9 @@ services:
 | `google_generate` | 9 | Schema + 语义（candidates、parts、finishReason、safetyRatings、思维链） |
 | `google_interactions` | 9 | 仅语义（steps、model_output、思维链） |
 
+`chat-audio-output` 以模型名作为能力提示：仅当名称包含 `audio`（不区分大小写）
+时才运行；若部署使用自定义别名，请用包含 `audio` 的名称运行该测试。
+
 ## 许可证
 
 MIT

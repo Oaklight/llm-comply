@@ -79,6 +79,11 @@ class TestRunner:
         request_body: dict[str, Any] = {}
         response_data: Any = None
         sse_events: list[dict[str, Any]] | None = None
+        status_code: int | None = None
+        # A transport, status, parse, or schema failure is fatal for every
+        # test, including optional ones. Only semantic findings from the
+        # validators may be demoted to warnings.
+        fatal = False
         start = time.monotonic()
 
         try:
@@ -114,13 +119,27 @@ class TestRunner:
             # Check HTTP status
             if status_code not in tc.expected_statuses:
                 errors.append(f"HTTP {status_code} (expected {tc.expected_statuses})")
+                fatal = True
+            elif (
+                tc.optional
+                and not tc.streaming
+                and (not isinstance(response_data, dict) or not response_data)
+            ):
+                # An optional capability must still answer with a non-empty
+                # JSON object; an empty or text body says the endpoint itself
+                # is broken, not that the tool is unsupported.
+                errors.append("response is empty or not a JSON object")
+                fatal = True
 
             # Schema validation (non-streaming response or final streaming response)
             if tc.schema_name and isinstance(response_data, dict) and not errors:
                 schema_errors = self._spec.validate(response_data, tc.schema_name)
+                if schema_errors:
+                    fatal = True
                 errors.extend(schema_errors)
 
             # Per-event schema validation for streaming
+            stream_errors_start = len(errors)
             if tc.streaming and tc.validate_stream_events and sse_events:
                 for event in sse_events:
                     edata = event.get("data")
@@ -152,6 +171,8 @@ class TestRunner:
                             continue
                         event_errors = self._spec.validate_sse_event(etype, edata)
                     errors.extend(event_errors)
+            if len(errors) > stream_errors_start:
+                fatal = True
 
             # Semantic validators
             ctx = ValidatorContext(streaming=tc.streaming, sse_events=sse_events)
@@ -160,6 +181,7 @@ class TestRunner:
 
         except Exception as exc:
             errors.append(f"exception: {exc}")
+            fatal = True
             if self._config.verbose:
                 errors.append(traceback.format_exc())
 
@@ -179,11 +201,12 @@ class TestRunner:
         ]
         errors = [e for e in errors if not e.startswith(_WARNING_PREFIX)]
 
-        # Optional capabilities are advisory: a provider that rejects the
-        # request outright is skipped above, and any other shortfall (an
-        # unsupported status or missing built-in-tool output) is reported as a
-        # warning so an intrinsic tool cannot fail an otherwise compliant API.
-        if tc.optional and errors:
+        # Optional capabilities are advisory only when the provider answered a
+        # well-formed response at an expected status: a missing built-in-tool
+        # artifact is then a warning. Status, transport, parse, and schema
+        # failures remain fatal (they are protocol failures, not capability
+        # gaps), as do authentication and throttling errors.
+        if tc.optional and errors and not fatal:
             warnings.extend(errors)
             errors = []
 

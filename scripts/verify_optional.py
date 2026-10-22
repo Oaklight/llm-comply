@@ -64,7 +64,7 @@ def _case(optional: bool) -> TestCase:
 
 
 def main() -> int:
-    """Assert optional tests skip only for unsupported statuses."""
+    """Assert optional tests distinguish capability gaps from protocol failures."""
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
     port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -90,35 +90,64 @@ def main() -> int:
         result = runner.run_one(_case(False))
         assert result.status == TestStatus.FAILED, result.errors
 
-        # Server errors are advisory for an optional capability: the test
-        # passes with a warning instead of failing the suite.
+        # A server error is a protocol failure, not a capability gap: it still
+        # fails an optional test.
         _Handler.status = 500
         _Handler.body = {"error": {"message": "boom"}}
         result = runner.run_one(_case(True))
-        assert result.status == TestStatus.PASSED, result.errors
-        assert any("HTTP 500" in warning for warning in result.warnings), (
-            result.warnings
-        )
+        assert result.status == TestStatus.FAILED, result.errors
 
-        # Semantic shortfalls (the provider answered but not with the tool
-        # output the test asked for) are warnings too.
+        # Semantic shortfalls (the provider answered with a well-formed JSON
+        # object but not with the tool output the test asked for) are warnings.
         case = _case(True)
         case.validators = [lambda data, ctx: ["executableCode is missing"]]
         _Handler.status = 200
+        _Handler.body = {"id": "int_1"}
         result = runner.run_one(case)
         assert result.status == TestStatus.PASSED, result.errors
         assert result.warnings == ["executableCode is missing"], result.warnings
 
-        # The same failure still fails a non-optional test.
+        # A 200 that is not a JSON object is a protocol failure too.
+        _Handler.body = "not json at all"
+        result = runner.run_one(_case(True))
+        assert result.status == TestStatus.FAILED, result.errors
+
+        # So is an empty JSON object.
+        _Handler.body = {}
+        result = runner.run_one(_case(True))
+        assert result.status == TestStatus.FAILED, result.errors
+
+        # So is a JSON object that violates the response schema.
+        case = _case(True)
+        case.schema_name = "Response"
+        _Handler.body = {"id": "int_1"}
+        result = runner.run_one(case)
+        assert result.status == TestStatus.FAILED, result.errors
+
+        # Authentication and throttling failures say nothing about whether the
+        # capability is supported, so they fail as well.
+        for auth_status in (401, 403, 429):
+            _Handler.status = auth_status
+            _Handler.body = {"error": {"message": "invalid key"}}
+            result = runner.run_one(_case(True))
+            assert result.status == TestStatus.FAILED, (auth_status, result.warnings)
+            assert result.warnings == [], (auth_status, result.warnings)
+
+        # The same semantic shortfall still fails a non-optional test.
         non_optional = _case(False)
         non_optional.validators = [lambda data, ctx: ["executableCode is missing"]]
+        _Handler.status = 200
+        _Handler.body = {"id": "int_1"}
         result = runner.run_one(non_optional)
         assert result.status == TestStatus.FAILED, result.errors
     finally:
         server.shutdown()
         server.server_close()
 
-    print("optional tests: unsupported statuses skip; other failures are warnings")
+    print(
+        "optional tests: unsupported statuses skip; capability shortfalls warn; "
+        "protocol failures fail"
+    )
     return 0
 
 

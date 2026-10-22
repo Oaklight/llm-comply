@@ -189,11 +189,12 @@ audio aliases should run the test with a name that includes it.
 
 The built-in Google Interactions tool tests are optional: a provider that does
 not support a tool and answers with 400, 404, 405, 422, or 501 reports the
-test as skipped. Any other shortfall — a 5xx, or a successful response that
-lacks the tool's output — is reported as a warning, so an intrinsic tool can
-never fail an otherwise compliant API. The Google GenAI grounding and
-code-execution, Anthropic web-search and code-execution, and chat web-search
-tests follow the same rule.
+test as skipped. A successful response that lacks the tool's output is
+reported as a warning, so an intrinsic tool cannot fail an otherwise
+compliant API. Protocol failures — a 5xx, a non-JSON body, a schema
+violation, or an authentication, throttling, or transport error — still fail.
+The Google GenAI grounding and code-execution, Anthropic web-search and
+code-execution, and chat web-search tests follow this rule.
 
 ## License
 

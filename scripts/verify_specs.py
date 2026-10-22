@@ -39,6 +39,19 @@ CHAT_STREAM_CHUNK = {
     ],
 }
 
+# The relaxations are deliberate and must stay this narrow: adding a field to
+# the constants below without also updating this pin would let that field slip
+# out of validation unnoticed.
+_ANTHROPIC_OPTIONAL_FIELDS_PIN = {
+    "Usage": {"output_tokens_details", "server_tool_use", "speed"},
+    "Message": {"diagnostics"},
+    "ResponseTextBlock": {"citations"},
+    "ResponseServerToolUseBlock": {"caller"},
+    "ResponseToolUseBlock": {"caller"},
+    "Container": {"skills"},
+}
+_OPENAI_RESPONSES_OPTIONAL_FIELDS_PIN = {"cache_write_tokens"}
+
 
 def main() -> int:
     """Run the bundled-spec assertions."""
@@ -210,6 +223,9 @@ def main() -> int:
     # breakdown is relaxed at load time.
     raw_usage = subset["components"]["schemas"]["ResponseUsage"]
     raw_input_details = raw_usage["properties"]["input_tokens_details"]
+    assert set(_OPENAI_RESPONSES_OPTIONAL_FIELDS) == (
+        _OPENAI_RESPONSES_OPTIONAL_FIELDS_PIN
+    ), "the Responses relaxation list must change deliberately"
     for field in _OPENAI_RESPONSES_OPTIONAL_FIELDS:
         assert field in raw_input_details["required"], field
     relaxed_input_details = openai_responses.get_schema("ResponseUsage")["properties"][
@@ -235,6 +251,11 @@ def main() -> int:
 
     raw_messages = json.loads((SPECS_DIR / "anthropic.json").read_text())
     raw_anthropic = raw_messages["components"]["schemas"]
+    assert {
+        name: set(fields) for name, fields in _ANTHROPIC_OPTIONAL_FIELDS.items()
+    } == _ANTHROPIC_OPTIONAL_FIELDS_PIN, (
+        "the Anthropic relaxation list must change deliberately"
+    )
     for schema_name, fields in _ANTHROPIC_OPTIONAL_FIELDS.items():
         for field in fields:
             assert field in raw_anthropic[schema_name]["required"], (

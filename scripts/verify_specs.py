@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import sys
 
 from llm_comply.formats import VALIDATION_SPEC_FILES
@@ -13,6 +14,7 @@ from llm_comply.spec_extract import extract_openai_responses
 from llm_comply.test_case import TestCategory
 from llm_comply.tests import get_tests
 from llm_comply.tests.google_genai import _make_test
+from llm_comply.validators import _GOOGLE_GROUNDING_FIELDS
 
 SPECS_DIR = pathlib.Path(__file__).resolve().parent.parent / "src/llm_comply/specs"
 
@@ -165,6 +167,26 @@ def main() -> int:
         {"candidates": [{"finishReason": "NOT_A_REASON"}]}, "GenerateContentResponse"
     ), "invalid finishReason should have errors"
     print(f"google_generate: {len(google_generate.schema_names)} schemas (schema)")
+
+    # The grounding field list is a hand-maintained copy of the spec's
+    # GroundingMetadata.properties. Tie it to the bundled spec so a refresh
+    # that adds a field forces a decision instead of silently narrowing the
+    # validator. The maps widget token is excluded on purpose: it renders a
+    # widget and is not evidence that a search returned results.
+    grounding_schema = google_generate.get_schema("GroundingMetadata")
+    assert grounding_schema is not None, "GroundingMetadata missing from spec"
+    grounding_properties = set(grounding_schema.get("properties", {}))
+    grounding_exclusions = {"googleMapsWidgetContextToken"}
+    listed_camel = {f for f in _GOOGLE_GROUNDING_FIELDS if "_" not in f}
+    assert listed_camel | grounding_exclusions == grounding_properties, (
+        listed_camel,
+        grounding_properties,
+    )
+    listed_snake = {f for f in _GOOGLE_GROUNDING_FIELDS if "_" in f}
+    expected_snake = {
+        re.sub(r"(?<!^)(?=[A-Z])", "_", field).lower() for field in listed_camel
+    }
+    assert listed_snake == expected_snake, (listed_snake, expected_snake)
 
     # Every shipped success-path test must carry the response schema.
     for tc in get_tests("google_generate"):

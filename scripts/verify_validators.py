@@ -188,6 +188,13 @@ def main() -> int:
         ctx,
     ) == ["output_text does not contain '42'"]
     assert contains({"output": []}, ctx) == ["no output_text content to inspect"]
+    assert responses_output_contains("")({"output": []}, ctx) == [
+        "expected text is empty"
+    ]
+    openai_file = {tc.id: tc for tc in get_tests("openai_responses")}[
+        "openai-file-input"
+    ]
+    assert openai_file.schema_name == "Response"
     file_test = {tc.id: tc for tc in get_tests("open_responses")}["file-input"]
     assert file_test.schema_name == "ResponseResource"
     assert "responses_output_contains('42')" in [

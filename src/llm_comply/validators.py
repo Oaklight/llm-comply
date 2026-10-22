@@ -946,7 +946,9 @@ def google_has_grounding_metadata(response: Any, ctx: ValidatorContext) -> list[
 
 
 def google_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
-    """A part must carry executableCode or codeExecutionResult."""
+    """A candidate must pair executableCode with a successful codeExecutionResult."""
+    saw_code = False
+    saw_result: Any = None
     for cand in _google_candidates(response):
         content = cand.get("content")
         if not isinstance(content, dict):
@@ -957,17 +959,24 @@ def google_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]
         for part in parts:
             if not isinstance(part, dict):
                 continue
-            if any(
-                key in part
-                for key in (
-                    "executableCode",
-                    "executable_code",
-                    "codeExecutionResult",
-                    "code_execution_result",
-                )
+            if not saw_code and (
+                part.get("executableCode") or part.get("executable_code")
             ):
-                return []
-    return ["no part carried executableCode or codeExecutionResult"]
+                saw_code = True
+            if saw_result is None:
+                saw_result = part.get("codeExecutionResult") or part.get(
+                    "code_execution_result"
+                )
+    if not saw_code:
+        return ["no part carried executableCode"]
+    if saw_result is None:
+        return ["executableCode carried but no codeExecutionResult"]
+    if isinstance(saw_result, dict) and saw_result.get("outcome") not in (
+        None,
+        "OUTCOME_OK",
+    ):
+        return [f"code execution did not succeed: {saw_result.get('outcome')}"]
+    return []
 
 
 def google_output_is_json(response: Any, ctx: ValidatorContext) -> list[str]:

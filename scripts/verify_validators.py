@@ -551,20 +551,70 @@ def main() -> int:
 
     grounding = {"candidates": [{"groundingMetadata": {"webSearchQueries": ["x"]}}]}
     assert google_has_grounding_metadata(grounding, ctx) == []
+    assert (
+        google_has_grounding_metadata(
+            {
+                "candidates": [
+                    {
+                        "groundingMetadata": {
+                            "searchEntryPoint": {"renderedContent": "x"}
+                        }
+                    }
+                ]
+            },
+            ctx,
+        )
+        == []
+    )
+    assert (
+        google_has_grounding_metadata(
+            {"candidates": [{"grounding_metadata": {"web_search_queries": ["x"]}}]}, ctx
+        )
+        == []
+    )
     for empty in (
         {"candidates": []},
+        {"candidates": [{"groundingMetadata": {}}]},
         {"candidates": [{"groundingMetadata": {"webSearchQueries": []}}]},
         {"candidates": [{"groundingMetadata": {"unrelated": 1}}]},
     ):
         assert google_has_grounding_metadata(empty, ctx) == [
             "groundingMetadata is missing or has no grounding fields"
         ]
-    code_execution = {
-        "candidates": [{"content": {"parts": [{"executableCode": {"code": "1"}}]}}]
-    }
+    code_part = {"executableCode": {"language": "PYTHON", "code": "1"}}
+    result_part = {"codeExecutionResult": {"outcome": "OUTCOME_OK", "output": "55"}}
+    code_execution = {"candidates": [{"content": {"parts": [code_part, result_part]}}]}
     assert google_has_code_execution(code_execution, ctx) == []
+    snake_code_execution = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {"executable_code": {"language": "PYTHON", "code": "1"}},
+                        {
+                            "code_execution_result": {
+                                "outcome": "OUTCOME_OK",
+                                "output": "55",
+                            }
+                        },
+                    ]
+                }
+            }
+        ]
+    }
+    assert google_has_code_execution(snake_code_execution, ctx) == []
+    assert google_has_code_execution(
+        {"candidates": [{"content": {"parts": [code_part]}}]}, ctx
+    ) == ["executableCode carried but no codeExecutionResult"]
+    assert google_has_code_execution(
+        {"candidates": [{"content": {"parts": [result_part]}}]}, ctx
+    ) == ["no part carried executableCode"]
+    failed_part = {"codeExecutionResult": {"outcome": "OUTCOME_FAILED", "output": ""}}
+    assert google_has_code_execution(
+        {"candidates": [{"content": {"parts": [code_part, failed_part]}}]}, ctx
+    ) == ["code execution did not succeed: OUTCOME_FAILED"]
     assert google_has_code_execution({"candidates": []}, ctx) == [
-        "no part carried executableCode or codeExecutionResult"
+        "no part carried executableCode"
     ]
     assert google_tests["google-grounding"].optional
     assert google_tests["google-code-execution"].optional
@@ -572,8 +622,10 @@ def main() -> int:
         ("google-grounding", "google_has_grounding_metadata"),
         ("google-code-execution", "google_has_code_execution"),
     ):
-        names = [getattr(v, "__name__", "") for v in google_tests[test_id].validators]
-        assert validator_name in names, test_id
+        qualnames = [
+            getattr(v, "__qualname__", "") for v in google_tests[test_id].validators
+        ]
+        assert validator_name in qualnames, (test_id, qualnames)
     grounding_request = google_tests["google-grounding"].build_request(
         ComplianceConfig(base_url="http://x", api_key="k", model="test")
     )

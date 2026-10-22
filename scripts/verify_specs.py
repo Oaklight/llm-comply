@@ -138,7 +138,11 @@ def main() -> int:
     # malformed request would look like "capability unsupported" and turn the
     # optional web-search test into a permanent skip.
     anth_config = ComplianceConfig(base_url="http://x", api_key="k", model="test-model")
-    for test_id in ("anth-tool-result", "anth-web-search"):
+    for test_id in (
+        "anth-tool-result",
+        "anth-web-search",
+        "anth-structured-output",
+    ):
         test_case = next(tc for tc in get_tests("messages") if tc.id == test_id)
         request = test_case.build_request(anth_config)
         assert messages.validate(request, "CreateMessageParams") == [], test_id

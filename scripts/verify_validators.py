@@ -9,12 +9,15 @@ from typing import Any
 from llm_comply.config import ComplianceConfig
 from llm_comply.test_case import ValidatorContext
 from llm_comply.tests import get_tests
+from llm_comply.tests.anthropic import _WEATHER_OUTPUT_SCHEMA as _ANTH_JSON_SCHEMA
 from llm_comply.tests.google_genai import (
     _WEATHER_OUTPUT_SCHEMA,
     _WEATHER_RESPONSE_SCHEMA,
 )
 from llm_comply.validators import (
     anth_has_content_block_of_type,
+    anth_output_is_json,
+    anth_output_matches_json_schema,
     anth_streaming_content_block_bracketing,
     chat_has_message,
     chat_has_audio,
@@ -1013,6 +1016,47 @@ def main() -> int:
     assert web_request["tools"] == [
         {"type": "web_search_20260318", "name": "web_search", "max_uses": 3}
     ]
+    json_response = {
+        "content": [
+            {"type": "thinking", "thinking": "reasoning"},
+            {"type": "text", "text": '{"city": "SF", "temperature_c": 18}'},
+        ]
+    }
+    assert anth_output_is_json(json_response, ctx) == []
+    assert anth_output_matches_json_schema(_ANTH_JSON_SCHEMA)(json_response, ctx) == []
+    assert anth_output_is_json({"content": []}, ctx) == [
+        "no text block to parse as JSON"
+    ]
+    assert anth_output_is_json(
+        {"content": [{"type": "text", "text": "not json"}]}, ctx
+    ) == ["text blocks are not valid JSON: Expecting value: line 1 column 1 (char 0)"]
+    assert anth_output_matches_json_schema(_ANTH_JSON_SCHEMA)(
+        {"content": [{"type": "text", "text": "[1, 2]"}]}, ctx
+    ) == [
+        "text blocks do not match the requested schema: [1, 2] is not of type 'object'"
+    ]
+    assert anth_output_is_json({"content": "nope"}, ctx) == [
+        "no text block to parse as JSON"
+    ]
+    structured = anth_tests["anth-structured-output"]
+    assert structured.schema_name == "Message"
+    structured_quals = [getattr(v, "__qualname__", "") for v in structured.validators]
+    assert "anth_output_is_json" in structured_quals, structured_quals
+    assert "anth_output_matches_json_schema" in structured_quals, structured_quals
+    schema_validator = next(
+        v
+        for v in structured.validators
+        if getattr(v, "__qualname__", "") == "anth_output_matches_json_schema"
+    )
+    assert schema_validator.__schema__ == _ANTH_JSON_SCHEMA
+    structured_request = structured.build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert structured_request["output_config"]["format"] == {
+        "type": "json_schema",
+        "schema": _ANTH_JSON_SCHEMA,
+    }
+    assert structured_request["max_tokens"] == 1024
     print("anthropic streaming: content blocks are correctly bracketed")
 
     def _delta_event(delta: Any) -> dict:

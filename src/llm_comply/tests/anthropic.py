@@ -13,6 +13,8 @@ from ..validators import (
     anth_has_thinking_content,
     anth_has_tool_use,
     anth_has_usage,
+    anth_output_is_json,
+    anth_output_matches_json_schema,
     anth_role_assistant,
     anth_stop_reason,
     anth_streaming_content_block_bracketing,
@@ -111,6 +113,38 @@ def _build_tool_result_request(cfg: ComplianceConfig) -> dict[str, Any]:
                 },
             }
         ],
+    }
+
+
+_WEATHER_OUTPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "city": {"type": "string"},
+        "temperature_c": {"type": "number"},
+    },
+    "required": ["city", "temperature_c"],
+}
+
+
+def _build_structured_output_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "max_tokens": 1024,
+        "messages": [
+            {
+                "role": "user",
+                "content": (
+                    "Return the current weather in San Francisco as JSON "
+                    "with keys city and temperature_c."
+                ),
+            }
+        ],
+        "output_config": {
+            "format": {
+                "type": "json_schema",
+                "schema": _WEATHER_OUTPUT_SCHEMA,
+            }
+        },
     }
 
 
@@ -270,6 +304,24 @@ ANTHROPIC_TESTS: list[TestCase] = [
             anth_has_content,
             anth_has_content_block_of_type("server_tool_use", "web_search_tool_result"),
             anth_stop_reason("end_turn"),
+        ],
+    ),
+    TestCase(
+        id="anth-structured-output",
+        name="Structured Output",
+        description="output_config JSON schema yields matching JSON text",
+        category=TestCategory.BASIC,
+        endpoint="/messages",
+        schema_name="Message",
+        build_request=_build_structured_output_request,
+        validators=[
+            has_response_id,
+            anth_type_message,
+            anth_role_assistant,
+            anth_has_content,
+            anth_stop_reason("end_turn"),
+            anth_output_is_json,
+            anth_output_matches_json_schema(_WEATHER_OUTPUT_SCHEMA),
         ],
     ),
     TestCase(

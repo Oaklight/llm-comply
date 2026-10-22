@@ -764,6 +764,57 @@ def anth_has_content_block_of_type(*expected: str) -> Validator:
     return _check
 
 
+def _anth_output_text(response: Any) -> str | None:
+    """Concatenate text blocks from the response, or None when there are none."""
+    if not isinstance(response, dict):
+        return None
+    content = response.get("content")
+    if not isinstance(content, list):
+        return None
+    texts = [
+        block["text"]
+        for block in content
+        if isinstance(block, dict)
+        and block.get("type") == "text"
+        and isinstance(block.get("text"), str)
+    ]
+    return "".join(texts) if texts else None
+
+
+def anth_output_is_json(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Concatenated text blocks must parse as JSON."""
+    text = _anth_output_text(response)
+    if text is None:
+        return ["no text block to parse as JSON"]
+    try:
+        json.loads(text)
+    except ValueError as exc:
+        return [f"text blocks are not valid JSON: {exc}"]
+    return []
+
+
+def anth_output_matches_json_schema(schema: dict[str, Any]) -> Validator:
+    """Factory: parsed text blocks must validate against *schema*."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        text = _anth_output_text(response)
+        if text is None:
+            return ["no text block to parse as JSON"]
+        try:
+            parsed = json.loads(text)
+        except ValueError as exc:
+            return [f"text blocks are not valid JSON: {exc}"]
+        try:
+            jsonschema.validate(parsed, schema)
+        except jsonschema.ValidationError as exc:
+            return [f"text blocks do not match the requested schema: {exc.message}"]
+        return []
+
+    _check.__qualname__ = "anth_output_matches_json_schema"
+    _check.__schema__ = schema
+    return _check
+
+
 def anth_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
     """Response must have usage with input_tokens/output_tokens."""
     if not isinstance(response, dict):

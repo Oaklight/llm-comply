@@ -175,7 +175,7 @@ services:
 | `open_responses` | 15 | Schema + semantic (lifecycle, phases, compaction, multi-turn tools, structured output, thinking) |
 | `openai_responses` | 11 | Schema + semantic (lifecycle, streaming events, tools, reasoning) |
 | `chat_completions` | 13 | Schema + semantic (choices, finish_reason, delta, stream chunks, developer role, structured output, web search, audio output, error envelope) |
-| `messages` | 11 | Schema + semantic (content blocks, stop_reason, thinking, tool_result round-trip, web search) |
+| `messages` | 12 | Schema + semantic (content blocks, stop_reason, thinking, tool_result round-trip, web search, structured output) |
 | `google_generate` | 12 | Schema + semantic (candidates, parts, finishReason, safetyRatings, thinking, structured output, grounding, code execution) |
 | `google_interactions` | 13 | Semantic only (steps, model_output, thinking, google search, code execution, maps, url context) |
 

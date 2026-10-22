@@ -27,6 +27,8 @@ from llm_comply.validators import (
     google_has_function_call,
     google_has_thought_parts,
     google_has_thoughts_token_count,
+    google_output_is_json,
+    google_output_matches_json_schema,
     google_streaming_has_finish,
     google_streaming_has_text,
     google_usage_valid_modalities,
@@ -454,6 +456,56 @@ def main() -> int:
     assert google_has_content_parts(good, ctx) == []
     assert google_finish_reason("STOP")(good, ctx) == []
     print("google validators: malformed candidates fail without raising")
+
+    json_candidate = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [{"text": '{"city": "SF", "temperature_c": 18}'}],
+                    "role": "model",
+                },
+                "finishReason": "STOP",
+            }
+        ]
+    }
+    assert google_output_is_json(json_candidate, ctx) == []
+    weather = {
+        "type": "object",
+        "properties": {
+            "city": {"type": "string"},
+            "temperature_c": {"type": "number"},
+        },
+        "required": ["city", "temperature_c"],
+    }
+    assert google_output_matches_json_schema(weather)(json_candidate, ctx) == []
+    assert any(
+        "not valid JSON" in error
+        for error in google_output_is_json(
+            {"candidates": [{"content": {"parts": [{"text": "nope"}]}}]}, ctx
+        )
+    )
+    assert any(
+        "does not match" in error
+        for error in google_output_matches_json_schema(weather)(
+            {"candidates": [{"content": {"parts": [{"text": "[1, 2]"}]}}]}, ctx
+        )
+    )
+    google_tests = {tc.id: tc for tc in get_tests("google_generate")}
+    assert "google-structured-output" in google_tests
+    names = [
+        getattr(v, "__name__", "")
+        for v in google_tests["google-structured-output"].validators
+    ]
+    qualnames = [
+        getattr(v, "__qualname__", "")
+        for v in google_tests["google-structured-output"].validators
+    ]
+    assert "google_output_is_json" in names, "google-structured-output"
+    assert "google_output_matches_json_schema" in qualnames, "google-structured-output"
+    request = google_tests["google-structured-output"].build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert request["generationConfig"]["responseMimeType"] == "application/json"
 
     step_check = interactions_has_step_of_type(
         "google_search_call", "google_search_result"

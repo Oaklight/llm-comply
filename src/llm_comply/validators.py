@@ -898,6 +898,61 @@ def google_has_content_parts(response: Any, ctx: ValidatorContext) -> list[str]:
     return []
 
 
+def _google_output_text(response: Any) -> str | None:
+    """Concatenate text parts from the first candidate, or None when absent."""
+    if not isinstance(response, dict):
+        return None
+    texts: list[str] = []
+    for cand in _google_candidates(response):
+        content = cand.get("content")
+        if not isinstance(content, dict):
+            continue
+        parts = content.get("parts")
+        if not isinstance(parts, list):
+            continue
+        for part in parts:
+            if isinstance(part, dict) and isinstance(part.get("text"), str):
+                texts.append(part["text"])
+        if texts:
+            return "".join(texts)
+    return None
+
+
+def google_output_is_json(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Concatenated candidate text must parse as JSON."""
+    text = _google_output_text(response)
+    if text is None:
+        return ["no text part to parse as JSON"]
+    try:
+        json.loads(text)
+    except ValueError as exc:
+        return [f"candidate text is not valid JSON: {exc}"]
+    return []
+
+
+def google_output_matches_json_schema(schema: dict[str, Any]) -> Validator:
+    """Factory: parsed candidate text must validate against *schema*."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        text = _google_output_text(response)
+        if text is None:
+            return ["no text part to parse as JSON"]
+        try:
+            parsed = json.loads(text)
+        except ValueError as exc:
+            return [f"candidate text is not valid JSON: {exc}"]
+        try:
+            jsonschema.validate(parsed, schema)
+        except jsonschema.ValidationError as exc:
+            return [
+                f"candidate text does not match the requested schema: {exc.message}"
+            ]
+        return []
+
+    _check.__qualname__ = "google_output_matches_json_schema"
+    return _check
+
+
 def google_finish_reason(expected: str) -> Validator:
     """Factory: validate candidates[0].finishReason matches expected."""
 

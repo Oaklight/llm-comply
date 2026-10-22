@@ -176,7 +176,7 @@ services:
 | `openai_responses` | 11 | Schema + semantic (lifecycle, streaming events, tools, reasoning) |
 | `chat_completions` | 13 | Schema + semantic (choices, finish_reason, delta, stream chunks, developer role, structured output, web search, audio output, error envelope) |
 | `messages` | 9 | Schema + semantic (content blocks, stop_reason, thinking) |
-| `google_generate` | 9 | Schema + semantic (candidates, parts, finishReason, safetyRatings, thinking) |
+| `google_generate` | 10 | Schema + semantic (candidates, parts, finishReason, safetyRatings, thinking, structured output) |
 | `google_interactions` | 13 | Semantic only (steps, model_output, thinking, google search, code execution, maps, url context) |
 
 `chat-audio-output` treats the model name as a capability hint: it skips unless

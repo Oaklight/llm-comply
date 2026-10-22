@@ -17,6 +17,8 @@ from ..validators import (
     google_has_thought_parts,
     google_has_thoughts_token_count,
     google_has_usage,
+    google_output_is_json,
+    google_output_matches_json_schema,
     google_streaming_has_finish,
     google_streaming_has_model_version,
     google_streaming_has_response_id,
@@ -94,6 +96,47 @@ def _build_image_request(cfg: ComplianceConfig) -> dict[str, Any]:
                 ],
             }
         ],
+    }
+
+
+_WEATHER_OUTPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "city": {"type": "string"},
+        "temperature_c": {"type": "number"},
+    },
+    "required": ["city", "temperature_c"],
+}
+
+_WEATHER_RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {
+        "city": {"type": "STRING"},
+        "temperature_c": {"type": "NUMBER"},
+    },
+    "required": ["city", "temperature_c"],
+}
+
+
+def _build_structured_output_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": (
+                            "Return the current weather in San Francisco as JSON "
+                            "with keys city and temperature_c."
+                        )
+                    }
+                ],
+            }
+        ],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseSchema": _WEATHER_RESPONSE_SCHEMA,
+        },
     }
 
 
@@ -301,6 +344,20 @@ GOOGLE_GENAI_TESTS: list[TestCase] = [
             google_has_usage,
             google_has_thought_parts,
             google_has_thoughts_token_count,
+        ],
+    ),
+    _make_test(
+        id="google-structured-output",
+        name="Structured Output",
+        description="responseMimeType application/json with responseSchema matches",
+        category=TestCategory.BASIC,
+        build_request=_build_structured_output_request,
+        validators=[
+            google_has_candidates,
+            google_has_content_parts,
+            google_finish_reason("STOP"),
+            google_output_is_json,
+            google_output_matches_json_schema(_WEATHER_OUTPUT_SCHEMA),
         ],
     ),
     _make_test(

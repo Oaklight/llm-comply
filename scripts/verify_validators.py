@@ -11,6 +11,7 @@ from llm_comply.tests import get_tests
 from llm_comply.validators import (
     anth_streaming_content_block_bracketing,
     chat_has_message,
+    chat_has_completion_token_details,
     chat_has_tool_call_of_type,
     chat_has_tool_calls,
     chat_message_is_json,
@@ -449,6 +450,32 @@ def main() -> int:
     assert google_has_content_parts(good, ctx) == []
     assert google_finish_reason("STOP")(good, ctx) == []
     print("google validators: malformed candidates fail without raising")
+
+    # Completion-token details are advisory: absent is a warning, present
+    # values must be integers.
+    details_ok = {"usage": {"completion_tokens_details": {"reasoning_tokens": 3}}}
+    assert chat_has_completion_token_details(details_ok, ctx) == []
+    assert chat_has_completion_token_details({"usage": {}}, ctx) == [
+        "[warning] usage.completion_tokens_details is missing"
+    ]
+    assert chat_has_completion_token_details(
+        {"usage": {"completion_tokens_details": "nope"}}, ctx
+    ) == ["[warning] usage.completion_tokens_details is not an object"]
+    assert any(
+        "reasoning_tokens is not an integer" in error
+        for error in chat_has_completion_token_details(
+            {"usage": {"completion_tokens_details": {"reasoning_tokens": "3"}}},
+            ctx,
+        )
+    )
+    chat_tests = {tc.id: tc for tc in get_tests("chat_completions")}
+    names = [
+        getattr(v, "__name__", "") for v in chat_tests["chat-basic-response"].validators
+    ]
+    assert "chat_has_completion_token_details" in names, "chat-basic-response"
+    assert chat_tests["chat-error-handling"].schema_name == "ErrorResponse"
+    assert "chat-web-search" in chat_tests
+    assert chat_tests["chat-web-search"].schema_name == "CreateChatCompletionResponse"
 
     def _event(event_type: str, index: int | None = None) -> dict:
         data = {"type": event_type}

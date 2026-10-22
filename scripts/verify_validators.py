@@ -214,7 +214,9 @@ def main() -> int:
     file_content = file_request["input"][0]["content"]
     assert file_content[1]["type"] == "input_file"
     assert file_content[1]["filename"] == "answer.txt"
-    assert base64.b64decode(file_content[1]["file_data"]) == (
+    file_data = file_content[1]["file_data"]
+    assert file_data.startswith("data:text/plain;base64,")
+    assert base64.b64decode(file_data.split(",", 1)[1]) == (
         b"The answer inside this file is 42.\n"
     )
 

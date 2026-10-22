@@ -17,6 +17,7 @@ from .formats import (
     SPEC_FILES,
     SPEC_SOURCES,
 )
+from .spec_relax import relax_bundled_spec
 
 
 def _has_jsonschema() -> bool:
@@ -124,6 +125,7 @@ class SpecLoader:
             with open(path) as f:
                 self._spec: dict[str, Any] = json.load(f)
             _patch_nullable(self._spec.get("components", {}))
+            relax_bundled_spec(self._spec, path.name)
         else:
             self._spec = {}
         self._schemas: dict[str, Any] = self._spec.get("components", {}).get(

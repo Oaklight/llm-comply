@@ -115,6 +115,10 @@ OpenAPI discovery 文档（`google_generate`）和 Interactions API 文档
 数组，因此字段是否缺失仍由语义验证器负责。
 每周一次的 `spec-update` workflow 会运行 `update-spec --all`，有变化时自动创建 PR。
 
+当真实提供方的响应与内置规范不一致时，会应用有文档记录的加载期放宽
+（见 `src/llm_comply/spec_relax.py`），而不是因提供方省略某个字段而失败；
+每条放宽都由 `make verify` 固定。
+
 ## Web UI
 
 ```bash

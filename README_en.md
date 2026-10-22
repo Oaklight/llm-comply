@@ -119,6 +119,10 @@ validators' job.
 A weekly `spec-update` workflow runs `update-spec --all` and opens a PR when any
 upstream spec changes.
 
+Where live provider responses disagree with their bundled document, a documented
+load-time relaxation applies instead of failing on a field the provider omits
+(see `src/llm_comply/spec_relax.py`); every relaxation is pinned by `make verify`.
+
 ## Web UI
 
 ```bash

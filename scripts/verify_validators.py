@@ -669,6 +669,12 @@ def main() -> int:
     assert google_has_code_execution(
         {"candidates": [{"content": {"parts": [code_part, failed_part]}}]}, ctx
     ) == ["code execution did not succeed: OUTCOME_FAILED"]
+    # success followed by a later failure: any successful run still counts,
+    # so the check cannot be satisfied by looking only at the last result.
+    succeeded_then_failed = {
+        "candidates": [{"content": {"parts": [code_part, result_part, failed_part]}}]
+    }
+    assert google_has_code_execution(succeeded_then_failed, ctx) == []
     assert google_has_code_execution({"candidates": []}, ctx) == [
         "no part carried executableCode"
     ]

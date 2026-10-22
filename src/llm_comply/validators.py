@@ -922,6 +922,40 @@ def _google_output_text(response: Any) -> str | None:
     return None
 
 
+def google_has_grounding_metadata(response: Any, ctx: ValidatorContext) -> list[str]:
+    """A candidate must carry a non-empty groundingMetadata object."""
+    for cand in _google_candidates(response):
+        grounding = cand.get("groundingMetadata") or cand.get("grounding_metadata")
+        if isinstance(grounding, dict) and grounding:
+            return []
+    return ["no candidate carried groundingMetadata"]
+
+
+def google_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
+    """A part must carry executableCode or codeExecutionResult."""
+    for cand in _google_candidates(response):
+        content = cand.get("content")
+        if not isinstance(content, dict):
+            continue
+        parts = content.get("parts")
+        if not isinstance(parts, list):
+            continue
+        for part in parts:
+            if not isinstance(part, dict):
+                continue
+            if any(
+                key in part
+                for key in (
+                    "executableCode",
+                    "executable_code",
+                    "codeExecutionResult",
+                    "code_execution_result",
+                )
+            ):
+                return []
+    return ["no part carried executableCode or codeExecutionResult"]
+
+
 def google_output_is_json(response: Any, ctx: ValidatorContext) -> list[str]:
     """Concatenated candidate text must parse as JSON."""
     text = _google_output_text(response)

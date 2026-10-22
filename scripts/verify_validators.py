@@ -478,13 +478,25 @@ def main() -> int:
         "response.steps is missing or not an array"
     ]
     interaction_tests = {tc.id: tc for tc in get_tests("google_interactions")}
-    for test_id in (
-        "interactions-google-search",
-        "interactions-code-execution",
-        "interactions-google-maps",
-        "interactions-url-context",
-    ):
+    expected_steps = {
+        "interactions-google-search": ("google_search_call", "google_search_result"),
+        "interactions-code-execution": (
+            "code_execution_call",
+            "code_execution_result",
+        ),
+        "interactions-google-maps": ("google_maps_call", "google_maps_result"),
+        "interactions-url-context": ("url_context_call", "url_context_result"),
+    }
+    for test_id, expected in expected_steps.items():
         assert test_id in interaction_tests, test_id
+        qualnames = [
+            getattr(v, "__qualname__", "")
+            for v in interaction_tests[test_id].validators
+        ]
+        assert any(
+            all(step_type in qualname for step_type in expected)
+            for qualname in qualnames
+        ), test_id
 
     # Completion-token details are advisory: absent is a warning, present
     # values must be integers.

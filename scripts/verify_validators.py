@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
+import base64
+import re
 import sys
 from typing import Any
-import base64
 
 from llm_comply.config import ComplianceConfig
 from llm_comply.test_case import ValidatorContext
@@ -1228,7 +1229,16 @@ def main() -> int:
     assert doc_block["type"] == "document"
     assert doc_block["source"]["type"] == "base64"
     assert doc_block["source"]["media_type"] == "application/pdf"
-    assert base64.b64decode(doc_block["source"]["data"]).startswith(b"%PDF-1.4")
+    pdf_bytes = base64.b64decode(doc_block["source"]["data"])
+    assert pdf_bytes.startswith(b"%PDF-1.4")
+    # Tie the fixture's content to the needle the test asserts.
+    assert b"(The answer is 42.)" in pdf_bytes
+    stream_start = pdf_bytes.index(b"stream\n") + len(b"stream\n")
+    endstream = pdf_bytes.index(b"endstream")
+    stream_length = int(re.search(rb"/Length (\d+)", pdf_bytes).group(1))
+    assert stream_length == endstream - stream_start
+    startxref = int(re.search(rb"startxref\n(\d+)", pdf_bytes).group(1))
+    assert startxref == pdf_bytes.index(b"xref\n0 ")
     contains = anth_output_contains("42")
     assert (
         contains({"content": [{"type": "text", "text": "The number is 42."}]}, ctx)

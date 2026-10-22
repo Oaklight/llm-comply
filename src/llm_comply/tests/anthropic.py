@@ -42,6 +42,18 @@ def _load_test_image_b64() -> str:
     return base64.b64encode(path.read_bytes()).decode()
 
 
+_TOOL_INPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "location": {
+            "type": "string",
+            "description": "City name",
+        }
+    },
+    "required": ["location"],
+}
+
+
 def _build_tool_calling_request(cfg: ComplianceConfig) -> dict[str, Any]:
     return {
         "model": cfg.model,
@@ -56,16 +68,7 @@ def _build_tool_calling_request(cfg: ComplianceConfig) -> dict[str, Any]:
             {
                 "name": "get_weather",
                 "description": "Get current weather for a location.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "location": {
-                            "type": "string",
-                            "description": "City name",
-                        }
-                    },
-                    "required": ["location"],
-                },
+                "input_schema": _TOOL_INPUT_SCHEMA,
             }
         ],
         "tool_choice": {"type": "any"},
@@ -569,7 +572,7 @@ ANTHROPIC_TESTS: list[TestCase] = [
             streaming_has_events,
             anth_streaming_lifecycle,
             anth_streaming_content_block_bracketing,
-            anth_streaming_has_tool_input_delta,
+            anth_streaming_has_tool_input_delta(_TOOL_INPUT_SCHEMA),
         ],
     ),
     TestCase(

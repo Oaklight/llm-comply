@@ -11,6 +11,7 @@ from typing import Any
 from llm_comply.config import ComplianceConfig
 from llm_comply.test_case import ValidatorContext
 from llm_comply.tests import get_tests
+from llm_comply.tests.anthropic import _TOOL_INPUT_SCHEMA as _ANTH_TOOL_SCHEMA
 from llm_comply.tests.anthropic import _WEATHER_OUTPUT_SCHEMA as _ANTH_JSON_SCHEMA
 from llm_comply.tests.google_genai import (
     _WEATHER_OUTPUT_SCHEMA,
@@ -1478,11 +1479,14 @@ def main() -> int:
             },
         ],
     )
-    assert anth_streaming_has_tool_input_delta(None, tool_stream_ctx) == []
-    assert anth_streaming_has_tool_input_delta(
+    assert (
+        anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(None, tool_stream_ctx)
+        == []
+    )
+    assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
         None, ValidatorContext(streaming=True, sse_events=[])
     ) == ["no SSE events to check"]
-    assert anth_streaming_has_tool_input_delta(
+    assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
         None,
         ValidatorContext(
             streaming=True,
@@ -1491,20 +1495,21 @@ def main() -> int:
                     "type": "content_block_delta",
                     "data": {
                         "type": "content_block_delta",
+                        "index": 0,
                         "delta": {"type": "input_json_delta", "partial_json": "{}"},
                     },
                 }
             ],
         ),
     ) == ["no tool_use content_block_start event"]
-    assert anth_streaming_has_tool_input_delta(
+    assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
         None,
         ValidatorContext(
             streaming=True,
             sse_events=[tool_stream_ctx.sse_events[0]],
         ),
     ) == ["tool_use block at index 0 has no input_json_delta events"]
-    assert anth_streaming_has_tool_input_delta(
+    assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
         None,
         ValidatorContext(
             streaming=True,
@@ -1521,7 +1526,7 @@ def main() -> int:
             ],
         ),
     ) == ["input_json_delta events at index 0 carried no partial JSON"]
-    assert anth_streaming_has_tool_input_delta(
+    assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
         None,
         ValidatorContext(
             streaming=True,
@@ -1557,7 +1562,10 @@ def main() -> int:
                 "data": {
                     "type": "content_block_delta",
                     "index": 0,
-                    "delta": {"type": "input_json_delta", "partial_json": '{"a":1}'},
+                    "delta": {
+                        "type": "input_json_delta",
+                        "partial_json": '{"location":"SF"}',
+                    },
                 },
             },
             {
@@ -1573,20 +1581,90 @@ def main() -> int:
                 "data": {
                     "type": "content_block_delta",
                     "index": 1,
-                    "delta": {"type": "input_json_delta", "partial_json": '{"b":2}'},
+                    "delta": {
+                        "type": "input_json_delta",
+                        "partial_json": '{"location":"LA"}',
+                    },
                 },
             },
         ],
     )
-    assert anth_streaming_has_tool_input_delta(None, two_tools_ctx) == []
+    assert (
+        anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(None, two_tools_ctx)
+        == []
+    )
     missing_second = ValidatorContext(
         streaming=True,
         sse_events=[two_tools_ctx.sse_events[0], two_tools_ctx.sse_events[2]],
     )
-    assert anth_streaming_has_tool_input_delta(None, missing_second) == [
+    assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
+        None, missing_second
+    ) == [
         "tool_use block at index 0 has no input_json_delta events",
         "tool_use block at index 1 has no input_json_delta events",
     ]
+    schema_mismatch = ValidatorContext(
+        streaming=True,
+        sse_events=[
+            tool_stream_ctx.sse_events[0],
+            {
+                "type": "content_block_delta",
+                "data": {
+                    "type": "content_block_delta",
+                    "index": 0,
+                    "delta": {
+                        "type": "input_json_delta",
+                        "partial_json": '{"city":"SF"}',
+                    },
+                },
+            },
+        ],
+    )
+    assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
+        None, schema_mismatch
+    ) == [
+        "tool input at index 0 does not match the tool schema: "
+        "'location' is a required property"
+    ]
+    bad_delta_index = ValidatorContext(
+        streaming=True,
+        sse_events=[
+            tool_stream_ctx.sse_events[0],
+            {
+                "type": "content_block_delta",
+                "data": {
+                    "type": "content_block_delta",
+                    "index": "0",
+                    "delta": {
+                        "type": "input_json_delta",
+                        "partial_json": '{"location":"SF"}',
+                    },
+                },
+            },
+        ],
+    )
+    assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
+        None, bad_delta_index
+    ) == [
+        "input_json_delta event has no integer index",
+        "tool_use block at index 0 has no input_json_delta events",
+    ]
+    bad_start_index = ValidatorContext(
+        streaming=True,
+        sse_events=[
+            {
+                "type": "content_block_start",
+                "data": {
+                    "type": "content_block_start",
+                    "index": "0",
+                    "content_block": {"type": "tool_use", "id": "toolu_1"},
+                },
+            }
+        ],
+    )
+    assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
+        None, bad_start_index
+    ) == ["tool_use content_block_start has no integer index"]
     tool_stream = anth_tests["anth-streaming-tool-use"]
     assert tool_stream.streaming
     assert tool_stream.schema_name is None

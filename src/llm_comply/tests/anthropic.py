@@ -10,6 +10,7 @@ from ..validators import (
     anth_error_returns_error_type,
     anth_has_content,
     anth_has_content_block_of_type,
+    anth_has_code_execution,
     anth_has_thinking_content,
     anth_has_tool_use,
     anth_has_usage,
@@ -337,9 +338,7 @@ ANTHROPIC_TESTS: list[TestCase] = [
             anth_type_message,
             anth_role_assistant,
             anth_has_content,
-            anth_has_content_block_of_type(
-                "server_tool_use", "code_execution_tool_result"
-            ),
+            anth_has_code_execution,
             anth_stop_reason("end_turn"),
         ],
     ),

@@ -9,6 +9,7 @@ import re
 import sys
 
 from llm_comply.formats import VALIDATION_SPEC_FILES
+from llm_comply.config import ComplianceConfig
 from llm_comply.schema import SpecLoader, canonical_spec
 from llm_comply.spec_extract import extract_openai_responses
 from llm_comply.test_case import TestCategory
@@ -132,6 +133,15 @@ def main() -> int:
     assert "diagnostics" in messages.get_schema("Message")["required"]
     assert "speed" in messages.get_schema("Usage")["required"]
     print(f"messages: {len(messages.schema_names)} schemas")
+
+    # The tool tests must build requests the API accepts: a 400 caused by a
+    # malformed request would look like "capability unsupported" and turn the
+    # optional web-search test into a permanent skip.
+    anth_config = ComplianceConfig(base_url="http://x", api_key="k", model="test-model")
+    for test_id in ("anth-tool-result", "anth-web-search"):
+        test_case = next(tc for tc in get_tests("messages") if tc.id == test_id)
+        request = test_case.build_request(anth_config)
+        assert messages.validate(request, "CreateMessageParams") == [], test_id
 
     assert SpecLoader(None).schema_names == []
 

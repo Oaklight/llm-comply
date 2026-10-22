@@ -988,6 +988,11 @@ def main() -> int:
     result_request = anth_tests["anth-tool-result"].build_request(
         ComplianceConfig(base_url="http://x", api_key="k", model="test")
     )
+    # CreateMessageParams requires model, messages, and max_tokens; without
+    # max_tokens the API returns 400, which the optional machinery would read
+    # as "capability unsupported" and skip forever.
+    assert result_request["max_tokens"] == 1024
+    assert result_request["tools"][0]["name"] == "get_weather"
     assert result_request["messages"][1]["content"][0]["type"] == "tool_use"
     result_block = result_request["messages"][2]["content"][0]
     assert result_block["type"] == "tool_result"
@@ -1003,6 +1008,8 @@ def main() -> int:
     web_request = web_search.build_request(
         ComplianceConfig(base_url="http://x", api_key="k", model="test")
     )
+    assert web_request["max_tokens"] == 1024
+    assert web_request["messages"][0]["content"]
     assert web_request["tools"] == [
         {"type": "web_search_20260318", "name": "web_search", "max_uses": 3}
     ]

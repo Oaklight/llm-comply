@@ -307,6 +307,43 @@ ANTHROPIC_TESTS: list[TestCase] = [
         ],
     ),
     TestCase(
+        id="anth-code-execution",
+        name="Code Execution Tool",
+        description="code_execution server tool produces server_tool_use and result blocks",
+        category=TestCategory.TOOLS,
+        endpoint="/messages",
+        schema_name="Message",
+        optional=True,
+        build_request=lambda cfg: {
+            "model": cfg.model,
+            "max_tokens": 1024,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": (
+                        "Compute the sum of the numbers 1 through 10 using Python code."
+                    ),
+                }
+            ],
+            "tools": [
+                {
+                    "type": "code_execution_20260521",
+                    "name": "code_execution",
+                }
+            ],
+        },
+        validators=[
+            has_response_id,
+            anth_type_message,
+            anth_role_assistant,
+            anth_has_content,
+            anth_has_content_block_of_type(
+                "server_tool_use", "code_execution_tool_result"
+            ),
+            anth_stop_reason("end_turn"),
+        ],
+    ),
+    TestCase(
         id="anth-structured-output",
         name="Structured Output",
         description="output_config JSON schema yields matching JSON text",

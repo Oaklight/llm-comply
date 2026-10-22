@@ -141,6 +141,7 @@ def main() -> int:
     for test_id in (
         "anth-tool-result",
         "anth-web-search",
+        "anth-code-execution",
         "anth-structured-output",
     ):
         test_case = next(tc for tc in get_tests("messages") if tc.id == test_id)

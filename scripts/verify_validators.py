@@ -1016,6 +1016,21 @@ def main() -> int:
     assert web_request["tools"] == [
         {"type": "web_search_20260318", "name": "web_search", "max_uses": 3}
     ]
+    code_execution = anth_tests["anth-code-execution"]
+    assert code_execution.optional
+    assert code_execution.schema_name == "Message"
+    ce_quals = [getattr(v, "__qualname__", "") for v in code_execution.validators]
+    assert any(
+        "server_tool_use" in qual and "code_execution_tool_result" in qual
+        for qual in ce_quals
+    ), ce_quals
+    ce_request = code_execution.build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert ce_request["max_tokens"] == 1024
+    assert ce_request["tools"] == [
+        {"type": "code_execution_20260521", "name": "code_execution"}
+    ]
     json_response = {
         "content": [
             # thinking blocks may carry a text key; it must not enter the payload

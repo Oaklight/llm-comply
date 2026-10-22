@@ -931,11 +931,19 @@ _GOOGLE_GROUNDING_FIELDS = (
     "grounding_supports",
     "searchEntryPoint",
     "search_entry_point",
+    "retrievalMetadata",
+    "retrieval_metadata",
+    "imageSearchQueries",
+    "image_search_queries",
 )
 
 
 def google_has_grounding_metadata(response: Any, ctx: ValidatorContext) -> list[str]:
-    """A candidate must carry groundingMetadata with at least one grounding field."""
+    """A candidate must carry groundingMetadata with at least one grounding field.
+
+    ``googleMapsWidgetContextToken`` alone is not counted: it renders a maps
+    widget and is not evidence that a search returned results.
+    """
     for cand in _google_candidates(response):
         grounding = cand.get("groundingMetadata") or cand.get("grounding_metadata")
         if isinstance(grounding, dict) and any(
@@ -948,7 +956,7 @@ def google_has_grounding_metadata(response: Any, ctx: ValidatorContext) -> list[
 def google_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
     """A candidate must pair executableCode with a successful codeExecutionResult."""
     saw_code = False
-    saw_result: Any = None
+    outcomes: list[Any] = []
     for cand in _google_candidates(response):
         content = cand.get("content")
         if not isinstance(content, dict):
@@ -959,24 +967,21 @@ def google_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]
         for part in parts:
             if not isinstance(part, dict):
                 continue
-            if not saw_code and (
-                part.get("executableCode") or part.get("executable_code")
-            ):
+            if part.get("executableCode") or part.get("executable_code"):
                 saw_code = True
-            if saw_result is None:
-                saw_result = part.get("codeExecutionResult") or part.get(
-                    "code_execution_result"
-                )
+            result = part.get("codeExecutionResult") or part.get(
+                "code_execution_result"
+            )
+            if isinstance(result, dict):
+                outcomes.append(result.get("outcome"))
     if not saw_code:
         return ["no part carried executableCode"]
-    if saw_result is None:
+    if not outcomes:
         return ["executableCode carried but no codeExecutionResult"]
-    if isinstance(saw_result, dict) and saw_result.get("outcome") not in (
-        None,
-        "OUTCOME_OK",
-    ):
-        return [f"code execution did not succeed: {saw_result.get('outcome')}"]
-    return []
+    # A model may retry after a failed execution; any successful run counts.
+    if any(outcome in (None, "OUTCOME_OK") for outcome in outcomes):
+        return []
+    return [f"code execution did not succeed: {outcomes[-1]}"]
 
 
 def google_output_is_json(response: Any, ctx: ValidatorContext) -> list[str]:

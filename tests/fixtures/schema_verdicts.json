@@ -387,6 +387,25 @@
           }
         ]
       }
+    },
+    {
+      "schema": "ErrorResponse",
+      "valid": true,
+      "note": "Standard chat error envelope.",
+      "instance": {
+        "error": {
+          "type": "invalid_request_error",
+          "message": "model is required",
+          "param": null,
+          "code": "invalid"
+        }
+      }
+    },
+    {
+      "schema": "ErrorResponse",
+      "valid": false,
+      "note": "Error details are required.",
+      "instance": {"error": {"message": "model is required"}}
     }
   ],
   "messages": [

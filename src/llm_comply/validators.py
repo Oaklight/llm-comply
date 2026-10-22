@@ -483,6 +483,36 @@ def chat_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
     return errors
 
 
+def chat_has_completion_token_details(
+    response: Any, ctx: ValidatorContext
+) -> list[str]:
+    """Warn when usage.completion_tokens_details sub-fields are malformed."""
+    if not isinstance(response, dict):
+        return []
+    usage = response.get("usage")
+    if not isinstance(usage, dict):
+        return []
+    details = usage.get("completion_tokens_details")
+    if details is None:
+        return ["[warning] usage.completion_tokens_details is missing"]
+    if not isinstance(details, dict):
+        return ["[warning] usage.completion_tokens_details is not an object"]
+    errors: list[str] = []
+    for field in (
+        "accepted_prediction_tokens",
+        "audio_tokens",
+        "reasoning_tokens",
+        "rejected_prediction_tokens",
+        "text_tokens",
+        "image_tokens",
+    ):
+        if field in details and not isinstance(details[field], int):
+            errors.append(
+                f"[warning] usage.completion_tokens_details.{field} is not an integer"
+            )
+    return errors
+
+
 def chat_streaming_has_delta(response: Any, ctx: ValidatorContext) -> list[str]:
     """At least one streaming chunk must carry content, tools, or reasoning."""
     if not ctx.sse_events:

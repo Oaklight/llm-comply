@@ -10,6 +10,7 @@ from ..validators import (
     chat_finish_reason,
     chat_has_annotations_field,
     chat_has_choices,
+    chat_has_completion_token_details,
     chat_has_logprobs_field,
     chat_has_message,
     chat_has_reasoning_tokens,
@@ -32,6 +33,7 @@ _CHAT_RESPONSE_WARNINGS = [
     chat_has_refusal_field,
     chat_has_annotations_field,
     chat_has_logprobs_field,
+    chat_has_completion_token_details,
     chat_id_has_prefix("chatcmpl-"),
 ]
 
@@ -366,12 +368,37 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
         ),
     ),
     TestCase(
+        id="chat-web-search",
+        name="Web Search Options",
+        description="web_search_options is accepted by the endpoint",
+        category=TestCategory.BASIC,
+        endpoint="/chat/completions",
+        schema_name="CreateChatCompletionResponse",
+        build_request=lambda cfg: {
+            "model": cfg.model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "What happened in the news today? Answer in one sentence.",
+                }
+            ],
+            "web_search_options": {},
+        },
+        validators=[
+            has_response_id,
+            chat_has_choices,
+            chat_has_message,
+            chat_finish_reason("stop"),
+            *_CHAT_RESPONSE_WARNINGS,
+        ],
+    ),
+    TestCase(
         id="chat-error-handling",
         name="Error Handling",
         description="Invalid request returns correct error format",
         category=TestCategory.ERROR_HANDLING,
         endpoint="/chat/completions",
-        schema_name=None,
+        schema_name="ErrorResponse",
         build_request=lambda cfg: {
             "messages": [{"role": "user", "content": "test"}],
         },

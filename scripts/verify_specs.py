@@ -163,6 +163,7 @@ def main() -> int:
         "anth-structured-output",
         "anth-max-tokens",
         "anth-stop-sequence",
+        "anth-prompt-cache",
     ):
         test_case = next(tc for tc in get_tests("messages") if tc.id == test_id)
         request = test_case.build_request(anth_config)

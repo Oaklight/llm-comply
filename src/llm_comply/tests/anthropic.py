@@ -7,6 +7,7 @@ from typing import Any
 from ..config import ComplianceConfig
 from ..test_case import TestCase, TestCategory
 from ..validators import (
+    anth_cache_used,
     anth_error_returns_error_type,
     anth_has_content,
     anth_has_content_block_of_type,
@@ -128,6 +129,24 @@ _WEATHER_OUTPUT_SCHEMA: dict[str, Any] = {
     },
     "required": ["city", "temperature_c"],
 }
+
+
+_CACHE_FILLER = "The quick brown fox jumps over the lazy dog. " * 350
+
+
+def _build_prompt_cache_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "max_tokens": 64,
+        "system": [
+            {
+                "type": "text",
+                "text": _CACHE_FILLER,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
+        "messages": [{"role": "user", "content": "Reply with the single word: cached"}],
+    }
 
 
 def _build_max_tokens_request(cfg: ComplianceConfig) -> dict[str, Any]:
@@ -319,6 +338,21 @@ ANTHROPIC_TESTS: list[TestCase] = [
             anth_has_content,
             anth_has_content_block_of_type("text"),
             anth_stop_reason("end_turn"),
+        ],
+    ),
+    TestCase(
+        id="anth-prompt-cache",
+        name="Prompt Caching",
+        description="cache_control on a large system block reports cache usage",
+        category=TestCategory.BASIC,
+        endpoint="/messages",
+        schema_name="Message",
+        build_request=_build_prompt_cache_request,
+        validators=[
+            has_response_id,
+            anth_type_message,
+            anth_has_usage,
+            anth_cache_used,
         ],
     ),
     TestCase(

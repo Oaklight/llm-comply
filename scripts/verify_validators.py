@@ -16,6 +16,7 @@ from llm_comply.tests.google_genai import (
     _WEATHER_RESPONSE_SCHEMA,
 )
 from llm_comply.validators import (
+    anth_cache_used,
     anth_has_content_block_of_type,
     anth_has_code_execution,
     anth_has_input_tokens,
@@ -1147,6 +1148,57 @@ def main() -> int:
     ]
     assert max_check({}, ctx) == ["response.usage is missing or not an object"]
     assert max_check("nope", ctx) == ["response is not a JSON object"]
+    cache_test = anth_tests["anth-prompt-cache"]
+    assert cache_test.schema_name == "Message"
+    assert "anth_cache_used" in [
+        getattr(v, "__qualname__", "") for v in cache_test.validators
+    ]
+    cache_request = cache_test.build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert cache_request["system"][0]["cache_control"] == {"type": "ephemeral"}
+    assert len(cache_request["system"][0]["text"]) > 10000
+    assert (
+        anth_cache_used(
+            {
+                "usage": {
+                    "cache_creation_input_tokens": 10,
+                    "cache_read_input_tokens": 0,
+                }
+            },
+            ctx,
+        )
+        == []
+    )
+    assert (
+        anth_cache_used(
+            {
+                "usage": {
+                    "cache_creation_input_tokens": 0,
+                    "cache_read_input_tokens": 5,
+                }
+            },
+            ctx,
+        )
+        == []
+    )
+    assert anth_cache_used(
+        {
+            "usage": {
+                "cache_creation_input_tokens": 0,
+                "cache_read_input_tokens": 0,
+            }
+        },
+        ctx,
+    ) == [
+        "cache was not used: cache_creation_input_tokens=0, cache_read_input_tokens=0"
+    ]
+    assert anth_cache_used({"usage": {}}, ctx) == [
+        "cache was not used: cache_creation_input_tokens=None, "
+        "cache_read_input_tokens=None"
+    ]
+    assert anth_cache_used({}, ctx) == ["response.usage is missing or not an object"]
+    assert anth_cache_used("nope", ctx) == ["response is not a JSON object"]
     max_tokens = anth_tests["anth-max-tokens"]
     assert max_tokens.schema_name == "Message"
     assert "anth_stop_reason('max_tokens')" in [

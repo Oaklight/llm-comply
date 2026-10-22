@@ -19,6 +19,7 @@ from ..validators import (
     anth_output_matches_json_schema,
     anth_role_assistant,
     anth_stop_reason,
+    anth_stop_sequence,
     anth_streaming_content_block_bracketing,
     anth_streaming_has_text_delta,
     anth_streaming_has_usage,
@@ -126,6 +127,23 @@ _WEATHER_OUTPUT_SCHEMA: dict[str, Any] = {
     },
     "required": ["city", "temperature_c"],
 }
+
+
+def _build_max_tokens_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "max_tokens": 1,
+        "messages": [{"role": "user", "content": "Count from one to ten in words."}],
+    }
+
+
+def _build_stop_sequence_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "max_tokens": 1024,
+        "stop_sequences": ["END"],
+        "messages": [{"role": "user", "content": "Reply with exactly one word: END"}],
+    }
 
 
 def _build_count_tokens_request(cfg: ComplianceConfig) -> dict[str, Any]:
@@ -300,6 +318,35 @@ ANTHROPIC_TESTS: list[TestCase] = [
             anth_has_content,
             anth_has_content_block_of_type("text"),
             anth_stop_reason("end_turn"),
+        ],
+    ),
+    TestCase(
+        id="anth-max-tokens",
+        name="Max Tokens Stop",
+        description="max_tokens=1 ends the response with stop_reason 'max_tokens'",
+        category=TestCategory.BASIC,
+        endpoint="/messages",
+        schema_name="Message",
+        build_request=_build_max_tokens_request,
+        validators=[
+            has_response_id,
+            anth_type_message,
+            anth_stop_reason("max_tokens"),
+        ],
+    ),
+    TestCase(
+        id="anth-stop-sequence",
+        name="Stop Sequence",
+        description="stop_sequences ends the response with the matched sequence reported",
+        category=TestCategory.BASIC,
+        endpoint="/messages",
+        schema_name="Message",
+        build_request=_build_stop_sequence_request,
+        validators=[
+            has_response_id,
+            anth_type_message,
+            anth_stop_reason("stop_sequence"),
+            anth_stop_sequence("END"),
         ],
     ),
     TestCase(

@@ -138,6 +138,12 @@ def main() -> int:
     assert responses_error_body({"error": {}}, ctx) == [
         "error.message is missing or empty"
     ]
+    assert responses_error_body({"error": {"message": ""}}, ctx) == [
+        "error.message is missing or empty"
+    ]
+    assert responses_error_body(
+        {"type": "error", "code": None, "message": "", "param": None}, ctx
+    ) == ["error payload message is missing or empty"]
     assert responses_error_body({"error": "nope"}, ctx) == ["error is not an object"]
     assert responses_error_body("nope", ctx) == ["error response is not a JSON object"]
     responses_error = {tc.id: tc for tc in get_tests("open_responses")}[

@@ -510,6 +510,18 @@
         "diagnostics": null,
         "container": null
       }
+    },
+    {
+      "schema": "CountMessageTokensResponse",
+      "valid": true,
+      "note": "The token-count endpoint returns the total input tokens.",
+      "instance": {"input_tokens": 12}
+    },
+    {
+      "schema": "CountMessageTokensResponse",
+      "valid": false,
+      "note": "input_tokens is required.",
+      "instance": {}
     }
   ],
   "google_generate": [

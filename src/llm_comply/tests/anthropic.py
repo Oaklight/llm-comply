@@ -11,6 +11,7 @@ from ..validators import (
     anth_has_content,
     anth_has_content_block_of_type,
     anth_has_code_execution,
+    anth_has_input_tokens,
     anth_has_thinking_content,
     anth_has_tool_use,
     anth_has_usage,
@@ -125,6 +126,13 @@ _WEATHER_OUTPUT_SCHEMA: dict[str, Any] = {
     },
     "required": ["city", "temperature_c"],
 }
+
+
+def _build_count_tokens_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "messages": [{"role": "user", "content": "Count the tokens in this sentence."}],
+    }
 
 
 def _build_code_execution_request(cfg: ComplianceConfig) -> dict[str, Any]:
@@ -293,6 +301,16 @@ ANTHROPIC_TESTS: list[TestCase] = [
             anth_has_content_block_of_type("text"),
             anth_stop_reason("end_turn"),
         ],
+    ),
+    TestCase(
+        id="anth-count-tokens",
+        name="Token Counting",
+        description="POST /messages/count_tokens returns a positive input_tokens count",
+        category=TestCategory.BASIC,
+        endpoint="/messages/count_tokens",
+        schema_name="CountMessageTokensResponse",
+        build_request=_build_count_tokens_request,
+        validators=[anth_has_input_tokens],
     ),
     TestCase(
         id="anth-web-search",

@@ -165,6 +165,15 @@ def main() -> int:
         test_case = next(tc for tc in get_tests("messages") if tc.id == test_id)
         request = test_case.build_request(anth_config)
         assert messages.validate(request, "CreateMessageParams") == [], test_id
+    count_case = next(
+        tc for tc in get_tests("messages") if tc.id == "anth-count-tokens"
+    )
+    assert (
+        messages.validate(
+            count_case.build_request(anth_config), "CountMessageTokensParams"
+        )
+        == []
+    )
 
     assert SpecLoader(None).schema_names == []
 

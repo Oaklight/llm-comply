@@ -18,6 +18,7 @@ from llm_comply.tests.google_genai import (
 from llm_comply.validators import (
     anth_has_content_block_of_type,
     anth_has_code_execution,
+    anth_has_input_tokens,
     anth_output_is_json,
     anth_output_matches_json_schema,
     anth_streaming_content_block_bracketing,
@@ -1083,6 +1084,30 @@ def main() -> int:
     assert block_check("nope", ctx) == ["response is not a JSON object"]
     assert anth_tests["anth-tool-result"].schema_name == "Message"
     assert not anth_tests["anth-tool-result"].optional
+    count_tokens = anth_tests["anth-count-tokens"]
+    assert count_tokens.endpoint == "/messages/count_tokens"
+    assert count_tokens.schema_name == "CountMessageTokensResponse"
+    assert [getattr(v, "__qualname__", "") for v in count_tokens.validators] == [
+        "anth_has_input_tokens"
+    ]
+    count_request = count_tokens.build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert count_request == {
+        "model": "test",
+        "messages": [{"role": "user", "content": "Count the tokens in this sentence."}],
+    }
+    assert anth_has_input_tokens({"input_tokens": 5}, ctx) == []
+    assert anth_has_input_tokens({"input_tokens": 0}, ctx) == [
+        "response.input_tokens is not positive: 0"
+    ]
+    assert anth_has_input_tokens({"input_tokens": "5"}, ctx) == [
+        "response.input_tokens is missing or not an integer"
+    ]
+    assert anth_has_input_tokens({"input_tokens": True}, ctx) == [
+        "response.input_tokens is missing or not an integer"
+    ]
+    assert anth_has_input_tokens("nope", ctx) == ["response is not a JSON object"]
     result_quals = [
         getattr(v, "__qualname__", "")
         for v in anth_tests["anth-tool-result"].validators

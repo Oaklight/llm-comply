@@ -21,6 +21,7 @@ from llm_comply.validators import (
     anth_has_code_execution,
     anth_has_input_tokens,
     anth_max_tokens_honoured,
+    anth_output_contains,
     anth_output_is_json,
     anth_output_matches_json_schema,
     anth_stop_sequence,
@@ -1215,6 +1216,29 @@ def main() -> int:
     ]
     assert anth_cache_used({}, ctx) == ["response.usage is missing or not an object"]
     assert anth_cache_used("nope", ctx) == ["response is not a JSON object"]
+    doc_test = anth_tests["anth-document-input"]
+    assert doc_test.schema_name == "Message"
+    assert "anth_output_contains('42')" in [
+        getattr(v, "__qualname__", "") for v in doc_test.validators
+    ]
+    doc_request = doc_test.build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    doc_block = doc_request["messages"][0]["content"][1]
+    assert doc_block["type"] == "document"
+    assert doc_block["source"]["type"] == "base64"
+    assert doc_block["source"]["media_type"] == "application/pdf"
+    assert base64.b64decode(doc_block["source"]["data"]).startswith(b"%PDF-1.4")
+    contains = anth_output_contains("42")
+    assert (
+        contains({"content": [{"type": "text", "text": "The number is 42."}]}, ctx)
+        == []
+    )
+    assert contains({"content": [{"type": "text", "text": "forty-two"}]}, ctx) == [
+        "text blocks do not contain '42'"
+    ]
+    assert contains({"content": []}, ctx) == ["no text block to inspect"]
+    assert anth_output_contains("")({"content": []}, ctx) == ["expected text is empty"]
     max_tokens = anth_tests["anth-max-tokens"]
     assert max_tokens.schema_name == "Message"
     assert "anth_stop_reason('max_tokens')" in [

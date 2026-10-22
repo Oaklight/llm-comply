@@ -914,6 +914,23 @@ def anth_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
     return failures or ["code execution did not report a result"]
 
 
+def anth_output_contains(expected: str) -> Validator:
+    """Factory: concatenated text blocks must contain *expected*."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not expected:
+            return ["expected text is empty"]
+        text = _anth_output_text(response)
+        if text is None:
+            return ["no text block to inspect"]
+        if expected not in text:
+            return [f"text blocks do not contain {expected!r}"]
+        return []
+
+    _check.__qualname__ = f"anth_output_contains({expected!r})"
+    return _check
+
+
 def anth_cache_used(response: Any, ctx: ValidatorContext) -> list[str]:
     """A cached prompt must report cache creation or cache reads."""
     if not isinstance(response, dict):

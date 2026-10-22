@@ -169,7 +169,7 @@ def main() -> int:
         request = test_case.build_request(anth_config)
         assert messages.validate(request, "CreateMessageParams") == [], test_case.id
     # Pin the breadth: dropping a test from this loop should not be silent.
-    assert len(anth_covered) == 13, anth_covered
+    assert len(anth_covered) == 14, anth_covered
     count_case = next(
         tc for tc in get_tests("messages") if tc.id == "anth-count-tokens"
     )

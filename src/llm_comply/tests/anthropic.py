@@ -17,6 +17,7 @@ from ..validators import (
     anth_has_tool_use,
     anth_has_usage,
     anth_max_tokens_honoured,
+    anth_output_contains,
     anth_output_is_json,
     anth_output_matches_json_schema,
     anth_role_assistant,
@@ -163,6 +164,38 @@ def _build_stop_sequence_request(cfg: ComplianceConfig) -> dict[str, Any]:
         "max_tokens": 1024,
         "stop_sequences": ["END"],
         "messages": [{"role": "user", "content": "Reply with exactly one word: END"}],
+    }
+
+
+_PDF_CONTENT_B64 = "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0OSA+PgpzdHJlYW0KQlQgL0YxIDI0IFRmIDcyIDcyMCBUZCAoVGhlIGFuc3dlciBpcyA0Mi4pIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9IZWx2ZXRpY2EgPj4KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDI0MSAwMDAwMCBuIAowMDAwMDAwMzM5IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNDA5CiUlRU9GCg=="
+
+
+def _build_document_input_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "max_tokens": 1024,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "What number is written in the attached document? "
+                            "Reply with just the number."
+                        ),
+                    },
+                    {
+                        "type": "document",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "application/pdf",
+                            "data": _PDF_CONTENT_B64,
+                        },
+                    },
+                ],
+            }
+        ],
     }
 
 
@@ -338,6 +371,22 @@ ANTHROPIC_TESTS: list[TestCase] = [
             anth_has_content,
             anth_has_content_block_of_type("text"),
             anth_stop_reason("end_turn"),
+        ],
+    ),
+    TestCase(
+        id="anth-document-input",
+        name="Document Input",
+        description="Base64 PDF document is accepted and its content is read",
+        category=TestCategory.MULTIMODAL,
+        endpoint="/messages",
+        schema_name="Message",
+        build_request=_build_document_input_request,
+        validators=[
+            has_response_id,
+            anth_type_message,
+            anth_has_content,
+            anth_stop_reason("end_turn"),
+            anth_output_contains("42"),
         ],
     ),
     TestCase(

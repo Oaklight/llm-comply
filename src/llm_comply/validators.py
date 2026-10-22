@@ -46,6 +46,21 @@ def responses_output_is_json(response: Any, ctx: ValidatorContext) -> list[str]:
     return []
 
 
+def responses_output_contains(expected: str) -> Validator:
+    """Factory: concatenated output_text must contain *expected*."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        text = _output_text(response)
+        if text is None:
+            return ["no output_text content to inspect"]
+        if expected not in text:
+            return [f"output_text does not contain {expected!r}"]
+        return []
+
+    _check.__qualname__ = f"responses_output_contains({expected!r})"
+    return _check
+
+
 def responses_output_matches_json_schema(schema: dict[str, Any]) -> Validator:
     """Factory: parsed output_text must validate against *schema*."""
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import sys
 from typing import Any
+import base64
 
 from llm_comply.config import ComplianceConfig
 from llm_comply.test_case import ValidatorContext
@@ -46,6 +47,7 @@ from llm_comply.validators import (
     has_usage,
     interactions_has_step_of_type,
     responses_error_body,
+    responses_output_contains,
     responses_output_is_json,
     responses_output_matches_json_schema,
     responses_streaming_output_text,
@@ -158,6 +160,48 @@ def main() -> int:
     assert "responses_error_body" in [
         getattr(v, "__qualname__", "") for v in openai_error.validators
     ]
+
+    contains = responses_output_contains("42")
+    assert (
+        contains(
+            {
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "42"}],
+                    }
+                ]
+            },
+            ctx,
+        )
+        == []
+    )
+    assert contains(
+        {
+            "output": [
+                {
+                    "type": "message",
+                    "content": [{"type": "output_text", "text": "41"}],
+                }
+            ]
+        },
+        ctx,
+    ) == ["output_text does not contain '42'"]
+    assert contains({"output": []}, ctx) == ["no output_text content to inspect"]
+    file_test = {tc.id: tc for tc in get_tests("open_responses")}["file-input"]
+    assert file_test.schema_name == "ResponseResource"
+    assert "responses_output_contains('42')" in [
+        getattr(v, "__qualname__", "") for v in file_test.validators
+    ]
+    file_request = file_test.build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    file_content = file_request["input"][0]["content"]
+    assert file_content[1]["type"] == "input_file"
+    assert file_content[1]["filename"] == "answer.txt"
+    assert base64.b64decode(file_content[1]["file_data"]) == (
+        b"The answer inside this file is 42.\n"
+    )
 
     tool_message = {
         "role": "assistant",

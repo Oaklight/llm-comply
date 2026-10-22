@@ -172,7 +172,7 @@ services:
 
 | Format | Tests | What's Validated |
 |--------|:-----:|-----------------|
-| `open_responses` | 15 | Schema + semantic (lifecycle, phases, compaction, multi-turn tools, structured output, thinking) |
+| `open_responses` | 16 | Schema + semantic (lifecycle, phases, compaction, multi-turn tools, structured output, file input, thinking) |
 | `openai_responses` | 11 | Schema + semantic (lifecycle, streaming events, tools, reasoning) |
 | `chat_completions` | 13 | Schema + semantic (choices, finish_reason, delta, stream chunks, developer role, structured output, web search, audio output, error envelope) |
 | `messages` | 13 | Schema + semantic (content blocks, stop_reason, thinking, tool_result round-trip, web search, code execution, structured output) |

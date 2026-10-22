@@ -9,6 +9,7 @@ from ..test_case import TestCase, TestCategory
 from ..validators import (
     anth_error_returns_error_type,
     anth_has_content,
+    anth_has_content_block_of_type,
     anth_has_thinking_content,
     anth_has_tool_use,
     anth_has_usage,
@@ -59,6 +60,57 @@ def _build_tool_calling_request(cfg: ComplianceConfig) -> dict[str, Any]:
             }
         ],
         "tool_choice": {"type": "any"},
+    }
+
+
+def _build_tool_result_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    """Continue a tool-use conversation by returning a tool_result block."""
+    return {
+        "model": cfg.model,
+        "max_tokens": 1024,
+        "messages": [
+            {
+                "role": "user",
+                "content": "What is the weather in San Francisco?",
+            },
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": "toolu_01",
+                        "name": "get_weather",
+                        "input": {"location": "San Francisco"},
+                    }
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": "toolu_01",
+                        "content": "18 degrees Celsius and sunny",
+                    }
+                ],
+            },
+        ],
+        "tools": [
+            {
+                "name": "get_weather",
+                "description": "Get current weather for a location.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "City name",
+                        }
+                    },
+                    "required": ["location"],
+                },
+            }
+        ],
     }
 
 
@@ -167,6 +219,57 @@ ANTHROPIC_TESTS: list[TestCase] = [
             anth_type_message,
             anth_has_tool_use,
             anth_stop_reason("tool_use"),
+        ],
+    ),
+    TestCase(
+        id="anth-tool-result",
+        name="Tool Result Round-trip",
+        description="tool_use history plus a tool_result block yields a final text answer",
+        category=TestCategory.TOOLS,
+        endpoint="/messages",
+        schema_name="Message",
+        build_request=_build_tool_result_request,
+        validators=[
+            has_response_id,
+            anth_type_message,
+            anth_role_assistant,
+            anth_has_content,
+            anth_has_content_block_of_type("text"),
+            anth_stop_reason("end_turn"),
+        ],
+    ),
+    TestCase(
+        id="anth-web-search",
+        name="Web Search Tool",
+        description="web_search server tool produces server_tool_use and web_search_tool_result blocks",
+        category=TestCategory.TOOLS,
+        endpoint="/messages",
+        schema_name="Message",
+        optional=True,
+        build_request=lambda cfg: {
+            "model": cfg.model,
+            "max_tokens": 1024,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "What is the weather in San Francisco today? Search the web.",
+                }
+            ],
+            "tools": [
+                {
+                    "type": "web_search_20260318",
+                    "name": "web_search",
+                    "max_uses": 3,
+                }
+            ],
+        },
+        validators=[
+            has_response_id,
+            anth_type_message,
+            anth_role_assistant,
+            anth_has_content,
+            anth_has_content_block_of_type("server_tool_use", "web_search_tool_result"),
+            anth_stop_reason("end_turn"),
         ],
     ),
     TestCase(

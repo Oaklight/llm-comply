@@ -911,7 +911,11 @@ def _google_output_text(response: Any) -> str | None:
         if not isinstance(parts, list):
             continue
         for part in parts:
-            if isinstance(part, dict) and isinstance(part.get("text"), str):
+            if (
+                isinstance(part, dict)
+                and part.get("thought") is not True
+                and isinstance(part.get("text"), str)
+            ):
                 texts.append(part["text"])
         if texts:
             return "".join(texts)
@@ -950,6 +954,7 @@ def google_output_matches_json_schema(schema: dict[str, Any]) -> Validator:
         return []
 
     _check.__qualname__ = "google_output_matches_json_schema"
+    _check.__schema__ = schema
     return _check
 
 

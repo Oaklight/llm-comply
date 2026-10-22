@@ -9,6 +9,10 @@ from typing import Any
 from llm_comply.config import ComplianceConfig
 from llm_comply.test_case import ValidatorContext
 from llm_comply.tests import get_tests
+from llm_comply.tests.google_genai import (
+    _WEATHER_OUTPUT_SCHEMA,
+    _WEATHER_RESPONSE_SCHEMA,
+)
 from llm_comply.validators import (
     anth_streaming_content_block_bracketing,
     chat_has_message,
@@ -506,6 +510,36 @@ def main() -> int:
         ComplianceConfig(base_url="http://x", api_key="k", model="test")
     )
     assert request["generationConfig"]["responseMimeType"] == "application/json"
+    assert request["generationConfig"]["responseSchema"] == _WEATHER_RESPONSE_SCHEMA
+    schema_validator = next(
+        v
+        for v in google_tests["google-structured-output"].validators
+        if getattr(v, "__qualname__", "") == "google_output_matches_json_schema"
+    )
+    assert schema_validator.__schema__ == _WEATHER_OUTPUT_SCHEMA
+    assert _WEATHER_RESPONSE_SCHEMA["required"] == _WEATHER_OUTPUT_SCHEMA["required"]
+    assert _WEATHER_RESPONSE_SCHEMA["properties"].keys() == (
+        _WEATHER_OUTPUT_SCHEMA["properties"].keys()
+    )
+    for key, prop in _WEATHER_RESPONSE_SCHEMA["properties"].items():
+        assert prop["type"].lower() == _WEATHER_OUTPUT_SCHEMA["properties"][key]["type"]
+
+    # Thought parts are not output text; the JSON answer must still parse.
+    thought_candidate = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {"text": "thinking", "thought": True},
+                        {"text": '{"city": "SF", "temperature_c": 18}'},
+                    ],
+                    "role": "model",
+                }
+            }
+        ]
+    }
+    assert google_output_is_json(thought_candidate, ctx) == []
+    assert google_output_matches_json_schema(weather)(thought_candidate, ctx) == []
 
     step_check = interactions_has_step_of_type(
         "google_search_call", "google_search_result"

@@ -12,7 +12,11 @@ from llm_comply.formats import VALIDATION_SPEC_FILES
 from llm_comply.config import ComplianceConfig
 from llm_comply.schema import SpecLoader, canonical_spec
 from llm_comply.spec_extract import extract_openai_responses
-from llm_comply.spec_relax import _ANTHROPIC_OPTIONAL_FIELDS, _CHAT_NULLABLE_STRINGS
+from llm_comply.spec_relax import (
+    _ANTHROPIC_OPTIONAL_FIELDS,
+    _CHAT_NULLABLE_STRINGS,
+    _OPENAI_RESPONSES_OPTIONAL_FIELDS,
+)
 from llm_comply.test_case import TestCategory
 from llm_comply.tests import get_tests
 from llm_comply.tests.google_genai import _make_test
@@ -202,6 +206,31 @@ def main() -> int:
         assert set(requirement) <= schemes, (
             f"unresolved security scheme in openai_responses: {requirement}"
         )
+    # Compatible gateways report only the cached-token count; the cache-write
+    # breakdown is relaxed at load time.
+    raw_usage = subset["components"]["schemas"]["ResponseUsage"]
+    raw_input_details = raw_usage["properties"]["input_tokens_details"]
+    for field in _OPENAI_RESPONSES_OPTIONAL_FIELDS:
+        assert field in raw_input_details["required"], field
+    relaxed_input_details = openai_responses.get_schema("ResponseUsage")["properties"][
+        "input_tokens_details"
+    ]
+    assert set(raw_input_details["required"]) - set(
+        relaxed_input_details["required"]
+    ) == set(_OPENAI_RESPONSES_OPTIONAL_FIELDS)
+    assert (
+        openai_responses.validate(
+            {
+                "input_tokens": 10,
+                "input_tokens_details": {"cached_tokens": 0},
+                "output_tokens": 5,
+                "output_tokens_details": {"reasoning_tokens": 0},
+                "total_tokens": 15,
+            },
+            "ResponseUsage",
+        )
+        == []
+    ), "usage without cache_write_tokens must validate"
     print(f"openai_responses: {len(openai_responses.schema_names)} schemas")
 
     raw_messages = json.loads((SPECS_DIR / "anthropic.json").read_text())
@@ -216,15 +245,17 @@ def main() -> int:
     messages = SpecLoader(str(SPECS_DIR / "anthropic.json"))
     assert len(messages.schema_names) > 1500, "bundled Anthropic spec is stale"
     assert "Message" in messages.schema_names
-    assert "diagnostics" in messages.get_schema("Message")["required"]
-    assert "speed" in messages.get_schema("Usage")["required"]
-    # Live Messages API responses omit these fields even though the SDK spec
-    # marks them required; the load-time relaxation keeps them optional.
+    # Live Messages API responses and compatible gateways omit these fields
+    # even though the SDK spec marks them required; the load-time relaxation
+    # keeps them optional.
+    assert "diagnostics" not in messages.get_schema("Message")["required"]
+    assert "speed" not in messages.get_schema("Usage")["required"]
     usage_required = messages.get_schema("Usage")["required"]
     assert "output_tokens_details" not in usage_required
     assert "server_tool_use" not in usage_required
     assert "citations" not in messages.get_schema("ResponseTextBlock")["required"]
     assert "caller" not in messages.get_schema("ResponseServerToolUseBlock")["required"]
+    assert "caller" not in messages.get_schema("ResponseToolUseBlock")["required"]
     live_usage = {
         "cache_creation": None,
         "cache_creation_input_tokens": 0,
@@ -236,7 +267,44 @@ def main() -> int:
         "speed": "standard",
     }
     assert messages.validate(live_usage, "Usage") == []
+    assert (
+        messages.validate(
+            {key: value for key, value in live_usage.items() if key != "speed"},
+            "Usage",
+        )
+        == []
+    ), "usage without the deployment-specific speed must validate"
     assert messages.validate({"type": "text", "text": "hi"}, "ResponseTextBlock") == []
+    assert (
+        messages.validate(
+            {
+                "type": "tool_use",
+                "id": "toolu_1",
+                "name": "get_weather",
+                "input": {"location": "SF"},
+            },
+            "ResponseToolUseBlock",
+        )
+        == []
+    ), "tool-use blocks without caller must validate"
+    assert (
+        messages.validate(
+            {
+                "id": "msg_1",
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "text", "text": "hi"}],
+                "model": "claude",
+                "stop_reason": "end_turn",
+                "stop_sequence": None,
+                "stop_details": None,
+                "usage": live_usage,
+                "container": None,
+            },
+            "Message",
+        )
+        == []
+    ), "messages without diagnostics must validate"
     assert "skills" not in messages.get_schema("Container")["required"]
     assert (
         messages.validate(

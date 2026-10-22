@@ -90,16 +90,35 @@ def main() -> int:
         result = runner.run_one(_case(False))
         assert result.status == TestStatus.FAILED, result.errors
 
-        # Server errors are never treated as "unsupported".
+        # Server errors are advisory for an optional capability: the test
+        # passes with a warning instead of failing the suite.
         _Handler.status = 500
         _Handler.body = {"error": {"message": "boom"}}
         result = runner.run_one(_case(True))
+        assert result.status == TestStatus.PASSED, result.errors
+        assert any("HTTP 500" in warning for warning in result.warnings), (
+            result.warnings
+        )
+
+        # Semantic shortfalls (the provider answered but not with the tool
+        # output the test asked for) are warnings too.
+        case = _case(True)
+        case.validators = [lambda data, ctx: ["executableCode is missing"]]
+        _Handler.status = 200
+        result = runner.run_one(case)
+        assert result.status == TestStatus.PASSED, result.errors
+        assert result.warnings == ["executableCode is missing"], result.warnings
+
+        # The same failure still fails a non-optional test.
+        non_optional = _case(False)
+        non_optional.validators = [lambda data, ctx: ["executableCode is missing"]]
+        result = runner.run_one(non_optional)
         assert result.status == TestStatus.FAILED, result.errors
     finally:
         server.shutdown()
         server.server_close()
 
-    print("optional tests: unsupported statuses skip; other failures do not")
+    print("optional tests: unsupported statuses skip; other failures are warnings")
     return 0
 
 

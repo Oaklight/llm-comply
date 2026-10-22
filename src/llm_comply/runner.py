@@ -179,6 +179,14 @@ class TestRunner:
         ]
         errors = [e for e in errors if not e.startswith(_WARNING_PREFIX)]
 
+        # Optional capabilities are advisory: a provider that rejects the
+        # request outright is skipped above, and any other shortfall (an
+        # unsupported status or missing built-in-tool output) is reported as a
+        # warning so an intrinsic tool cannot fail an otherwise compliant API.
+        if tc.optional and errors:
+            warnings.extend(errors)
+            errors = []
+
         status = TestStatus.PASSED if not errors else TestStatus.FAILED
 
         return TestResult(

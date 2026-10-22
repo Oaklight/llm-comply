@@ -29,6 +29,8 @@ from llm_comply.validators import (
     google_has_candidates,
     google_has_content_parts,
     google_has_function_call,
+    google_has_code_execution,
+    google_has_grounding_metadata,
     google_has_thought_parts,
     google_has_thoughts_token_count,
     google_output_is_json,
@@ -546,6 +548,29 @@ def main() -> int:
     }
     assert google_output_is_json(thought_candidate, ctx) == []
     assert google_output_matches_json_schema(weather)(thought_candidate, ctx) == []
+
+    grounding = {"candidates": [{"groundingMetadata": {"webSearchQueries": ["x"]}}]}
+    assert google_has_grounding_metadata(grounding, ctx) == []
+    assert google_has_grounding_metadata({"candidates": []}, ctx) == [
+        "no candidate carried groundingMetadata"
+    ]
+    code_execution = {
+        "candidates": [{"content": {"parts": [{"executableCode": {"code": "1"}}]}}]
+    }
+    assert google_has_code_execution(code_execution, ctx) == []
+    assert google_has_code_execution({"candidates": []}, ctx) == [
+        "no part carried executableCode or codeExecutionResult"
+    ]
+    assert google_tests["google-grounding"].optional
+    assert google_tests["google-code-execution"].optional
+    grounding_request = google_tests["google-grounding"].build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert grounding_request["tools"] == [{"googleSearch": {}}]
+    code_request = google_tests["google-code-execution"].build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert code_request["tools"] == [{"codeExecution": {}}]
 
     step_check = interactions_has_step_of_type(
         "google_search_call", "google_search_result"

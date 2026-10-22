@@ -169,14 +169,15 @@ services:
 | `openai_responses` | 11 | Schema + 语义（生命周期、流式事件、工具、推理） |
 | `chat_completions` | 13 | Schema + 语义（choices、finish_reason、delta、流式 chunk、developer 角色、结构化输出、Web 搜索、音频输出、错误响应） |
 | `messages` | 9 | Schema + 语义（content blocks、stop_reason、思维链） |
-| `google_generate` | 10 | Schema + 语义（candidates、parts、finishReason、safetyRatings、思维链、结构化输出） |
+| `google_generate` | 12 | Schema + 语义（candidates、parts、finishReason、safetyRatings、思维链、结构化输出、搜索接地、代码执行） |
 | `google_interactions` | 13 | 仅语义（steps、model_output、思维链、Google 搜索、代码执行、地图、URL 上下文） |
 
 `chat-audio-output` 以模型名作为能力提示：仅当名称包含 `audio`（不区分大小写）
 时才运行；若部署使用自定义别名，请用包含 `audio` 的名称运行该测试。
 
 内置 Google Interactions 工具测试是可选的：如果提供方不支持某个工具并返回
-400、404、405、422 或 501，该测试会标记为跳过而不是失败。
+400、404、405、422 或 501，该测试会标记为跳过而不是失败。Google GenAI 的
+搜索接地与代码执行测试同样遵循此规则。
 
 ## 许可证
 

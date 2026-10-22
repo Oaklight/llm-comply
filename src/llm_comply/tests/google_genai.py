@@ -10,8 +10,10 @@ from ..validators import (
     google_finish_reason,
     google_function_call_has_id,
     google_has_candidates,
+    google_has_code_execution,
     google_has_content_parts,
     google_has_function_call,
+    google_has_grounding_metadata,
     google_has_model_version,
     google_has_response_id,
     google_has_thought_parts,
@@ -140,6 +142,39 @@ def _build_structured_output_request(cfg: ComplianceConfig) -> dict[str, Any]:
     }
 
 
+def _build_grounding_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": "What is the weather in San Francisco today? Use search."}
+                ],
+            }
+        ],
+        "tools": [{"googleSearch": {}}],
+    }
+
+
+def _build_code_execution_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": (
+                            "Compute the sum of the numbers 1 through 10 using "
+                            "Python code."
+                        )
+                    }
+                ],
+            }
+        ],
+        "tools": [{"codeExecution": {}}],
+    }
+
+
 # Google endpoints include the model name, so we use a dynamic endpoint
 # via a wrapper that sets the endpoint at build time.
 
@@ -159,6 +194,7 @@ def _make_test(
     expected_statuses: list[int] | None = None,
     schema_name: str | None = None,
     stream_schema_name: str | None = None,
+    optional: bool = False,
 ) -> TestCase:
     if streaming:
         ep_fn = _ep_stream
@@ -191,6 +227,7 @@ def _make_test(
         schema_name=schema_name,
         stream_schema_name=stream_schema_name,
         validate_stream_events=streaming and stream_schema_name is not None,
+        optional=optional,
     )
     if expected_statuses:
         tc = dataclasses.replace(tc, expected_statuses=expected_statuses)
@@ -358,6 +395,32 @@ GOOGLE_GENAI_TESTS: list[TestCase] = [
             google_finish_reason("STOP"),
             google_output_is_json,
             google_output_matches_json_schema(_WEATHER_OUTPUT_SCHEMA),
+        ],
+    ),
+    _make_test(
+        id="google-grounding",
+        name="Google Search Grounding",
+        description="googleSearch tool returns groundingMetadata",
+        category=TestCategory.TOOLS,
+        build_request=_build_grounding_request,
+        optional=True,
+        validators=[
+            google_has_candidates,
+            google_has_content_parts,
+            google_has_grounding_metadata,
+        ],
+    ),
+    _make_test(
+        id="google-code-execution",
+        name="Code Execution",
+        description="codeExecution tool returns executableCode/result parts",
+        category=TestCategory.TOOLS,
+        build_request=_build_code_execution_request,
+        optional=True,
+        validators=[
+            google_has_candidates,
+            google_has_content_parts,
+            google_has_code_execution,
         ],
     ),
     _make_test(

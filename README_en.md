@@ -176,7 +176,7 @@ services:
 | `openai_responses` | 11 | Schema + semantic (lifecycle, streaming events, tools, reasoning) |
 | `chat_completions` | 13 | Schema + semantic (choices, finish_reason, delta, stream chunks, developer role, structured output, web search, audio output, error envelope) |
 | `messages` | 9 | Schema + semantic (content blocks, stop_reason, thinking) |
-| `google_generate` | 10 | Schema + semantic (candidates, parts, finishReason, safetyRatings, thinking, structured output) |
+| `google_generate` | 12 | Schema + semantic (candidates, parts, finishReason, safetyRatings, thinking, structured output, grounding, code execution) |
 | `google_interactions` | 13 | Semantic only (steps, model_output, thinking, google search, code execution, maps, url context) |
 
 `chat-audio-output` treats the model name as a capability hint: it skips unless
@@ -185,7 +185,8 @@ audio aliases should run the test with a name that includes it.
 
 The built-in Google Interactions tool tests are optional: a provider that does
 not support a tool and answers with 400, 404, 405, 422, or 501 reports the
-test as skipped instead of failed.
+test as skipped instead of failed. The Google GenAI grounding and
+code-execution tests follow the same rule.
 
 ## License
 

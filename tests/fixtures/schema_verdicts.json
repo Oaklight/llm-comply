@@ -88,6 +88,27 @@
         "arguments": "{}",
         "status": "completed"
       }
+    },
+    {
+      "schema": "ErrorPayload",
+      "valid": true,
+      "note": "The flat error payload the spec defines for streaming error events.",
+      "instance": {
+        "type": "invalid_request_error",
+        "code": "missing_model",
+        "message": "model is required",
+        "param": "model"
+      }
+    },
+    {
+      "schema": "ErrorPayload",
+      "valid": false,
+      "note": "param is required even when its value is null.",
+      "instance": {
+        "type": "invalid_request_error",
+        "code": "missing_model",
+        "message": "model is required"
+      }
     }
   ],
   "openai_responses": [

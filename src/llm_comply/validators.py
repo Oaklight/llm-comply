@@ -279,6 +279,36 @@ def has_output_phase(expected_phase: str) -> Validator:
     return _check
 
 
+def responses_error_body(response: Any, ctx: ValidatorContext) -> list[str]:
+    """A 4xx body must carry a usable error payload.
+
+    The Open Responses spec defines ``ErrorPayload`` (flat ``type``/``code``/
+    ``message``/``param``) for streaming error events but declares no
+    non-streaming error response, so both that shape and the common
+    ``{"error": {...}}`` envelope are accepted. The message must be a
+    non-empty string in either case.
+    """
+    if not isinstance(response, dict):
+        return ["error response is not a JSON object"]
+    if "error" in response:
+        error = response["error"]
+        if not isinstance(error, dict):
+            return ["error is not an object"]
+        message = error.get("message")
+        if not isinstance(message, str) or not message:
+            return ["error.message is missing or empty"]
+        return []
+    missing = [
+        field for field in ("type", "code", "message", "param") if field not in response
+    ]
+    if missing:
+        return [f"error payload is missing fields: {', '.join(missing)}"]
+    message = response.get("message")
+    if not isinstance(message, str) or not message:
+        return ["error payload message is missing or empty"]
+    return []
+
+
 def compact_object(response: Any, ctx: ValidatorContext) -> list[str]:
     """Compacted response must carry the CompactResource fields."""
     if not isinstance(response, dict):

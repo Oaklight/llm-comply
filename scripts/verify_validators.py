@@ -1018,12 +1018,27 @@ def main() -> int:
     ]
     json_response = {
         "content": [
-            {"type": "thinking", "thinking": "reasoning"},
+            # thinking blocks may carry a text key; it must not enter the payload
+            {"type": "thinking", "thinking": "reasoning", "text": "decoy"},
             {"type": "text", "text": '{"city": "SF", "temperature_c": 18}'},
         ]
     }
     assert anth_output_is_json(json_response, ctx) == []
     assert anth_output_matches_json_schema(_ANTH_JSON_SCHEMA)(json_response, ctx) == []
+    split_response = {
+        "content": [
+            {"type": "text", "text": '{"city": "SF", '},
+            {"type": "text", "text": '"temperature_c": 18}'},
+        ]
+    }
+    assert anth_output_is_json(split_response, ctx) == []
+    assert anth_output_matches_json_schema(_ANTH_JSON_SCHEMA)(split_response, ctx) == []
+    assert anth_output_matches_json_schema(_ANTH_JSON_SCHEMA)(
+        {"content": [{"type": "text", "text": '{"city": "SF"}'}]}, ctx
+    ) == [
+        "text blocks do not match the requested schema: "
+        "'temperature_c' is a required property"
+    ]
     assert anth_output_is_json({"content": []}, ctx) == [
         "no text block to parse as JSON"
     ]

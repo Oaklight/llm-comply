@@ -25,6 +25,7 @@ from ..validators import (
     anth_stop_sequence,
     anth_streaming_content_block_bracketing,
     anth_streaming_has_text_delta,
+    anth_streaming_has_tool_input_delta,
     anth_streaming_has_usage,
     anth_streaming_lifecycle,
     anth_type_message,
@@ -552,6 +553,23 @@ ANTHROPIC_TESTS: list[TestCase] = [
         validators=[
             streaming_has_events,
             anth_streaming_has_usage,
+        ],
+    ),
+    TestCase(
+        id="anth-streaming-tool-use",
+        name="Streaming Tool Use",
+        description="Streaming tool call emits input_json_delta events with valid JSON",
+        category=TestCategory.STREAMING,
+        endpoint="/messages",
+        schema_name=None,
+        streaming=True,
+        validate_stream_events=False,
+        build_request=_build_tool_calling_request,
+        validators=[
+            streaming_has_events,
+            anth_streaming_lifecycle,
+            anth_streaming_content_block_bracketing,
+            anth_streaming_has_tool_input_delta,
         ],
     ),
     TestCase(

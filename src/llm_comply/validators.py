@@ -1094,6 +1094,42 @@ def anth_streaming_content_block_bracketing(
     return errors
 
 
+def anth_streaming_has_tool_input_delta(
+    response: Any, ctx: ValidatorContext
+) -> list[str]:
+    """Streaming tool calls must emit input_json_delta events forming valid JSON."""
+    if not ctx.sse_events:
+        return ["no SSE events to check"]
+    saw_tool_block = False
+    partial: list[str] = []
+    for event in ctx.sse_events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        if data.get("type") == "content_block_start":
+            block = data.get("content_block")
+            if isinstance(block, dict) and block.get("type") == "tool_use":
+                saw_tool_block = True
+        elif data.get("type") == "content_block_delta":
+            delta = data.get("delta")
+            if isinstance(delta, dict) and delta.get("type") == "input_json_delta":
+                fragment = delta.get("partial_json")
+                if isinstance(fragment, str):
+                    partial.append(fragment)
+    if not saw_tool_block:
+        return ["no tool_use content_block_start event"]
+    if not partial:
+        return ["no input_json_delta events"]
+    text = "".join(partial)
+    if not text.strip():
+        return ["input_json_delta events carried no partial JSON"]
+    try:
+        json.loads(text)
+    except ValueError as exc:
+        return [f"tool input deltas do not form valid JSON: {exc}"]
+    return []
+
+
 def anth_streaming_has_text_delta(response: Any, ctx: ValidatorContext) -> list[str]:
     """At least one content_block_delta with text must be present."""
     if not ctx.sse_events:

@@ -12,6 +12,7 @@ from llm_comply.formats import VALIDATION_SPEC_FILES
 from llm_comply.config import ComplianceConfig
 from llm_comply.schema import SpecLoader, canonical_spec
 from llm_comply.spec_extract import extract_openai_responses
+from llm_comply.spec_relax import _ANTHROPIC_OPTIONAL_FIELDS, _CHAT_NULLABLE_STRINGS
 from llm_comply.test_case import TestCategory
 from llm_comply.tests import get_tests
 from llm_comply.tests.google_genai import _make_test
@@ -37,6 +38,11 @@ CHAT_STREAM_CHUNK = {
 
 def main() -> int:
     """Run the bundled-spec assertions."""
+    raw_responses = json.loads((SPECS_DIR / "openresponses.json").read_text())
+    assert raw_responses["components"]["schemas"]["JsonSchemaResponseFormat"][
+        "properties"
+    ]["schema"] == {"type": "null"}
+
     responses = SpecLoader(str(SPECS_DIR / "openresponses.json"))
     assert responses.spec_version == "2026-04-24"
     assert responses.validate(
@@ -71,6 +77,18 @@ def main() -> int:
         "schema": {"type": "object", "additionalProperties": False},
     }
     assert responses.validate(live_format, "JsonSchemaResponseFormat") == []
+
+    raw_chat = json.loads((SPECS_DIR / "openai_chat.json").read_text())
+    raw_chat_schemas = raw_chat["components"]["schemas"]
+    raw_choice = raw_chat_schemas["CreateChatCompletionResponse"]["properties"][
+        "choices"
+    ]["items"]
+    assert "logprobs" in raw_choice["required"]
+    for name in ("CreateChatCompletionResponse", "CreateChatCompletionStreamResponse"):
+        fp = raw_chat_schemas[name]["properties"]["system_fingerprint"]
+        assert fp.get("type") == "string", name
+    for field in _CHAT_NULLABLE_STRINGS:
+        assert field in raw_chat_schemas["CreateChatCompletionResponse"]["properties"]
 
     chat = SpecLoader(str(SPECS_DIR / "openai_chat.json"))
     assert len(chat.schema_names) > 2000, "bundled OpenAI Chat spec is stale"
@@ -171,6 +189,15 @@ def main() -> int:
             f"unresolved security scheme in openai_responses: {requirement}"
         )
     print(f"openai_responses: {len(openai_responses.schema_names)} schemas")
+
+    raw_messages = json.loads((SPECS_DIR / "anthropic.json").read_text())
+    raw_anthropic = raw_messages["components"]["schemas"]
+    for schema_name, fields in _ANTHROPIC_OPTIONAL_FIELDS.items():
+        for field in fields:
+            assert field in raw_anthropic[schema_name]["required"], (
+                schema_name,
+                field,
+            )
 
     messages = SpecLoader(str(SPECS_DIR / "anthropic.json"))
     assert len(messages.schema_names) > 1500, "bundled Anthropic spec is stale"

@@ -1459,7 +1459,22 @@ def main() -> int:
         ]
     }
     assert anth_output_is_json(json_response, ctx) == []
+    assert _ANTH_JSON_SCHEMA.get("additionalProperties") is False
     assert anth_output_matches_json_schema(_ANTH_JSON_SCHEMA)(json_response, ctx) == []
+    assert anth_output_matches_json_schema(_ANTH_JSON_SCHEMA)(
+        {
+            "content": [
+                {
+                    "type": "text",
+                    "text": '{"city": "SF", "temperature_c": 18, "unit": "C"}',
+                }
+            ]
+        },
+        ctx,
+    ) == [
+        "text blocks do not match the requested schema: "
+        "Additional properties are not allowed ('unit' was unexpected)"
+    ]
     split_response = {
         "content": [
             {"type": "text", "text": '{"city": "SF", '},

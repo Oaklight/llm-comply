@@ -337,8 +337,8 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
     ),
     TestCase(
         id="chat-reasoning-summary",
-        name="Reasoning Summary",
-        description="reasoning.summary parameter is accepted and produces reasoning tokens",
+        name="Reasoning Effort",
+        description="reasoning_effort is accepted and produces reasoning tokens",
         category=TestCategory.BASIC,
         endpoint="/chat/completions",
         schema_name="CreateChatCompletionResponse",

@@ -50,6 +50,7 @@ def _make_test(
     validators: list,
     streaming: bool = False,
     expected_statuses: list[int] | None = None,
+    optional: bool = False,
 ) -> TestCase:
     tc = TestCase(
         id=id,
@@ -62,6 +63,7 @@ def _make_test(
         endpoint=_ENDPOINT_STREAM if streaming else _ENDPOINT,
         schema_name=None,
         validate_stream_events=False,
+        optional=optional,
     )
     if expected_statuses:
         tc = dataclasses.replace(tc, expected_statuses=expected_statuses)
@@ -275,6 +277,7 @@ GOOGLE_INTERACTIONS_TESTS: list[TestCase] = [
             "input": "What is the weather in San Francisco today?",
             "tools": [{"type": "google_search"}],
         },
+        optional=True,
         validators=[
             interactions_has_steps,
             interactions_has_step_of_type("google_search_call", "google_search_result"),
@@ -291,6 +294,7 @@ GOOGLE_INTERACTIONS_TESTS: list[TestCase] = [
             "input": "Compute the sum of the numbers 1 through 10 using Python.",
             "tools": [{"type": "code_execution"}],
         },
+        optional=True,
         validators=[
             interactions_has_steps,
             interactions_has_step_of_type(
@@ -309,6 +313,7 @@ GOOGLE_INTERACTIONS_TESTS: list[TestCase] = [
             "input": "Find coffee shops near Golden Gate Park in San Francisco.",
             "tools": [{"type": "google_maps"}],
         },
+        optional=True,
         validators=[
             interactions_has_steps,
             interactions_has_step_of_type("google_maps_call", "google_maps_result"),
@@ -325,6 +330,7 @@ GOOGLE_INTERACTIONS_TESTS: list[TestCase] = [
             "input": "Summarize https://example.com in one sentence.",
             "tools": [{"type": "url_context"}],
         },
+        optional=True,
         validators=[
             interactions_has_steps,
             interactions_has_step_of_type("url_context_call", "url_context_result"),

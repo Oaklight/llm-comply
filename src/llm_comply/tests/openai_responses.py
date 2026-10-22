@@ -21,6 +21,7 @@ _COMPATIBLE_TEST_IDS = {
     "streaming-response",
     "streaming-usage",
     "image-input",
+    "file-input",
     "compact-response",
     "compact-missing-model",
     "reasoning-summary",

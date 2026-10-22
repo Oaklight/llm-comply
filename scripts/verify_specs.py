@@ -50,13 +50,16 @@ def main() -> int:
     responses_config = ComplianceConfig(
         base_url="http://x", api_key="k", model="test-model"
     )
+    covered: list[str] = []
     for tc in get_tests("open_responses"):
-        if tc.streaming or tc.expected_statuses != [200]:
+        if tc.streaming or 200 not in tc.expected_statuses:
             continue
+        covered.append(tc.id)
         assert (
             responses.validate(tc.build_request(responses_config), "CreateResponseBody")
             == []
         ), tc.id
+    assert len(covered) == 12, covered
 
     chat = SpecLoader(str(SPECS_DIR / "openai_chat.json"))
     assert len(chat.schema_names) > 2000, "bundled OpenAI Chat spec is stale"

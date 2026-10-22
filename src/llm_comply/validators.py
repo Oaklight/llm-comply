@@ -50,6 +50,8 @@ def responses_output_contains(expected: str) -> Validator:
     """Factory: concatenated output_text must contain *expected*."""
 
     def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not expected:
+            return ["expected text is empty"]
         text = _output_text(response)
         if text is None:
             return ["no output_text content to inspect"]

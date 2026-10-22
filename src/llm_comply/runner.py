@@ -120,15 +120,22 @@ class TestRunner:
             if status_code not in tc.expected_statuses:
                 errors.append(f"HTTP {status_code} (expected {tc.expected_statuses})")
                 fatal = True
-            elif (
-                tc.optional
-                and not tc.streaming
-                and (not isinstance(response_data, dict) or not response_data)
+            elif tc.optional and (
+                (
+                    not tc.streaming
+                    and (not isinstance(response_data, dict) or not response_data)
+                )
+                or (tc.streaming and not sse_events)
             ):
-                # An optional capability must still answer with a non-empty
-                # JSON object; an empty or text body says the endpoint itself
-                # is broken, not that the tool is unsupported.
-                errors.append("response is empty or not a JSON object")
+                # An optional capability must still answer with a body: a
+                # non-empty JSON object, or at least one stream event. An
+                # empty or text body (or an ignored ``stream: true``) says the
+                # endpoint itself is broken, not that the tool is unsupported.
+                errors.append(
+                    "no SSE events received"
+                    if tc.streaming
+                    else "response is empty or not a JSON object"
+                )
                 fatal = True
 
             # Schema validation (non-streaming response or final streaming response)

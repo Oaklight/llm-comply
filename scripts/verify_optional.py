@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import json
+import pathlib
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
+from unittest.mock import patch
 
 from llm_comply.cli import _build_parser
 from llm_comply.config import ComplianceConfig
@@ -117,11 +119,64 @@ def main() -> int:
         result = runner.run_one(_case(True))
         assert result.status == TestStatus.FAILED, result.errors
 
-        # So is a JSON object that violates the response schema.
+        # A JSON object that violates a real response schema fails as well.
+        spec_path = (
+            pathlib.Path(__file__).resolve().parent.parent
+            / "src/llm_comply/specs/anthropic.json"
+        )
+        schema_runner = TestRunner(
+            _config(port), [_case(True)], SpecLoader(str(spec_path))
+        )
         case = _case(True)
-        case.schema_name = "Response"
-        _Handler.body = {"id": "int_1"}
-        result = runner.run_one(case)
+        case.schema_name = "Message"
+        _Handler.body = {
+            "id": "msg_1",
+            "type": "message",
+            "role": "assistant",
+            "content": "not-a-list",
+            "model": "claude",
+            "stop_reason": "end_turn",
+            "stop_sequence": None,
+            "stop_details": None,
+            "usage": {
+                "input_tokens": 1,
+                "output_tokens": 2,
+                "cache_creation": None,
+                "cache_creation_input_tokens": None,
+                "cache_read_input_tokens": None,
+                "inference_geo": None,
+                "service_tier": None,
+            },
+            "container": None,
+        }
+        result = schema_runner.run_one(case)
+        assert result.status == TestStatus.FAILED, result.errors
+        assert any("content" in error for error in result.errors), result.errors
+
+        # A transport failure is fatal for an optional test.
+        with patch(
+            "llm_comply.runner.make_request", side_effect=ConnectionError("reset")
+        ):
+            result = runner.run_one(_case(True))
+        assert result.status == TestStatus.FAILED, result.errors
+
+        # An optional streaming test that receives no events at all is a
+        # protocol failure, not a capability gap.
+        streaming = _case(True)
+        streaming.streaming = True
+        for events in ([], None):
+            with patch(
+                "llm_comply.runner.make_request", return_value=(200, None, events)
+            ):
+                result = runner.run_one(streaming)
+            assert result.status == TestStatus.FAILED, (events, result.errors)
+
+        # A malformed stream event is fatal too.
+        broken_event = [{"data": "junk", "_parse_error": True}]
+        with patch(
+            "llm_comply.runner.make_request", return_value=(200, None, broken_event)
+        ):
+            result = runner.run_one(streaming)
         assert result.status == TestStatus.FAILED, result.errors
 
         # Authentication and throttling failures say nothing about whether the

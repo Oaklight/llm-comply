@@ -170,7 +170,7 @@ services:
 | `chat_completions` | 13 | Schema + 语义（choices、finish_reason、delta、流式 chunk、developer 角色、结构化输出、Web 搜索、音频输出、错误响应） |
 | `messages` | 9 | Schema + 语义（content blocks、stop_reason、思维链） |
 | `google_generate` | 9 | Schema + 语义（candidates、parts、finishReason、safetyRatings、思维链） |
-| `google_interactions` | 9 | 仅语义（steps、model_output、思维链） |
+| `google_interactions` | 13 | 仅语义（steps、model_output、思维链、Google 搜索、代码执行、地图、URL 上下文） |
 
 `chat-audio-output` 以模型名作为能力提示：仅当名称包含 `audio`（不区分大小写）
 时才运行；若部署使用自定义别名，请用包含 `audio` 的名称运行该测试。

@@ -19,6 +19,7 @@ from ..validators import (
     interactions_function_call_has_id,
     interactions_has_model_field,
     interactions_has_object_field,
+    interactions_has_step_of_type,
     interactions_streaming_has_text,
     interactions_streaming_has_lifecycle,
     interactions_streaming_has_completed,
@@ -262,6 +263,72 @@ GOOGLE_INTERACTIONS_TESTS: list[TestCase] = [
             interactions_status("completed"),
             interactions_has_usage,
             interactions_has_thought,
+        ],
+    ),
+    _make_test(
+        id="interactions-google-search",
+        name="Google Search Tool",
+        description="google_search tool produces call/result steps",
+        category=TestCategory.TOOLS,
+        build_request=lambda cfg: {
+            "model": cfg.model,
+            "input": "What is the weather in San Francisco today?",
+            "tools": [{"type": "google_search"}],
+        },
+        validators=[
+            interactions_has_steps,
+            interactions_has_step_of_type("google_search_call", "google_search_result"),
+            interactions_status("completed"),
+        ],
+    ),
+    _make_test(
+        id="interactions-code-execution",
+        name="Code Execution Tool",
+        description="code_execution tool produces call/result steps",
+        category=TestCategory.TOOLS,
+        build_request=lambda cfg: {
+            "model": cfg.model,
+            "input": "Compute the sum of the numbers 1 through 10 using Python.",
+            "tools": [{"type": "code_execution"}],
+        },
+        validators=[
+            interactions_has_steps,
+            interactions_has_step_of_type(
+                "code_execution_call", "code_execution_result"
+            ),
+            interactions_status("completed"),
+        ],
+    ),
+    _make_test(
+        id="interactions-google-maps",
+        name="Google Maps Tool",
+        description="google_maps tool produces call/result steps",
+        category=TestCategory.TOOLS,
+        build_request=lambda cfg: {
+            "model": cfg.model,
+            "input": "Find coffee shops near Golden Gate Park in San Francisco.",
+            "tools": [{"type": "google_maps"}],
+        },
+        validators=[
+            interactions_has_steps,
+            interactions_has_step_of_type("google_maps_call", "google_maps_result"),
+            interactions_status("completed"),
+        ],
+    ),
+    _make_test(
+        id="interactions-url-context",
+        name="URL Context Tool",
+        description="url_context tool produces call/result steps",
+        category=TestCategory.TOOLS,
+        build_request=lambda cfg: {
+            "model": cfg.model,
+            "input": "Summarize https://example.com in one sentence.",
+            "tools": [{"type": "url_context"}],
+        },
+        validators=[
+            interactions_has_steps,
+            interactions_has_step_of_type("url_context_call", "url_context_result"),
+            interactions_status("completed"),
         ],
     ),
     _make_test(

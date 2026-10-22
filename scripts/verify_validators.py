@@ -31,6 +31,7 @@ from llm_comply.validators import (
     google_streaming_has_text,
     google_usage_valid_modalities,
     has_usage,
+    interactions_has_step_of_type,
     responses_output_is_json,
     responses_output_matches_json_schema,
     responses_streaming_output_text,
@@ -453,6 +454,37 @@ def main() -> int:
     assert google_has_content_parts(good, ctx) == []
     assert google_finish_reason("STOP")(good, ctx) == []
     print("google validators: malformed candidates fail without raising")
+
+    step_check = interactions_has_step_of_type(
+        "google_search_call", "google_search_result"
+    )
+    assert (
+        step_check(
+            {
+                "steps": [
+                    {"type": "google_search_call"},
+                    {"type": "google_search_result"},
+                ]
+            },
+            ctx,
+        )
+        == []
+    )
+    assert any(
+        "missing step types" in error
+        for error in step_check({"steps": [{"type": "google_search_call"}]}, ctx)
+    )
+    assert step_check({"steps": "nope"}, ctx) == [
+        "response.steps is missing or not an array"
+    ]
+    interaction_tests = {tc.id: tc for tc in get_tests("google_interactions")}
+    for test_id in (
+        "interactions-google-search",
+        "interactions-code-execution",
+        "interactions-google-maps",
+        "interactions-url-context",
+    ):
+        assert test_id in interaction_tests, test_id
 
     # Completion-token details are advisory: absent is a warning, present
     # values must be integers.

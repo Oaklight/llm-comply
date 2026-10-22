@@ -127,6 +127,27 @@ _WEATHER_OUTPUT_SCHEMA: dict[str, Any] = {
 }
 
 
+def _build_code_execution_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "max_tokens": 1024,
+        "messages": [
+            {
+                "role": "user",
+                "content": (
+                    "Compute the sum of the numbers 1 through 10 using Python code."
+                ),
+            }
+        ],
+        "tools": [
+            {
+                "type": "code_execution_20260521",
+                "name": "code_execution",
+            }
+        ],
+    }
+
+
 def _build_structured_output_request(cfg: ComplianceConfig) -> dict[str, Any]:
     return {
         "model": cfg.model,
@@ -315,24 +336,7 @@ ANTHROPIC_TESTS: list[TestCase] = [
         endpoint="/messages",
         schema_name="Message",
         optional=True,
-        build_request=lambda cfg: {
-            "model": cfg.model,
-            "max_tokens": 1024,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": (
-                        "Compute the sum of the numbers 1 through 10 using Python code."
-                    ),
-                }
-            ],
-            "tools": [
-                {
-                    "type": "code_execution_20260521",
-                    "name": "code_execution",
-                }
-            ],
-        },
+        build_request=_build_code_execution_request,
         validators=[
             has_response_id,
             anth_type_message,

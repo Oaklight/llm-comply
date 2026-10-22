@@ -77,6 +77,10 @@ def main() -> int:
         "schema": {"type": "object", "additionalProperties": False},
     }
     assert responses.validate(live_format, "JsonSchemaResponseFormat") == []
+    relaxed_schema_prop = responses.get_schema("JsonSchemaResponseFormat")[
+        "properties"
+    ]["schema"]
+    assert relaxed_schema_prop.get("type") == ["object", "null"]
 
     raw_chat = json.loads((SPECS_DIR / "openai_chat.json").read_text())
     raw_chat_schemas = raw_chat["components"]["schemas"]
@@ -114,6 +118,16 @@ def main() -> int:
         "system_fingerprint": None,
     }
     assert chat.validate(live_chat, "CreateChatCompletionResponse") == []
+    relaxed_choice = chat.get_schema("CreateChatCompletionResponse")["properties"][
+        "choices"
+    ]["items"]["required"]
+    assert set(raw_choice["required"]) - set(relaxed_choice) == {"logprobs"}
+    relaxed_fp = chat.get_schema("CreateChatCompletionResponse")["properties"][
+        "system_fingerprint"
+    ]
+    assert relaxed_fp.get("type") is None
+    assert {"type": "string"} in relaxed_fp["anyOf"]
+    assert {"type": "null"} in relaxed_fp["anyOf"]
     print(f"chat_completions: {len(chat.schema_names)} schemas")
 
     openai_responses = SpecLoader(str(SPECS_DIR / "openai_responses.json"))
@@ -230,6 +244,11 @@ def main() -> int:
         )
         == []
     )
+    for schema_name, fields in _ANTHROPIC_OPTIONAL_FIELDS.items():
+        raw_required = set(raw_anthropic[schema_name]["required"])
+        relaxed_required = set(messages.get_schema(schema_name)["required"])
+        assert raw_required - relaxed_required == set(fields), schema_name
+        assert relaxed_required <= raw_required, schema_name
     print(f"messages: {len(messages.schema_names)} schemas")
 
     # The tool tests must build requests the API accepts: a 400 caused by a

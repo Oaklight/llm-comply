@@ -914,6 +914,18 @@ def anth_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
     return failures or ["code execution did not report a result"]
 
 
+def anth_has_input_tokens(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Token-count responses must report a positive input_tokens count."""
+    if not isinstance(response, dict):
+        return ["response is not a JSON object"]
+    tokens = response.get("input_tokens")
+    if not isinstance(tokens, int) or isinstance(tokens, bool):
+        return ["response.input_tokens is missing or not an integer"]
+    if tokens <= 0:
+        return [f"response.input_tokens is not positive: {tokens}"]
+    return []
+
+
 def anth_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
     """Response must have usage with input_tokens/output_tokens."""
     if not isinstance(response, dict):

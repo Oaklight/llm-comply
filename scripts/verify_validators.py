@@ -488,6 +488,12 @@ def main() -> int:
             {"candidates": [{"content": {"parts": [{"text": "nope"}]}}]}, ctx
         )
     )
+    assert google_output_is_json("not-an-object", ctx) == [
+        "no text part to parse as JSON"
+    ]
+    assert google_output_is_json({"candidates": []}, ctx) == [
+        "no text part to parse as JSON"
+    ]
     assert any(
         "does not match" in error
         for error in google_output_matches_json_schema(weather)(

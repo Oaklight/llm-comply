@@ -15,6 +15,7 @@ from ..validators import (
     anth_has_thinking_content,
     anth_has_tool_use,
     anth_has_usage,
+    anth_max_tokens_honoured,
     anth_output_is_json,
     anth_output_matches_json_schema,
     anth_role_assistant,
@@ -332,6 +333,7 @@ ANTHROPIC_TESTS: list[TestCase] = [
             has_response_id,
             anth_type_message,
             anth_stop_reason("max_tokens"),
+            anth_max_tokens_honoured(1),
         ],
     ),
     TestCase(

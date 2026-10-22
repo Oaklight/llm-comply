@@ -19,6 +19,7 @@ from llm_comply.validators import (
     anth_has_content_block_of_type,
     anth_has_code_execution,
     anth_has_input_tokens,
+    anth_max_tokens_honoured,
     anth_output_is_json,
     anth_output_matches_json_schema,
     anth_stop_sequence,
@@ -1118,9 +1119,40 @@ def main() -> int:
         "stop_sequence: expected 'END', got 'STOP'"
     ]
     assert stop_sequence("nope", ctx) == ["response is not a JSON object"]
+    assert stop_sequence(
+        {
+            "stop_sequence": "END",
+            "content": [{"type": "text", "text": "Sure, END"}],
+        },
+        ctx,
+    ) == ["output text still contains stop sequence 'END'"]
+    assert stop_sequence(
+        {"stop_sequence": "END", "content": [{"type": "text", "text": "END END"}]},
+        ctx,
+    ) == ["output text still contains stop sequence 'END'"]
+    assert (
+        stop_sequence(
+            {"stop_sequence": "END", "content": [{"type": "text", "text": "hello"}]},
+            ctx,
+        )
+        == []
+    )
+    max_check = anth_max_tokens_honoured(1)
+    assert max_check({"usage": {"output_tokens": 1}}, ctx) == []
+    assert max_check({"usage": {"output_tokens": 2}}, ctx) == [
+        "usage.output_tokens 2 exceeds max_tokens=1"
+    ]
+    assert max_check({"usage": {"output_tokens": "1"}}, ctx) == [
+        "response.usage.output_tokens is missing or not an integer"
+    ]
+    assert max_check({}, ctx) == ["response.usage is missing or not an object"]
+    assert max_check("nope", ctx) == ["response is not a JSON object"]
     max_tokens = anth_tests["anth-max-tokens"]
     assert max_tokens.schema_name == "Message"
     assert "anth_stop_reason('max_tokens')" in [
+        getattr(v, "__qualname__", "") for v in max_tokens.validators
+    ]
+    assert "anth_max_tokens_honoured(1)" in [
         getattr(v, "__qualname__", "") for v in max_tokens.validators
     ]
     max_request = max_tokens.build_request(

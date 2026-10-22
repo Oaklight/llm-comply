@@ -914,8 +914,32 @@ def anth_has_code_execution(response: Any, ctx: ValidatorContext) -> list[str]:
     return failures or ["code execution did not report a result"]
 
 
+def anth_max_tokens_honoured(limit: int) -> Validator:
+    """Factory: usage.output_tokens must not exceed the requested max_tokens."""
+
+    def _check(response: Any, ctx: ValidatorContext) -> list[str]:
+        if not isinstance(response, dict):
+            return ["response is not a JSON object"]
+        usage = response.get("usage")
+        if not isinstance(usage, dict):
+            return ["response.usage is missing or not an object"]
+        tokens = usage.get("output_tokens")
+        if not isinstance(tokens, int) or isinstance(tokens, bool):
+            return ["response.usage.output_tokens is missing or not an integer"]
+        if tokens > limit:
+            return [f"usage.output_tokens {tokens} exceeds max_tokens={limit}"]
+        return []
+
+    _check.__qualname__ = f"anth_max_tokens_honoured({limit})"
+    return _check
+
+
 def anth_stop_sequence(expected: str) -> Validator:
-    """Factory: validate the response's matched stop_sequence."""
+    """Factory: validate the response's matched stop_sequence.
+
+    The matched sequence must also be absent from the returned text; if it
+    appears, generation was not actually stopped by it.
+    """
 
     def _check(response: Any, ctx: ValidatorContext) -> list[str]:
         if not isinstance(response, dict):
@@ -923,6 +947,9 @@ def anth_stop_sequence(expected: str) -> Validator:
         value = response.get("stop_sequence")
         if value != expected:
             return [f"stop_sequence: expected {expected!r}, got {value!r}"]
+        text = _anth_output_text(response) or ""
+        if expected in text:
+            return [f"output text still contains stop sequence {expected!r}"]
         return []
 
     _check.__qualname__ = f"anth_stop_sequence({expected!r})"

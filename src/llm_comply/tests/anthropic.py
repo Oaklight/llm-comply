@@ -131,7 +131,7 @@ _WEATHER_OUTPUT_SCHEMA: dict[str, Any] = {
 }
 
 
-_CACHE_FILLER = "The quick brown fox jumps over the lazy dog. " * 350
+_CACHE_FILLER = "The quick brown fox jumps over the lazy dog. " * 800
 
 
 def _build_prompt_cache_request(cfg: ComplianceConfig) -> dict[str, Any]:

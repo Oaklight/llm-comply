@@ -156,18 +156,20 @@ def main() -> int:
     # malformed request would look like "capability unsupported" and turn the
     # optional web-search test into a permanent skip.
     anth_config = ComplianceConfig(base_url="http://x", api_key="k", model="test-model")
-    for test_id in (
-        "anth-tool-result",
-        "anth-web-search",
-        "anth-code-execution",
-        "anth-structured-output",
-        "anth-max-tokens",
-        "anth-stop-sequence",
-        "anth-prompt-cache",
-    ):
-        test_case = next(tc for tc in get_tests("messages") if tc.id == test_id)
+    anth_covered: list[str] = []
+    for test_case in get_tests("messages"):
+        if (
+            test_case.streaming
+            or test_case.category == TestCategory.ERROR_HANDLING
+            or test_case.endpoint != "/messages"
+            or 200 not in test_case.expected_statuses
+        ):
+            continue
+        anth_covered.append(test_case.id)
         request = test_case.build_request(anth_config)
-        assert messages.validate(request, "CreateMessageParams") == [], test_id
+        assert messages.validate(request, "CreateMessageParams") == [], test_case.id
+    # Pin the breadth: dropping a test from this loop should not be silent.
+    assert len(anth_covered) == 13, anth_covered
     count_case = next(
         tc for tc in get_tests("messages") if tc.id == "anth-count-tokens"
     )

@@ -1150,14 +1150,18 @@ def main() -> int:
     assert max_check("nope", ctx) == ["response is not a JSON object"]
     cache_test = anth_tests["anth-prompt-cache"]
     assert cache_test.schema_name == "Message"
-    assert "anth_cache_used" in [
-        getattr(v, "__qualname__", "") for v in cache_test.validators
+    assert [getattr(v, "__qualname__", "") for v in cache_test.validators] == [
+        "has_response_id",
+        "anth_type_message",
+        "anth_has_usage",
+        "anth_cache_used",
     ]
     cache_request = cache_test.build_request(
         ComplianceConfig(base_url="http://x", api_key="k", model="test")
     )
     assert cache_request["system"][0]["cache_control"] == {"type": "ephemeral"}
-    assert len(cache_request["system"][0]["text"]) > 10000
+    # ~9k tokens by the usual estimate, clearing every documented cache minimum.
+    assert len(cache_request["system"][0]["text"]) > 25000
     assert (
         anth_cache_used(
             {
@@ -1196,6 +1200,18 @@ def main() -> int:
     assert anth_cache_used({"usage": {}}, ctx) == [
         "cache was not used: cache_creation_input_tokens=None, "
         "cache_read_input_tokens=None"
+    ]
+    assert anth_cache_used(
+        {
+            "usage": {
+                "cache_creation_input_tokens": True,
+                "cache_read_input_tokens": False,
+            }
+        },
+        ctx,
+    ) == [
+        "cache was not used: cache_creation_input_tokens=True, "
+        "cache_read_input_tokens=False"
     ]
     assert anth_cache_used({}, ctx) == ["response.usage is missing or not an object"]
     assert anth_cache_used("nope", ctx) == ["response is not a JSON object"]

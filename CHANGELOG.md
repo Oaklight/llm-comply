@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Optional (intrinsic-tool) tests no longer fail a run. An unsupported status still reports skipped; any other shortfall — a 5xx, or a successful response that omits the tool's output — is reported as a warning. This covers the Google GenAI grounding and code-execution tests, the four Google Interactions built-in tools, Anthropic web search and code execution, and chat web search.
+- Optional (intrinsic-tool) tests no longer fail a run for capability reasons. An unsupported status still reports skipped; a successful response that omits the tool's output is reported as a warning. Protocol failures — a 5xx, a non-JSON body, a schema violation, or an authentication, throttling, or transport error — still fail. This covers the Google GenAI grounding and code-execution tests, the four Google Interactions built-in tools, Anthropic web search and code execution, and chat web search.
 
 ### Fixed
 

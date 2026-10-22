@@ -48,7 +48,8 @@ class TestCase:
     # schema from the event type (for APIs whose events have no type field).
     stream_schema_name: str | None = None
     # Optional capabilities (e.g. provider-specific built-in tools) may be
-    # unsupported; an unsupported status reports SKIPPED, and any other
-    # shortfall is reported as a warning rather than a failure.
+    # unsupported; an unsupported status reports SKIPPED, and a well-formed
+    # response that omits the tool output is reported as a warning. Protocol
+    # failures still fail.
     optional: bool = False
     skip_reason: Callable[[ComplianceConfig], str | None] | None = None

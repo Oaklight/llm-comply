@@ -483,6 +483,37 @@ def chat_has_usage(response: Any, ctx: ValidatorContext) -> list[str]:
     return errors
 
 
+_CHAT_TOKEN_DETAIL_FIELDS: dict[str, tuple[str, ...]] = {
+    "completion_tokens_details": (
+        "accepted_prediction_tokens",
+        "audio_tokens",
+        "reasoning_tokens",
+        "rejected_prediction_tokens",
+        "text_tokens",
+    ),
+    "prompt_tokens_details": (
+        "audio_tokens",
+        "cache_write_tokens",
+        "cached_tokens",
+        "image_tokens",
+        "text_tokens",
+    ),
+}
+
+
+def _chat_token_details(usage: dict[str, Any], key: str) -> list[str]:
+    if key not in usage:
+        return [f"[warning] usage.{key} is missing"]
+    details = usage[key]
+    if not isinstance(details, dict):
+        return [f"[warning] usage.{key} is not an object"]
+    return [
+        f"[warning] usage.{key}.{field} is not an integer"
+        for field in _CHAT_TOKEN_DETAIL_FIELDS[key]
+        if field in details and not isinstance(details[field], int)
+    ]
+
+
 def chat_has_completion_token_details(
     response: Any, ctx: ValidatorContext
 ) -> list[str]:
@@ -492,25 +523,17 @@ def chat_has_completion_token_details(
     usage = response.get("usage")
     if not isinstance(usage, dict):
         return []
-    if "completion_tokens_details" not in usage:
-        return ["[warning] usage.completion_tokens_details is missing"]
-    details = usage["completion_tokens_details"]
-    if not isinstance(details, dict):
-        return ["[warning] usage.completion_tokens_details is not an object"]
-    errors: list[str] = []
-    for field in (
-        "accepted_prediction_tokens",
-        "audio_tokens",
-        "reasoning_tokens",
-        "rejected_prediction_tokens",
-        "text_tokens",
-        "image_tokens",
-    ):
-        if field in details and not isinstance(details[field], int):
-            errors.append(
-                f"[warning] usage.completion_tokens_details.{field} is not an integer"
-            )
-    return errors
+    return _chat_token_details(usage, "completion_tokens_details")
+
+
+def chat_has_prompt_token_details(response: Any, ctx: ValidatorContext) -> list[str]:
+    """Warn when usage.prompt_tokens_details sub-fields are malformed."""
+    if not isinstance(response, dict):
+        return []
+    usage = response.get("usage")
+    if not isinstance(usage, dict):
+        return []
+    return _chat_token_details(usage, "prompt_tokens_details")
 
 
 def chat_streaming_has_delta(response: Any, ctx: ValidatorContext) -> list[str]:

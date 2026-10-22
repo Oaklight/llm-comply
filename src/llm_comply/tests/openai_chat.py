@@ -13,6 +13,7 @@ from ..validators import (
     chat_has_completion_token_details,
     chat_has_logprobs_field,
     chat_has_message,
+    chat_has_prompt_token_details,
     chat_has_reasoning_tokens,
     chat_has_refusal_field,
     chat_has_tool_call_of_type,
@@ -34,6 +35,7 @@ _CHAT_RESPONSE_WARNINGS = [
     chat_has_annotations_field,
     chat_has_logprobs_field,
     chat_has_completion_token_details,
+    chat_has_prompt_token_details,
     chat_id_has_prefix("chatcmpl-"),
 ]
 

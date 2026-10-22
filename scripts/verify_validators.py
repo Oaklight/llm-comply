@@ -12,6 +12,7 @@ from llm_comply.validators import (
     anth_streaming_content_block_bracketing,
     chat_has_message,
     chat_has_completion_token_details,
+    chat_has_prompt_token_details,
     chat_has_tool_call_of_type,
     chat_has_tool_calls,
     chat_message_is_json,
@@ -470,7 +471,6 @@ def main() -> int:
         "reasoning_tokens",
         "rejected_prediction_tokens",
         "text_tokens",
-        "image_tokens",
     ):
         assert any(
             f"{field} is not an integer" in error
@@ -479,11 +479,36 @@ def main() -> int:
                 ctx,
             )
         ), field
+
+    assert (
+        chat_has_prompt_token_details(
+            {"usage": {"prompt_tokens_details": {"cached_tokens": 2}}}, ctx
+        )
+        == []
+    )
+    assert chat_has_prompt_token_details({"usage": {}}, ctx) == [
+        "[warning] usage.prompt_tokens_details is missing"
+    ]
+    for field in (
+        "audio_tokens",
+        "cache_write_tokens",
+        "cached_tokens",
+        "image_tokens",
+        "text_tokens",
+    ):
+        assert any(
+            f"{field} is not an integer" in error
+            for error in chat_has_prompt_token_details(
+                {"usage": {"prompt_tokens_details": {field: "3"}}},
+                ctx,
+            )
+        ), field
     chat_tests = {tc.id: tc for tc in get_tests("chat_completions")}
     names = [
         getattr(v, "__name__", "") for v in chat_tests["chat-basic-response"].validators
     ]
     assert "chat_has_completion_token_details" in names, "chat-basic-response"
+    assert "chat_has_prompt_token_details" in names, "chat-basic-response"
     assert chat_tests["chat-error-handling"].schema_name == "ErrorResponse"
     assert "chat-web-search" in chat_tests
     assert chat_tests["chat-web-search"].schema_name == "CreateChatCompletionResponse"

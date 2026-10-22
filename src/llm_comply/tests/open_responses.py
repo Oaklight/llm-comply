@@ -16,6 +16,7 @@ from ..validators import (
     has_usage,
     responses_error_body,
     responses_has_reasoning_summary,
+    responses_output_contains,
     responses_output_is_json,
     responses_output_matches_json_schema,
     responses_streaming_output_text,
@@ -227,6 +228,35 @@ def _build_image_input_request(cfg: ComplianceConfig) -> dict[str, Any]:
     }
 
 
+_FILE_CONTENT_B64 = "VGhlIGFuc3dlciBpbnNpZGUgdGhpcyBmaWxlIGlzIDQyLgo="
+
+
+def _build_file_input_request(cfg: ComplianceConfig) -> dict[str, Any]:
+    return {
+        "model": cfg.model,
+        "input": [
+            {
+                "type": "message",
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "What number is written in the attached file? "
+                            "Reply with just the number."
+                        ),
+                    },
+                    {
+                        "type": "input_file",
+                        "filename": "answer.txt",
+                        "file_data": _FILE_CONTENT_B64,
+                    },
+                ],
+            },
+        ],
+    }
+
+
 def _compact_warn_has_output(response: Any, ctx: ValidatorContext) -> list[str]:
     errs = has_output(response, ctx)
     return [f"[warning] {e}" for e in errs]
@@ -403,6 +433,19 @@ OPEN_RESPONSES_TESTS: list[TestCase] = [
         build_request=_build_image_input_request,
         validators=[has_response_id, has_output, completed_status],
         skip_reason=lambda cfg: None,  # could check for vision-capable models
+    ),
+    TestCase(
+        id="file-input",
+        name="File Input",
+        description="Inline base64 input_file is accepted and its content is read",
+        category=TestCategory.MULTIMODAL,
+        build_request=_build_file_input_request,
+        validators=[
+            has_response_id,
+            has_output,
+            completed_status,
+            responses_output_contains("42"),
+        ],
     ),
     TestCase(
         id="assistant-phase",

@@ -44,6 +44,20 @@ def main() -> int:
     ), "incomplete response should have errors"
     print(f"open_responses: {len(responses.schema_names)} schemas")
 
+    # Every shipped success-path request must validate against the spec, so a
+    # builder that drifts from CreateResponseBody fails here rather than at a
+    # provider.
+    responses_config = ComplianceConfig(
+        base_url="http://x", api_key="k", model="test-model"
+    )
+    for tc in get_tests("open_responses"):
+        if tc.streaming or tc.expected_statuses != [200]:
+            continue
+        assert (
+            responses.validate(tc.build_request(responses_config), "CreateResponseBody")
+            == []
+        ), tc.id
+
     chat = SpecLoader(str(SPECS_DIR / "openai_chat.json"))
     assert len(chat.schema_names) > 2000, "bundled OpenAI Chat spec is stale"
     assert "CreateChatCompletionResponse" in chat.schema_names

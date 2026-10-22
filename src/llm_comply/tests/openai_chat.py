@@ -9,6 +9,7 @@ from ..test_case import TestCase, TestCategory
 from ..validators import (
     chat_finish_reason,
     chat_has_annotations_field,
+    chat_has_audio,
     chat_has_choices,
     chat_has_completion_token_details,
     chat_has_logprobs_field,
@@ -367,6 +368,32 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
                 for p in ("o1", "o3", "o4", "gpt-5", "deepseek-r")
             )
             else None
+        ),
+    ),
+    TestCase(
+        id="chat-audio-output",
+        name="Audio Output",
+        description="modalities audio produces a message audio payload",
+        category=TestCategory.MULTIMODAL,
+        endpoint="/chat/completions",
+        schema_name="CreateChatCompletionResponse",
+        build_request=lambda cfg: {
+            "model": cfg.model,
+            "messages": [{"role": "user", "content": "Say hello."}],
+            "modalities": ["text", "audio"],
+            "audio": {"voice": "alloy", "format": "wav"},
+        },
+        validators=[
+            has_response_id,
+            chat_has_choices,
+            chat_has_message,
+            chat_has_audio,
+            *_CHAT_RESPONSE_WARNINGS,
+        ],
+        skip_reason=lambda cfg: (
+            None
+            if "audio" in (cfg.model or "").lower()
+            else "audio output requires an audio-capable model"
         ),
     ),
     TestCase(

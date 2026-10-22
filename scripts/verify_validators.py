@@ -11,6 +11,7 @@ from llm_comply.tests import get_tests
 from llm_comply.validators import (
     anth_streaming_content_block_bracketing,
     chat_has_message,
+    chat_has_audio,
     chat_has_completion_token_details,
     chat_has_prompt_token_details,
     chat_has_tool_call_of_type,
@@ -509,6 +510,42 @@ def main() -> int:
     ]
     assert "chat_has_completion_token_details" in names, "chat-basic-response"
     assert "chat_has_prompt_token_details" in names, "chat-basic-response"
+    assert "chat-audio-output" in chat_tests
+    audio_message = {
+        "role": "assistant",
+        "content": None,
+        "audio": {
+            "id": "audio_1",
+            "data": "AAAA",
+            "transcript": "hi",
+            "expires_at": 1,
+        },
+    }
+    assert chat_has_message(_response(audio_message), ctx) == []
+    assert chat_has_audio(_response(audio_message), ctx) == []
+    assert any(
+        "audio is missing" in error
+        for error in chat_has_audio(
+            _response({"role": "assistant", "content": "hi"}), ctx
+        )
+    )
+    assert any(
+        "expires_at" in error
+        for error in chat_has_audio(
+            _response(
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "audio": audio_message["audio"] | {"expires_at": "1"},
+                }
+            ),
+            ctx,
+        )
+    )
+    audio_names = [
+        getattr(v, "__name__", "") for v in chat_tests["chat-audio-output"].validators
+    ]
+    assert "chat_has_audio" in audio_names, "chat-audio-output"
     assert chat_tests["chat-error-handling"].schema_name == "ErrorResponse"
     assert "chat-web-search" in chat_tests
     assert chat_tests["chat-web-search"].schema_name == "CreateChatCompletionResponse"

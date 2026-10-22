@@ -572,11 +572,26 @@ def main() -> int:
         )
         == []
     )
+    # Grounding chunks are the field real grounded responses usually carry,
+    # so each spelling needs a chunk-only positive.
+    for metadata in (
+        {"groundingChunks": [{"web": {"uri": "https://example.com"}}]},
+        {"grounding_chunks": [{"web": {"uri": "https://example.com"}}]},
+        {"retrievalMetadata": {"googleSearchDynamicRetrievalScore": 0.9}},
+        {"imageSearchQueries": ["cat"]},
+    ):
+        assert (
+            google_has_grounding_metadata(
+                {"candidates": [{"groundingMetadata": metadata}]}, ctx
+            )
+            == []
+        ), metadata
     for empty in (
         {"candidates": []},
         {"candidates": [{"groundingMetadata": {}}]},
         {"candidates": [{"groundingMetadata": {"webSearchQueries": []}}]},
         {"candidates": [{"groundingMetadata": {"unrelated": 1}}]},
+        {"candidates": [{"groundingMetadata": {"googleMapsWidgetContextToken": "x"}}]},
     ):
         assert google_has_grounding_metadata(empty, ctx) == [
             "groundingMetadata is missing or has no grounding fields"
@@ -585,6 +600,47 @@ def main() -> int:
     result_part = {"codeExecutionResult": {"outcome": "OUTCOME_OK", "output": "55"}}
     code_execution = {"candidates": [{"content": {"parts": [code_part, result_part]}}]}
     assert google_has_code_execution(code_execution, ctx) == []
+    # A model may retry after a failed run; the successful attempt counts.
+    retried = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        code_part,
+                        {"codeExecutionResult": {"outcome": "OUTCOME_FAILED"}},
+                        {"executableCode": {"language": "PYTHON", "code": "2"}},
+                        {
+                            "codeExecutionResult": {
+                                "outcome": "OUTCOME_DEADLINE_EXCEEDED"
+                            }
+                        },
+                        result_part,
+                    ]
+                }
+            }
+        ]
+    }
+    assert google_has_code_execution(retried, ctx) == []
+    all_failed = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        code_part,
+                        {"codeExecutionResult": {"outcome": "OUTCOME_FAILED"}},
+                        {
+                            "codeExecutionResult": {
+                                "outcome": "OUTCOME_DEADLINE_EXCEEDED"
+                            }
+                        },
+                    ]
+                }
+            }
+        ]
+    }
+    assert google_has_code_execution(all_failed, ctx) == [
+        "code execution did not succeed: OUTCOME_DEADLINE_EXCEEDED"
+    ]
     snake_code_execution = {
         "candidates": [
             {

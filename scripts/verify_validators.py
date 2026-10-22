@@ -1730,6 +1730,22 @@ def main() -> int:
     assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
         None, bad_start_index
     ) == ["tool_use content_block_start has no integer index"]
+    bool_start_index = ValidatorContext(
+        streaming=True,
+        sse_events=[
+            {
+                "type": "content_block_start",
+                "data": {
+                    "type": "content_block_start",
+                    "index": True,
+                    "content_block": {"type": "tool_use", "id": "toolu_1"},
+                },
+            }
+        ],
+    )
+    assert anth_streaming_has_tool_input_delta(_ANTH_TOOL_SCHEMA)(
+        None, bool_start_index
+    ) == ["tool_use content_block_start has no integer index"]
     bool_delta_index = ValidatorContext(
         streaming=True,
         sse_events=[

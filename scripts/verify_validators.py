@@ -1305,7 +1305,12 @@ def main() -> int:
     assert web_request["max_tokens"] == 1024
     assert web_request["messages"][0]["content"]
     assert web_request["tools"] == [
-        {"type": "web_search_20260318", "name": "web_search", "max_uses": 3}
+        {
+            "type": "web_search_20260318",
+            "name": "web_search",
+            "max_uses": 3,
+            "allowed_callers": ["direct"],
+        }
     ]
     code_execution = anth_tests["anth-code-execution"]
     assert code_execution.optional

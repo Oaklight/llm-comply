@@ -27,6 +27,7 @@ from llm_comply.validators import (
     anth_output_matches_json_schema,
     anth_stop_sequence,
     anth_streaming_content_block_bracketing,
+    anth_streaming_has_tool_input_delta,
     chat_has_message,
     chat_has_audio,
     chat_has_completion_token_details,
@@ -1440,6 +1441,114 @@ def main() -> int:
         "schema": _ANTH_JSON_SCHEMA,
     }
     assert structured_request["max_tokens"] == 1024
+    tool_stream_ctx = ValidatorContext(
+        streaming=True,
+        sse_events=[
+            {
+                "type": "content_block_start",
+                "data": {
+                    "type": "content_block_start",
+                    "index": 0,
+                    "content_block": {
+                        "type": "tool_use",
+                        "id": "toolu_1",
+                        "name": "get_weather",
+                        "input": {},
+                    },
+                },
+            },
+            {
+                "type": "content_block_delta",
+                "data": {
+                    "type": "content_block_delta",
+                    "index": 0,
+                    "delta": {
+                        "type": "input_json_delta",
+                        "partial_json": '{"location":',
+                    },
+                },
+            },
+            {
+                "type": "content_block_delta",
+                "data": {
+                    "type": "content_block_delta",
+                    "index": 0,
+                    "delta": {"type": "input_json_delta", "partial_json": '"SF"}'},
+                },
+            },
+        ],
+    )
+    assert anth_streaming_has_tool_input_delta(None, tool_stream_ctx) == []
+    assert anth_streaming_has_tool_input_delta(
+        None, ValidatorContext(streaming=True, sse_events=[])
+    ) == ["no SSE events to check"]
+    assert anth_streaming_has_tool_input_delta(
+        None,
+        ValidatorContext(
+            streaming=True,
+            sse_events=[
+                {
+                    "type": "content_block_delta",
+                    "data": {
+                        "type": "content_block_delta",
+                        "delta": {"type": "input_json_delta", "partial_json": "{}"},
+                    },
+                }
+            ],
+        ),
+    ) == ["no tool_use content_block_start event"]
+    assert anth_streaming_has_tool_input_delta(
+        None,
+        ValidatorContext(
+            streaming=True,
+            sse_events=[tool_stream_ctx.sse_events[0]],
+        ),
+    ) == ["no input_json_delta events"]
+    assert anth_streaming_has_tool_input_delta(
+        None,
+        ValidatorContext(
+            streaming=True,
+            sse_events=[
+                tool_stream_ctx.sse_events[0],
+                {
+                    "type": "content_block_delta",
+                    "data": {
+                        "type": "content_block_delta",
+                        "delta": {"type": "input_json_delta", "partial_json": "  "},
+                    },
+                },
+            ],
+        ),
+    ) == ["input_json_delta events carried no partial JSON"]
+    assert anth_streaming_has_tool_input_delta(
+        None,
+        ValidatorContext(
+            streaming=True,
+            sse_events=[
+                tool_stream_ctx.sse_events[0],
+                {
+                    "type": "content_block_delta",
+                    "data": {
+                        "type": "content_block_delta",
+                        "delta": {"type": "input_json_delta", "partial_json": "{"},
+                    },
+                },
+            ],
+        ),
+    ) == [
+        "tool input deltas do not form valid JSON: "
+        "Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+    ]
+    tool_stream = anth_tests["anth-streaming-tool-use"]
+    assert tool_stream.streaming
+    assert tool_stream.schema_name is None
+    assert "anth_streaming_has_tool_input_delta" in [
+        getattr(v, "__qualname__", "") for v in tool_stream.validators
+    ]
+    tool_stream_request = tool_stream.build_request(
+        ComplianceConfig(base_url="http://x", api_key="k", model="test")
+    )
+    assert tool_stream_request["tools"][0]["name"] == "get_weather"
     print("anthropic streaming: content blocks are correctly bracketed")
 
     def _delta_event(delta: Any) -> dict:

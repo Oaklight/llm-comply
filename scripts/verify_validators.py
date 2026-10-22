@@ -1022,6 +1022,7 @@ def main() -> int:
     assert code_execution.schema_name == "Message"
     ce_quals = [getattr(v, "__qualname__", "") for v in code_execution.validators]
     assert "anth_has_code_execution" in ce_quals, ce_quals
+    assert "anth_stop_reason('end_turn')" in ce_quals, ce_quals
     ce_use = {
         "type": "server_tool_use",
         "name": "code_execution",

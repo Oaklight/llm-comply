@@ -133,6 +133,7 @@ _WEATHER_OUTPUT_SCHEMA: dict[str, Any] = {
         "temperature_c": {"type": "number"},
     },
     "required": ["city", "temperature_c"],
+    "additionalProperties": False,
 }
 
 

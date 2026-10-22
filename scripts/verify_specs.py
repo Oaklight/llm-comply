@@ -61,6 +61,16 @@ def main() -> int:
         assert {"model", "input"} <= set(request), tc.id
         assert responses.validate(request, "CreateResponseBody") == [], tc.id
     assert len(covered) == 12, covered
+    # OpenAI echoes the requested JSON schema in the response, while the
+    # upstream response schema declares it null-only.
+    live_format = {
+        "type": "json_schema",
+        "name": "weather",
+        "description": None,
+        "strict": True,
+        "schema": {"type": "object", "additionalProperties": False},
+    }
+    assert responses.validate(live_format, "JsonSchemaResponseFormat") == []
 
     chat = SpecLoader(str(SPECS_DIR / "openai_chat.json"))
     assert len(chat.schema_names) > 2000, "bundled OpenAI Chat spec is stale"
@@ -69,6 +79,23 @@ def main() -> int:
     assert chat.validate("none", "ReasoningEffort") == []
     assert chat.validate("xhigh", "ReasoningEffort") == []
     assert chat.validate(CHAT_STREAM_CHUNK, "CreateChatCompletionStreamResponse") == []
+    # Live OpenAI responses omit logprobs and return system_fingerprint: null;
+    # both are relaxed at load time.
+    live_chat = {
+        "id": "chatcmpl-1",
+        "object": "chat.completion",
+        "created": 1,
+        "model": "m",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "hi"},
+                "finish_reason": "stop",
+            }
+        ],
+        "system_fingerprint": None,
+    }
+    assert chat.validate(live_chat, "CreateChatCompletionResponse") == []
     print(f"chat_completions: {len(chat.schema_names)} schemas")
 
     openai_responses = SpecLoader(str(SPECS_DIR / "openai_responses.json"))
@@ -150,6 +177,25 @@ def main() -> int:
     assert "Message" in messages.schema_names
     assert "diagnostics" in messages.get_schema("Message")["required"]
     assert "speed" in messages.get_schema("Usage")["required"]
+    # Live Messages API responses omit these fields even though the SDK spec
+    # marks them required; the load-time relaxation keeps them optional.
+    usage_required = messages.get_schema("Usage")["required"]
+    assert "output_tokens_details" not in usage_required
+    assert "server_tool_use" not in usage_required
+    assert "citations" not in messages.get_schema("ResponseTextBlock")["required"]
+    assert "caller" not in messages.get_schema("ResponseServerToolUseBlock")["required"]
+    live_usage = {
+        "cache_creation": None,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "inference_geo": None,
+        "input_tokens": 10,
+        "output_tokens": 3,
+        "service_tier": "standard",
+        "speed": "standard",
+    }
+    assert messages.validate(live_usage, "Usage") == []
+    assert messages.validate({"type": "text", "text": "hi"}, "ResponseTextBlock") == []
     print(f"messages: {len(messages.schema_names)} schemas")
 
     # The tool tests must build requests the API accepts: a 400 caused by a

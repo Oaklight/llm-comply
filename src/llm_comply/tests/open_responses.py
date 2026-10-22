@@ -249,7 +249,8 @@ def _build_file_input_request(cfg: ComplianceConfig) -> dict[str, Any]:
                     {
                         "type": "input_file",
                         "filename": "answer.txt",
-                        "file_data": _FILE_CONTENT_B64,
+                        # OpenAI requires a data URL here, not raw base64.
+                        "file_data": f"data:text/plain;base64,{_FILE_CONTENT_B64}",
                     },
                 ],
             },

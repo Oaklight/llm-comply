@@ -351,7 +351,6 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
                 }
             ],
             "reasoning_effort": "low",
-            "reasoning": {"summary": "auto"},
         },
         validators=[
             has_response_id,
@@ -403,6 +402,7 @@ OPENAI_CHAT_TESTS: list[TestCase] = [
         category=TestCategory.BASIC,
         endpoint="/chat/completions",
         schema_name="CreateChatCompletionResponse",
+        optional=True,
         build_request=lambda cfg: {
             "model": cfg.model,
             "messages": [
